@@ -1,0 +1,50 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: qwen
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    gpus: all
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+
+  flask:
+    build: ./backend-flask
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+      - ollama
+
+  node:
+    build: ./backend-node
+    ports:
+      - "3001:3001"
+    depends_on:
+      - flask
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - node
+
+volumes:
+  pgdata:
+  ollama_data:
