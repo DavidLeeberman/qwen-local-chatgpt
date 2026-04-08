@@ -9,15 +9,15 @@ sudo apt install -y nvidia-container-toolkit
 sudo systemctl restart docker
 
 # 3. start services
-docker compose up -d --build
+sudo docker compose up -d --build
 
 # rebuild
-# docker compose build --no-cache
-# docker compose up -d
+# sudo docker compose build --no-cache
+# sudo docker compose up -d
 
 # 4. pull model
 sleep 10
-CONTAINER=$(docker ps | grep ollama | awk '{print $1}')
-docker exec -it $CONTAINER ollama pull qwen:9b
+CONTAINER=$(sudo docker ps | grep ollama | awk '{print $1}')
+sudo docker exec -it $CONTAINER ollama pull qwen3.5:9b
 
 # done
