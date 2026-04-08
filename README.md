@@ -1,1 +1,1 @@
-# Qwen3.5-9B Implemented Local ChatGPT-class System
+# Qwen3.5-9B + Ollama Implemented Local ChatGPT-class System
