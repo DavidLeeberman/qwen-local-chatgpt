@@ -12,9 +12,12 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
 
   ollama:
     image: ollama/ollama
+    # command: >
+    #   sh -c "ollama serve & sleep 5 && ollama pull qwen3.5:9b && wait"
     ports:
       - "11434:11434"
     volumes:
@@ -22,24 +25,36 @@ services:
     gpus: all
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
+    restart: unless-stopped
 
   flask:
     build: ./backend-flask
+    volumes:
+      - ./backend-flask:/app
     ports:
       - "5000:5000"
     depends_on:
       - postgres
       - ollama
+    environment:
+      - http_proxy=http://192.168.0.107:9910
+      - https_proxy=http://192.168.0.107:9910
 
   node:
     build: ./backend-node
+    volumes:
+      - ./backend-node:/app
+      - /app/node_modules
     ports:
-      - "3001:3001"
+      - "8000:8000"
     depends_on:
       - flask
 
   frontend:
     build: ./frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     ports:
       - "3000:3000"
     depends_on:

@@ -14,4 +14,4 @@ app.post('/api/*', async (req,res)=>{
   res.json(r.data)
 })
 
-app.listen(3001)
+app.listen(8000)

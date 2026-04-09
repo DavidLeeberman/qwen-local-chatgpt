@@ -10,7 +10,7 @@ export default function App(){
   if(!token) return <Login setToken={setToken}/>
 
   const send=async()=>{
-    const r=await axios.post('http://localhost:3001/api/chat',
+    const r=await axios.post('http://localhost:8000/api/chat',
       {message:msg},
       {headers:{Authorization:token}}
     )

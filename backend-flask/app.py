@@ -60,4 +60,22 @@ Recent:
 {''.join(history[uid][-6:])}
 
 User: {msg}
+Assistant:
+"""
+
+    r = requests.post(OLLAMA, json={
+        "model": "qwen:9b",
+        "prompt": prompt,
+        "stream": False
+    })
+
+    ans = r.json()['response']
+
+    history[uid].append(f"User:{msg}\n")
+    history[uid].append(f"Assistant:{ans}\n")
+
+    store(uid, msg)
+
+    return jsonify({"response": ans})
+
 app.run(host="0.0.0.0", port=5000)

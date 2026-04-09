@@ -6,7 +6,7 @@ export default function Login({setToken}){
   const[p,setP]=useState('')
 
   const login=async()=>{
-    const r=await axios.post('http://localhost:3001/api/login',{username:u,password:p})
+    const r=await axios.post('http://localhost:8000/api/login',{username:u,password:p})
     setToken(r.data.token)
   }
 
