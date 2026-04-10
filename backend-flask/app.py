@@ -64,7 +64,7 @@ Assistant:
 """
 
     r = requests.post(OLLAMA, json={
-        "model": "qwen:9b",
+        "model": "qwen3.5:9b",
         "prompt": prompt,
         "stream": False
     })

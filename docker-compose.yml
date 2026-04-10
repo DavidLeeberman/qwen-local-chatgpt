@@ -39,6 +39,9 @@ services:
     environment:
       - http_proxy=http://192.168.0.107:9910
       - https_proxy=http://192.168.0.107:9910
+      - HTTP_PROXY=http://192.168.0.107:9910
+      - HTTPS_PROXY=http://192.168.0.107:9910
+      - HF_ENDPOINT=https://hf-mirror.com
 
   node:
     build: ./backend-node
