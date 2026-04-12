@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-import psycopg2, requests
+import psycopg2, requests, hashlib
 from auth import generate_token, verify_token
 from memory import store, retrieve
 
@@ -16,36 +16,73 @@ OLLAMA = "http://ollama:11434/api/generate"
 
 history = {}
 
+def hash_password(pw):
+    return hashlib.sha256(pw.encode()).hexdigest()
+
+
 @app.route('/register', methods=['POST'])
 def register():
-    d = request.json
+    d = request.get_json()
+
+    if not d or 'username' not in d or 'password' not in d:
+        return jsonify({"error": "invalid request"}), 400
+
+    username = d['username']
+    password = hash_password(d['password'])
+
     cur = conn.cursor()
-    cur.execute("INSERT INTO users (username,password) VALUES (%s,%s) RETURNING id",
-                (d['username'], d['password']))
-    uid = cur.fetchone()[0]
-    conn.commit()
+
+    try:
+        cur.execute(
+            "INSERT INTO users (username,password) VALUES (%s,%s) RETURNING id",
+            (username, password)
+        )
+        uid = cur.fetchone()[0]
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        return jsonify({"error": "user exists"}), 400
+
     return jsonify({"token": generate_token(uid)})
+
 
 @app.route('/login', methods=['POST'])
 def login():
-    d = request.json
+    d = request.get_json()
+
+    if not d or 'username' not in d or 'password' not in d:
+        return jsonify({"error": "invalid request"}), 400
+
+    username = d['username']
+    password = hash_password(d['password'])
+
     cur = conn.cursor()
-    cur.execute("SELECT id FROM users WHERE username=%s AND password=%s",
-                (d['username'], d['password']))
+    cur.execute(
+        "SELECT id FROM users WHERE username=%s AND password=%s",
+        (username, password)
+    )
     u = cur.fetchone()
+
     if not u:
-        return jsonify({"error":"invalid"}),401
+        return jsonify({"error": "invalid credentials"}), 401
+
     return jsonify({"token": generate_token(u[0])})
+
 
 @app.route('/chat', methods=['POST'])
 def chat():
     token = request.headers.get("Authorization")
     user = verify_token(token)
+
     if not user:
-        return jsonify({"error":"unauthorized"}),401
+        return jsonify({"error": "unauthorized"}), 401
+
+    d = request.get_json()
+    if not d or 'message' not in d:
+        return jsonify({"error": "invalid request"}), 400
 
     uid = user['user_id']
-    msg = request.json['message']
+    msg = d['message']
 
     if uid not in history:
         history[uid] = []
@@ -63,13 +100,17 @@ User: {msg}
 Assistant:
 """
 
-    r = requests.post(OLLAMA, json={
-        "model": "qwen3.5:9b",
-        "prompt": prompt,
-        "stream": False
-    })
+    try:
+        r = requests.post(OLLAMA, json={
+            "model": "qwen3.5:9b",   # ✅ FIXED MODEL NAME
+            "prompt": prompt,
+            "stream": False
+        }, timeout=120)
 
-    ans = r.json()['response']
+        ans = r.json().get('response', 'No response')
+
+    except Exception as e:
+        return jsonify({"error": f"LLM error: {str(e)}"}), 500
 
     history[uid].append(f"User:{msg}\n")
     history[uid].append(f"Assistant:{ans}\n")
@@ -77,5 +118,6 @@ Assistant:
     store(uid, msg)
 
     return jsonify({"response": ans})
+
 
 app.run(host="0.0.0.0", port=5000)
