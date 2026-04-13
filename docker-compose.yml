@@ -37,11 +37,13 @@ services:
       - postgres
       - ollama
     environment:
-      - http_proxy=http://192.168.0.107:9910
-      - https_proxy=http://192.168.0.107:9910
-      - HTTP_PROXY=http://192.168.0.107:9910
-      - HTTPS_PROXY=http://192.168.0.107:9910
+      # - http_proxy=http://192.168.0.107:9910
+      # - https_proxy=http://192.168.0.107:9910
+      # - HTTP_PROXY=http://192.168.0.107:9910
+      # - HTTPS_PROXY=http://192.168.0.107:9910
+      # - NO_PROXY=localhost,127.0.0.1,ollama,postgres,flask,node
       - HF_ENDPOINT=https://hf-mirror.com
+      - JWT_SECRET=super-secret-key-change-this-to-very-long-random-string-123456
 
   node:
     build: ./backend-node

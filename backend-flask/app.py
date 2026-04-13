@@ -71,25 +71,28 @@ def login():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    token = request.headers.get("Authorization")
-    user = verify_token(token)
+    try:
+        print("=== /chat called ===")
 
-    if not user:
-        return jsonify({"error": "unauthorized"}), 401
+        token = request.headers.get("Authorization")
+        print("TOKEN:", token)
 
-    d = request.get_json()
-    if not d or 'message' not in d:
-        return jsonify({"error": "invalid request"}), 400
+        user = verify_token(token)
+        print("USER:", user)
 
-    uid = user['user_id']
-    msg = d['message']
+        if not user:
+            return jsonify({"error":"unauthorized"}),401
 
-    if uid not in history:
-        history[uid] = []
+        uid = user['user_id']
+        msg = request.json.get('message')
+        print("MSG:", msg)
 
-    memory = retrieve(uid, msg)
+        if uid not in history:
+            history[uid] = []
 
-    prompt = f"""
+        memory = ""
+
+        prompt = f"""
 User memory:
 {memory}
 
@@ -100,24 +103,30 @@ User: {msg}
 Assistant:
 """
 
-    try:
-        r = requests.post(OLLAMA, json={
-            "model": "qwen3.5:9b",   # ✅ FIXED MODEL NAME
+        print("PROMPT OK")
+
+        r = requests.post("http://ollama:11434/api/generate", json={
+            "model": "qwen3.5:9b",
             "prompt": prompt,
             "stream": False
-        }, timeout=120)
+        })
 
-        ans = r.json().get('response', 'No response')
+        print("OLLAMA STATUS:", r.status_code)
+
+        data = r.json()
+        print("OLLAMA DATA:", data)
+
+        ans = data.get("response", "NO RESPONSE")
+
+        history[uid].append(f"User:{msg}\n")
+        history[uid].append(f"Assistant:{ans}\n")
+
+        return jsonify({"response": ans})
 
     except Exception as e:
-        return jsonify({"error": f"LLM error: {str(e)}"}), 500
-
-    history[uid].append(f"User:{msg}\n")
-    history[uid].append(f"Assistant:{ans}\n")
-
-    store(uid, msg)
-
-    return jsonify({"response": ans})
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 
-app.run(host="0.0.0.0", port=5000)
+app.run(host="0.0.0.0", port=5000, debug=True)

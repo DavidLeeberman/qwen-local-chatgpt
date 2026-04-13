@@ -1,6 +1,7 @@
 import jwt, datetime
+import os
 
-SECRET = "super-secret-key-change-this-to-very-long-random-string-123456"
+SECRET = os.getenv("JWT_SECRET", "fallback-secret")
 
 def generate_token(user_id):
     return jwt.encode({
@@ -12,5 +13,6 @@ def generate_token(user_id):
 def verify_token(token):
     try:
         return jwt.decode(token, SECRET, algorithms=["HS256"])
-    except:
-        return None
+    except Exception as e:
+        print("JWT ERROR:", str(e))   # 👈 ADD THIS
+        return {"error": str(e)}
