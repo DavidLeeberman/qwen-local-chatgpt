@@ -1,1 +1,118 @@
 # Qwen3.5-9B + Ollama Implemented Local ChatGPT-class System
+
+## Request flow
+
+1. Receive input
+2. Query vector DB → relevant past conversations
+3. Query PostgreSQL → known facts
+4. Build prompt:
+   - system instructions
+   - user facts
+   - relevant memory
+   - recent chat
+5. Send to Qwen (Ollama)
+6. Return response
+7. Store new memory
+
+## High-level architecture
+
+React UI
+   ↓
+Node.js API (gateway)
+   ↓
+Flask AI service
+   ↓
+ ┌───────────────┐
+ │ Memory Layer  │
+ │               │
+ │ Vector DB     │ (Chroma / FAISS)
+ │ + PostgreSQL  │ (structured data)
+ └───────────────┘
+   ↓
+Ollama (Qwen model)
+
+## Project Directory Structure
+
+qwen-local-chatgpt/
+│
+├── docker-compose.yml
+├── .env
+├── setup.sh
+│
+├── backend-flask/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── app.py
+│   ├── auth.py
+│   └── memory.py
+│
+├── backend-node/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── server.js
+│
+├── frontend/
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── vite.config.js
+│   └── src/
+│       ├── main.jsx
+│       ├── App.jsx
+│       ├── Login.jsx
+│       └── MemoryPanel.jsx
+│
+├── db/
+│   └── init.sql
+│
+└── memory/
+    └── chroma/
+
+## Next upgrade
+
+👉 “go production-grade”
+👉 “add agents + tools”
+
+👉 streaming responses (like ChatGPT typing)
+👉 tool calling (browser, DB, APIs)
+👉 agent workflows
+👉 long-context RAG (documents, PDFs, codebase)
+👉 a full agent system (tools + memory + reasoning)
+
+1. Production security
+bcrypt password hashing
+refresh tokens
+HTTPS
+2. Memory intelligence (biggest impact)
+LLM-based fact extraction
+memory ranking / decay
+editable memory UI
+3. Performance (your 5090 deserves it)
+switch from Ollama → vLLM
+batching + streaming tokens (ChatGPT-style typing)
+4. Real ChatGPT UX
+conversation threads
+sidebar history
+system prompts per chat
+5. Upgrade UI memory panel
+editable memory
+delete entries
+“what AI knows about you”
+
+👉 vllm, production grade, ChatGPT-like UI and typing
+
+👉 switch from Ollama → vLLM to fully utilize the 5090 (much faster, better batching, closer to production systems)
+
+🔄 streaming responses (ChatGPT-like typing)
+🧠 persistent chat history in DB
+⚡ async queue for LLM calls
+🐳 healthcheck + wait-for-it (no startup race conditions)
+🔐 refresh tokens (real auth system)
+
+👉 upgrade this to a full vector database system (FAISS / Chroma)
+
+👉 precomputed embeddings
+
+👉 streaming chat (token-by-token like ChatGPT)
+
+👉 Make memory work properly + offline + fast (no HF issues)
+👉 Or optimize your chat latency (right now it's quite slow)
