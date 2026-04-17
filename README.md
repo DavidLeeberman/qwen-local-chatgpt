@@ -15,7 +15,7 @@
 7. Store new memory
 
 ## High-level architecture
-
+```
 React UI
    ↓
 Node.js API (gateway)
@@ -30,9 +30,9 @@ Flask AI service
  └───────────────┘
    ↓
 Ollama (Qwen model)
-
+```
 ## Project Directory Structure
-
+```
 qwen-local-chatgpt/
 │
 ├── docker-compose.yml
@@ -66,17 +66,17 @@ qwen-local-chatgpt/
 │
 └── memory/
     └── chroma/
-
+```
 ## Next upgrade
 
-👉 “go production-grade”
-👉 “add agents + tools”
+👉 “go production-grade” <br>
+👉 “add agents + tools” <br>
 
-👉 streaming responses (like ChatGPT typing)
-👉 tool calling (browser, DB, APIs)
-👉 agent workflows
-👉 long-context RAG (documents, PDFs, codebase)
-👉 a full agent system (tools + memory + reasoning)
+👉 streaming responses (like ChatGPT typing) <br>
+👉 tool calling (browser, DB, APIs) <br>
+👉 agent workflows <br>
+👉 long-context RAG (documents, PDFs, codebase) <br>
+👉 a full agent system (tools + memory + reasoning) <br>
 
 1. Production security
    - bcrypt password hashing
@@ -98,21 +98,17 @@ qwen-local-chatgpt/
    - delete entries
    - "what AI knows about you"
 
-👉 vllm, production grade, ChatGPT-like UI and typing
+👉 vllm, production grade, ChatGPT-like UI and typing <br>
+👉 switch from Ollama → vLLM to fully utilize the 5090 (much faster, better batching, closer to production systems) <br>
 
-👉 switch from Ollama → vLLM to fully utilize the 5090 (much faster, better batching, closer to production systems)
+🔄 streaming responses (ChatGPT-like typing) <br>
+🧠 persistent chat history in DB <br>
+⚡ async queue for LLM calls <br>
+🐳 healthcheck + wait-for-it (no startup race conditions) <br>
+🔐 refresh tokens (real auth system) <br>
 
-🔄 streaming responses (ChatGPT-like typing)
-🧠 persistent chat history in DB
-⚡ async queue for LLM calls
-🐳 healthcheck + wait-for-it (no startup race conditions)
-🔐 refresh tokens (real auth system)
-
-👉 upgrade this to a full vector database system (FAISS / Chroma)
-
-👉 precomputed embeddings
-
-👉 streaming chat (token-by-token like ChatGPT)
-
-👉 Make memory work properly + offline + fast (no HF issues)
-👉 Or optimize your chat latency (right now it's quite slow)
+👉 upgrade this to a full vector database system (FAISS / Chroma) <br>
+👉 precomputed embeddings <br>
+👉 streaming chat (token-by-token like ChatGPT) <br>
+👉 Make memory work properly + offline + fast (no HF issues) <br>
+👉 Or optimize your chat latency (right now it's quite slow) <br>
