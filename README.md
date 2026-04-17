@@ -79,24 +79,24 @@ qwen-local-chatgpt/
 👉 a full agent system (tools + memory + reasoning)
 
 1. Production security
-bcrypt password hashing
-refresh tokens
-HTTPS
+   - bcrypt password hashing
+   - refresh tokens
+   - HTTPS
 2. Memory intelligence (biggest impact)
-LLM-based fact extraction
-memory ranking / decay
-editable memory UI
+   - LLM-based fact extraction
+   - memory ranking / decay
+   - editable memory UI
 3. Performance (your 5090 deserves it)
-switch from Ollama → vLLM
-batching + streaming tokens (ChatGPT-style typing)
+   - switch from Ollama → vLLM
+   - batching + streaming tokens (ChatGPT-style typing)
 4. Real ChatGPT UX
-conversation threads
-sidebar history
-system prompts per chat
+   - conversation threads
+   - sidebar history
+   - system prompts per chat
 5. Upgrade UI memory panel
-editable memory
-delete entries
-“what AI knows about you”
+   - editable memory
+   - delete entries
+   - "what AI knows about you"
 
 👉 vllm, production grade, ChatGPT-like UI and typing
 
