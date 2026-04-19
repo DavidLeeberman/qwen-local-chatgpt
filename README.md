@@ -67,48 +67,165 @@ qwen-local-chatgpt/
 └── memory/
     └── chroma/
 ```
-## Next upgrade
+## Next Upgrades
 
-👉 “go production-grade” <br>
-👉 “add agents + tools” <br>
+### A Clean Progression from Easy → Hard and Highest Impact First
 
-👉 streaming responses (like ChatGPT typing) <br>
-👉 tool calling (browser, DB, APIs) <br>
-👉 agent workflows <br>
-👉 long-context RAG (documents, PDFs, codebase) <br>
-👉 a full agent system (tools + memory + reasoning) <br>
+🧭 Phase 1 — Stability & Core UX (do these first)
 
-1. Production security
-   - bcrypt password hashing
-   - refresh tokens
-   - HTTPS
-2. Memory intelligence (biggest impact)
-   - LLM-based fact extraction
-   - memory ranking / decay
-   - editable memory UI
-3. Performance (your 5090 deserves it)
-   - switch from Ollama → vLLM
-   - batching + streaming tokens (ChatGPT-style typing)
-4. Real ChatGPT UX
-   - conversation threads
-   - sidebar history
-   - system prompts per chat
-5. Upgrade UI memory panel
-   - editable memory
-   - delete entries
-   - "what AI knows about you"
+These give you immediate “feels like ChatGPT” improvements with low risk.
 
-👉 vllm, production grade, ChatGPT-like UI and typing <br>
-👉 switch from Ollama → vLLM to fully utilize the 5090 (much faster, better batching, closer to production systems) <br>
+1️⃣ Persistent chat history (DB-backed)
 
-🔄 streaming responses (ChatGPT-like typing) <br>
-🧠 persistent chat history in DB <br>
-⚡ async queue for LLM calls <br>
-🐳 healthcheck + wait-for-it (no startup race conditions) <br>
-🔐 refresh tokens (real auth system) <br>
+⭐ highest ROI, very easy
 
-👉 upgrade this to a full vector database system (FAISS / Chroma) <br>
-👉 precomputed embeddings <br>
-👉 streaming chat (token-by-token like ChatGPT) <br>
-👉 Make memory work properly + offline + fast (no HF issues) <br>
-👉 Or optimize your chat latency (right now it's quite slow) <br>
+Store messages in PostgreSQL
+Load last N messages into prompt
+Enables:
+refresh without losing chat
+future memory / RAG
+2️⃣ Conversation threads + sidebar
+
+turns your app into real ChatGPT UX
+
+conversations table
+messages linked to conversation_id
+frontend:
+left sidebar
+switch chats
+3️⃣ Streaming responses (ChatGPT typing effect)
+
+huge UX upgrade, medium difficulty
+
+Flask → stream tokens (or chunked responses)
+Node → proxy stream
+React → render incrementally
+4️⃣ System prompts per chat
+
+small change, big flexibility
+
+each conversation has:
+system_prompt column
+enables:
+“You are a coding assistant”
+“You are a trader”
+
+⚙️ Phase 2 — Performance & Architecture
+
+Now you make it fast and scalable.
+
+5️⃣ Switch Ollama → vLLM
+
+⭐ biggest performance gain
+
+fully utilize your 5090
+benefits:
+batching
+lower latency
+higher throughput
+6️⃣ Async LLM request queue
+
+prevents blocking & crashes
+
+use:
+Celery / Redis OR simple queue
+allows:
+multiple users
+long prompts safely
+7️⃣ Healthchecks + startup ordering
+
+solves all container race issues permanently
+
+add:
+healthcheck in docker-compose
+wait-for-it or depends_on with condition
+
+🧠 Phase 3 — Memory System (do AFTER stable)
+
+Now revisit what broke earlier — but properly.
+
+8️⃣ Basic memory (non-embedding)
+
+safe re-entry point
+
+store:
+key facts (manual or rule-based)
+inject into prompt
+9️⃣ Vector DB (FAISS / Chroma)
+
+real semantic memory
+
+store embeddings
+retrieve relevant past info
+🔟 Memory intelligence (advanced)
+
+this is where it becomes “smart”
+
+LLM extracts facts:
+“user likes X”
+add:
+ranking
+decay
+pruning
+1️⃣1️⃣ Editable memory UI
+
+very high UX value
+
+show:
+“what AI knows about you”
+allow:
+delete / edit
+
+🧰 Phase 4 — Agents & Tools
+
+Now you go beyond ChatGPT.
+
+1️⃣2️⃣ Tool calling (APIs, DB, browser)
+function calling style
+examples:
+query DB
+fetch URL
+1️⃣3️⃣ Agent workflows
+multi-step reasoning
+planner → executor pattern
+1️⃣4️⃣ Full agent system
+tools + memory + reasoning combined
+
+🔐 Phase 5 — Production Security
+
+Don’t do this too early, but don’t skip it.
+
+1️⃣5️⃣ Password hashing (bcrypt)
+1️⃣6️⃣ Refresh tokens (real auth system)
+1️⃣7️⃣ HTTPS (reverse proxy, nginx)
+🎨 Phase 6 — Advanced UX polish
+1️⃣8️⃣ Memory panel upgrade
+editable
+categorized
+1️⃣9️⃣ Better ChatGPT-like UI
+typing cursor
+loading states
+error recovery
+
+### Final Simplified Optimal Roadmap
+
+1. Chat history (DB)
+2. Conversation threads
+3. Streaming responses
+4. System prompts
+
+5. vLLM (performance)
+6. Async queue
+7. Healthchecks
+
+8. Basic memory
+9. Vector DB
+10. Memory intelligence
+11. Memory UI
+
+12. Tools
+13. Agents
+
+14. Security (bcrypt, tokens, HTTPS)
+
+15. UX polish
