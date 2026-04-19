@@ -1,4 +1,6 @@
-# Qwen3.5-9B + Ollama Implemented Local ChatGPT-class System
+# Local ChatGPT-class System v0.1
+
+Qwen3.5-9B + Ollama
 
 ## Request flow
 
