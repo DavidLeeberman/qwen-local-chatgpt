@@ -1,7 +1,9 @@
-# Local ChatGPT-class System v0.1
-
-Qwen3.5-9B + Ollama
-
+# Local ChatGPT-class System
+```
+Version    : 0.1
+Model      : Qwen3.5-9B + Ollama
+Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
+```
 ## Request flow
 
 1. Receive input
