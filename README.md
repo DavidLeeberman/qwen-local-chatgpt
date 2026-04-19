@@ -214,24 +214,30 @@ Don’t do this too early, but don’t skip it.
    - error recovery
 
 ## Final Simplified Optimal Roadmap
-
+```
 1. Chat history (DB)
 2. Conversation threads
 3. Streaming responses
 4. System prompts
-
+```
+```
 5. vLLM (performance)
 6. Async queue
 7. Healthchecks
-
+```
+```
 8. Basic memory
 9. Vector DB
 10. Memory intelligence
 11. Memory UI
-
+```
+```
 12. Tools
 13. Agents
-
+```
+```
 14. Security (bcrypt, tokens, HTTPS)
-
+```
+```
 15. UX polish
+```
