@@ -22,9 +22,19 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    gpus: all
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
+    # gpus: all
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        limits:
+          memory: 20gb        # The "Hard Limit" - Docker will kill the container if it exceeds this
+        reservations:
+          memory: 8gb         # The "Soft Limit" - Docker tries to guarantee at least this much
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]    
     restart: unless-stopped
 
   flask:
