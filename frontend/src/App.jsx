@@ -18,7 +18,9 @@ export default function App() {
 
     try {
       const r = await axios.post(
-        'http://localhost:8000/api/chat',
+        // 'http://localhost:8000/api/chat',
+        // Vite replaces this during build/dev with the value from .env
+        `${import.meta.env.VITE_API_URL}/api/chat`,
         { message: msg },
         { headers: { Authorization: token } }
       )

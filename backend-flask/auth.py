@@ -1,7 +1,7 @@
 import jwt, datetime
 import os
 
-SECRET = os.getenv("JWT_SECRET", "fallback-secret")
+SECRET = os.getenv("JWT_SECRET", "fallback-very-long-random-string-123456")
 
 def generate_token(user_id):
     return jwt.encode({

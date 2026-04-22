@@ -8,7 +8,7 @@ export default function Login({ setToken }) {
 
   const login = async () => {
     try {
-      const r = await axios.post('http://localhost:8000/api/login', {
+      const r = await axios.post(`${import.meta.env.VITE_API_URL}/api/login`, {
         username: u,
         password: p
       })

@@ -1,6 +1,10 @@
 # Use Node 18 for building the React app
 FROM node:18
 
+# Set build-time variable
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
 # Set the working directory
 WORKDIR /app
 

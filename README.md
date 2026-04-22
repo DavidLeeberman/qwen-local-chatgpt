@@ -4,10 +4,9 @@ Version    : 0.2
 Model      : Qwen3.5-9B + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
 ```
-```
 Updates:
-Set maximum VRAM for a single model
-```
+- Assigned ports in .env
+- Set maximum VRAM for a single model
 ```
 Version    : 0.1
 Model      : Qwen3.5-9B + Ollama
