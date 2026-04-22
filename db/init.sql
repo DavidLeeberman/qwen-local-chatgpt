@@ -10,3 +10,11 @@ CREATE TABLE memory (
   content TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS messages (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER,
+    role TEXT,              -- 'user' or 'assistant'
+    content TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

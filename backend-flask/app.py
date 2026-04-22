@@ -71,62 +71,70 @@ def login():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    try:
-        print("=== /chat called ===")
+    token = request.headers.get("Authorization")
+    user = verify_token(token)
+    if not user:
+        return jsonify({"error": "unauthorized"}), 401
 
-        token = request.headers.get("Authorization")
-        print("TOKEN:", token)
+    uid = user['user_id']
+    msg = request.json.get('message', '')
 
-        user = verify_token(token)
-        print("USER:", user)
+    cur = conn.cursor()
 
-        if not user:
-            return jsonify({"error":"unauthorized"}),401
+    # 1️⃣ store user message
+    cur.execute(
+        "INSERT INTO messages (user_id, role, content) VALUES (%s, %s, %s)",
+        (uid, "user", msg)
+    )
+    conn.commit()
 
-        uid = user['user_id']
-        msg = request.json.get('message')
-        print("MSG:", msg)
+    # 2️⃣ fetch last N messages
+    cur.execute("""
+        SELECT role, content FROM messages
+        WHERE user_id=%s
+        ORDER BY id DESC
+        LIMIT 10
+    """, (uid,))
+    
+    rows = cur.fetchall()
+    rows.reverse()
 
-        if uid not in history:
-            history[uid] = []
+    # 3️⃣ build prompt
+    history_text = ""
+    for role, content in rows:
+        if role == "user":
+            history_text += f"User: {content}\n"
+        else:
+            history_text += f"Assistant: {content}\n"
 
-        memory = ""
-
-        prompt = f"""
-User memory:
-{memory}
-
-Recent:
-{''.join(history[uid][-6:])}
-
-User: {msg}
+    prompt = f"""
+{history_text}
 Assistant:
 """
 
-        print("PROMPT OK")
-
-        r = requests.post("http://ollama:11434/api/generate", json={
+    # 4️⃣ call Ollama
+    try:
+        r = requests.post(OLLAMA, json={
             "model": "qwen3.5:9b",
             "prompt": prompt,
             "stream": False
         })
 
-        print("OLLAMA STATUS:", r.status_code)
-
         data = r.json()
-        print("OLLAMA DATA:", data)
-
-        ans = data.get("response", "NO RESPONSE")
-
-        history[uid].append(f"User:{msg}\n")
-        history[uid].append(f"Assistant:{ans}\n")
-
-        return jsonify({"response": ans})
+        ans = data.get("response", "")
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        print("OLLAMA ERROR:", e)
+        return jsonify({"error": "llm_failed"}), 500
+
+    # 5️⃣ store assistant response
+    cur.execute(
+        "INSERT INTO messages (user_id, role, content) VALUES (%s, %s, %s)",
+        (uid, "assistant", ans)
+    )
+    conn.commit()
+
+    return jsonify({"response": ans})
 
 
 app.run(host="0.0.0.0", port=5000, debug=True)
