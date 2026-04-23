@@ -5,6 +5,7 @@ Model      : Qwen3.5-9B + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
 ```
 Updates:
+- Implement multiple chats with sidebar switching and persistent per-chat history
 - Load history automatically into each request 
 - Persist chat messages in PostgreSQL
 - Assign ports in .env
