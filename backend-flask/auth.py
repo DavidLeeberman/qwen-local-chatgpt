@@ -6,7 +6,7 @@ SECRET = os.getenv("JWT_SECRET", "fallback-very-long-random-string-123456")
 def generate_token(user_id):
     return jwt.encode({
         "user_id": user_id,
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)
+        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)
     }, SECRET, algorithm="HS256")
 
 

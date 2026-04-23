@@ -6,19 +6,22 @@ const app=express()
 app.use(cors())
 app.use(express.json())
 
-app.post('/api/*', async (req, res) => {
+app.use('/api', async (req, res) => {
   try {
-    const path = req.path.replace('/api', '')
+    const path = req.originalUrl.replace('/api', '')
 
-    const r = await axios.post(
-      `http://flask:5000${path}`,
-      req.body,
-      {
-        headers: { Authorization: req.headers.authorization }
-      }
-    )
+    const r = await axios({
+      method: req.method,              // ✅ supports GET, POST, etc.
+      url: `http://flask:5000${path}`,
+      headers: {
+        Authorization: req.headers.authorization || '',
+        'Content-Type': 'application/json'
+      },
+      data: req.method !== 'GET' ? req.body : undefined,
+      params: req.method === 'GET' ? req.query : undefined
+    })
 
-    res.json(r.data)
+    res.status(r.status).json(r.data)
 
   } catch (err) {
     console.error('API ERROR:', err.message)
