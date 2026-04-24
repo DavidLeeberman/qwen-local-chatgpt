@@ -44,7 +44,7 @@ export default function App() {
   const loadMessages = (id) => {
     setCid(id)
 
-    axios.get(`${API}/api/messages/${id}`, {
+    axios.get(`${API}/api/conversations/${id}/messages`, {
       headers: { Authorization: token }
     })
     .then(r => {

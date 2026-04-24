@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 import psycopg2, requests, hashlib
 from auth import generate_token, verify_token
-from memory import store, retrieve
 
 app = Flask(__name__)
 
@@ -14,11 +13,12 @@ conn = psycopg2.connect(
 
 OLLAMA = "http://ollama:11434/api/generate"
 
-history = {}
-
 def hash_password(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
-
+    
+# ========================
+# AUTH
+# ========================
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -27,15 +27,12 @@ def register():
     if not d or 'username' not in d or 'password' not in d:
         return jsonify({"error": "invalid request"}), 400
 
-    username = d['username']
-    password = hash_password(d['password'])
-
     cur = conn.cursor()
 
     try:
         cur.execute(
             "INSERT INTO users (username,password) VALUES (%s,%s) RETURNING id",
-            (username, password)
+            (d['username'], hash_password(d['password']))
         )
         uid = cur.fetchone()[0]
         conn.commit()
@@ -53,13 +50,10 @@ def login():
     if not d or 'username' not in d or 'password' not in d:
         return jsonify({"error": "invalid request"}), 400
 
-    username = d['username']
-    password = hash_password(d['password'])
-
     cur = conn.cursor()
     cur.execute(
         "SELECT id FROM users WHERE username=%s AND password=%s",
-        (username, password)
+        (d['username'], hash_password(d['password']))
     )
     u = cur.fetchone()
 
@@ -68,20 +62,22 @@ def login():
 
     return jsonify({"token": generate_token(u[0])})
 
+# ========================
+# CONVERSATIONS
+# ========================
+
 @app.route('/conversations', methods=['POST'])
 def create_conversation():
-    token = request.headers.get("Authorization")
-    user = verify_token(token)
+    user = verify_token(request.headers.get("Authorization"))
 
     if not user or 'user_id' not in user:
         return jsonify({"error": "unauthorized"}), 401
 
-    uid = user['user_id']
     cur = conn.cursor()
 
     cur.execute(
         "INSERT INTO conversations (user_id) VALUES (%s) RETURNING id",
-        (uid,)
+        (user['user_id'],)
     )
 
     cid = cur.fetchone()[0]
@@ -91,46 +87,56 @@ def create_conversation():
 
 @app.route('/conversations', methods=['GET'])
 def list_conversations():
-    token = request.headers.get("Authorization")
-    user = verify_token(token)
+    user = verify_token(request.headers.get("Authorization"))
 
     if not user or 'user_id' not in user:
         return jsonify({"error": "unauthorized"}), 401
 
-    uid = user['user_id']
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT id, title, created_at
+        SELECT id, title, updated_at
         FROM conversations
         WHERE user_id=%s
-        ORDER BY id DESC
-    """, (uid,))
+        ORDER BY updated_at DESC
+    """, (user['user_id'],))
 
     rows = cur.fetchall()
 
     return jsonify([
-        {"id": r[0], "title": r[1], "created_at": str(r[2])}
+        {"id": r[0], "title": r[1], "updated_at": str(r[2])}
         for r in rows
     ])
 
-@app.route('/messages/<int:cid>', methods=['GET'])
+
+# ========================
+# MESSAGES
+# ========================
+
+@app.route('/conversations/<int:cid>/messages', methods=['GET'])
 def get_messages(cid):
-    token = request.headers.get("Authorization")
-    user = verify_token(token)
+    user = verify_token(request.headers.get("Authorization"))
 
     if not user or 'user_id' not in user:
         return jsonify({"error": "unauthorized"}), 401
 
-    uid = user['user_id']
     cur = conn.cursor()
+
+    # ownership check
+    cur.execute("""
+        SELECT 1 FROM conversations
+        WHERE id=%s AND user_id=%s
+    """, (cid, user['user_id']))
+
+    if not cur.fetchone():
+        return jsonify({"error": "forbidden"}), 403
 
     # ✅ IMPORTANT: enforce ownership
     cur.execute("""
         SELECT role, content FROM messages
-        WHERE conversation_id=%s AND user_id=%s
+        WHERE conversation_id=%s
         ORDER BY id ASC
-    """, (cid, uid))
+    """, (cid,))
 
     rows = cur.fetchall()
 
@@ -139,16 +145,21 @@ def get_messages(cid):
         for r in rows
     ])
 
+# ========================
+# CHAT
+# ========================
+
 @app.route('/chat', methods=['POST'])
 def chat():
-    token = request.headers.get("Authorization")
-    user = verify_token(token)
-    if not user:
+    user = verify_token(request.headers.get("Authorization"))
+    if not user or 'user_id' not in user:
         return jsonify({"error": "unauthorized"}), 401
 
     uid = user['user_id']
-    msg = request.json.get('message', '')
-    cid = request.json.get('conversation_id')
+    data = request.get_json()
+
+    msg = data.get('message', '')
+    cid = data.get('conversation_id')
 
     cur = conn.cursor()
 
@@ -161,10 +172,20 @@ def chat():
         cid = cur.fetchone()[0]
         conn.commit()
 
+    else:
+        # ownership check
+        cur.execute("""
+            SELECT 1 FROM conversations
+            WHERE id=%s AND user_id=%s
+        """, (cid, uid))
+
+        if not cur.fetchone():
+            return jsonify({"error": "forbidden"}), 403
+
     # store user message
     cur.execute(
-        "INSERT INTO messages (user_id, role, content, conversation_id) VALUES (%s,%s,%s,%s)",
-        (uid, "user", msg, cid)
+        "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
+        (cid, "user", msg)
     )
     conn.commit()
 
@@ -181,10 +202,7 @@ def chat():
 
     history_text = ""
     for role, content in rows:
-        if role == "user":
-            history_text += f"User: {content}\n"
-        else:
-            history_text += f"Assistant: {content}\n"
+        history_text += f"{role.capitalize()}: {content}\n"
 
     prompt = f"{history_text}\nAssistant:"
 
@@ -201,9 +219,16 @@ def chat():
 
     # store assistant reply
     cur.execute(
-        "INSERT INTO messages (user_id, role, content, conversation_id) VALUES (%s,%s,%s,%s)",
-        (uid, "assistant", ans, cid)
+        "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
+        (cid, "assistant", ans)
     )
+
+    # update conversation timestamp
+    cur.execute("""
+        UPDATE conversations SET updated_at=NOW()
+        WHERE id=%s
+    """, (cid,))
+
     conn.commit()
 
     return jsonify({
