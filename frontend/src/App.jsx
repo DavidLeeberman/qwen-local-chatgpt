@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
 import axios from 'axios'
 import Login from './Login'
 
@@ -27,8 +28,19 @@ export default function App() {
     axios.get(`${API}/api/conversations`, {
       headers: { Authorization: token }
     })
-    .then(r => setConversations(r.data))
-    .catch(() => setErr('Failed to load conversations'))
+    .then(async r => {
+      setConversations(r.data)
+
+      if (r.data.length === 0) {
+        // 👇 auto-create first chat
+        const res = await axios.post(`${API}/api/conversations`, {}, {
+          headers: { Authorization: token }
+        })
+
+        setCid(res.data.conversation_id)
+        setConversations([{ id: res.data.conversation_id }])
+      }
+    })
   }, [token])
 
   // ✅ logout (restored)
@@ -73,11 +85,8 @@ export default function App() {
         headers: { Authorization: token }
       })
 
-      const newId = r.data.conversation_id
-
-      setCid(newId)
+      setCid(r.data.conversation_id)
       setChat([])
-      setConversations([{ id: newId }, ...conversations])
     } catch {
       setErr('Failed to create chat')
     }
@@ -94,11 +103,21 @@ export default function App() {
         { headers: { Authorization: token } }
       )
 
-      setCid(r.data.conversation_id)
+      const newCid = r.data.conversation_id
+
+      setCid(newCid)
 
       setChat(prev => [...prev, { u: msg, a: r.data.response }])
       setMsg('')
       setErr('')
+
+      // ✅ REFRESH conversations (important!)
+      const convs = await axios.get(`${API}/api/conversations`, {
+        headers: { Authorization: token }
+      })
+
+      setConversations(convs.data)
+
     } catch (e) {
       setErr('Chat failed')
     }
@@ -126,7 +145,7 @@ export default function App() {
               fontWeight: cid === c.id ? 'bold' : 'normal'
             }}
           >
-            Chat {c.id}
+            {c.title || ''}
           </div>
         ))}
       </div>
@@ -135,9 +154,12 @@ export default function App() {
       <div style={{ flex: 1, padding: 10 }}>
         {chat.map((c, i) => (
           <div key={i}>
-            <b>You:</b> {c.u}<br />
-            <b>AI:</b> {c.a}
-            <hr />
+            <div style={{ marginBottom: 12 }}>
+              <div><b>You:</b> {c.u}</div>
+              <div style={{ background: '#f5f5f5', padding: 8 }}>
+                <ReactMarkdown>{c.a}</ReactMarkdown>
+              </div>
+            </div>
           </div>
         ))}
 
