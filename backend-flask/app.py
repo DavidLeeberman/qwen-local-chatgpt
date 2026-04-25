@@ -158,12 +158,15 @@ def chat():
     uid = user['user_id']
     data = request.get_json()
 
-    msg = data.get('message', '')
     cid = data.get('conversation_id')
+    msg = data.get('message', '').strip()
+
+    if not msg:
+        return jsonify({"error": "empty message"}), 400
 
     cur = conn.cursor()
 
-    # create conversation if not provided
+    # ✅ 1. create conversation if not provided
     if not cid:
         cur.execute(
             "INSERT INTO conversations (user_id) VALUES (%s) RETURNING id",
@@ -182,14 +185,14 @@ def chat():
         if not cur.fetchone():
             return jsonify({"error": "forbidden"}), 403
 
-    # store user message
+    # ✅ 2. store user message
     cur.execute(
         "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
         (cid, "user", msg)
     )
     conn.commit()
 
-    # fetch history
+    # ✅ 3. fetch history - last N messages (context)
     cur.execute("""
         SELECT role, content FROM messages
         WHERE conversation_id=%s
@@ -206,6 +209,7 @@ def chat():
 
     prompt = f"{history_text}\nAssistant:"
 
+    # ✅ 4. Call Ollama
     try:
         r = requests.post(OLLAMA, json={
             "model": "qwen3.5:9b",
@@ -217,7 +221,7 @@ def chat():
         print("OLLAMA ERROR:", e)
         return jsonify({"error": "llm_failed"}), 500
 
-    # store assistant reply
+    # ✅ 5. store assistant reply
     cur.execute(
         "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
         (cid, "assistant", ans)
@@ -230,6 +234,27 @@ def chat():
     """, (cid,))
 
     conn.commit()
+
+    # ✅ 6. Auto-generate conversation title (ONLY if empty)
+    try:
+        cur.execute(
+            "SELECT title FROM conversations WHERE id=%s AND user_id=%s",
+            (cid, uid)
+        )
+        row = cur.fetchone()
+
+        if row and not row[0]:
+            # Simple version: use first user message (fast & reliable)
+            title = msg[:50]
+
+            cur.execute(
+                "UPDATE conversations SET title=%s WHERE id=%s",
+                (title, cid)
+            )
+            conn.commit()
+
+    except Exception as e:
+        print("TITLE UPDATE ERROR:", e)
 
     return jsonify({
         "response": ans,
