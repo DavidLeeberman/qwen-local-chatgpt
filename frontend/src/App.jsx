@@ -1,17 +1,33 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import axios from 'axios'
 import Login from './Login'
 
 export default function App() {
   const [token, setToken] = useState(null)
   const [conversations, setConversations] = useState([])
+  const [isStreaming, setIsStreaming] = useState(false)
   const [cid, setCid] = useState(null)
   const [chat, setChat] = useState([])
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
 
   const API = import.meta.env.VITE_API_URL
+
+  const bottomRef = useRef(null)
+
+  const isNearBottom = () => {
+    const el = bottomRef.current?.parentElement
+    if (!el) return true
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 100
+  }
+
+  useEffect(() => {
+    if (isNearBottom()) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [chat])
 
   // ✅ 1. Load token from localStorage (once)
   useEffect(() => {
@@ -61,17 +77,21 @@ export default function App() {
     })
     .then(r => {
       const formatted = []
-      let current = {}
+      let current = null
 
       r.data.forEach(m => {
         if (m.role === 'user') {
-          current = { u: m.content }
+          if (current) formatted.push(current)
+          current = { u: m.content, a: '' }
         } else if (m.role === 'assistant') {
+          if (!current) current = { u: '', a: '' }
           current.a = m.content
           formatted.push(current)
-          current = {}
+          current = null
         }
       })
+
+      if (current) formatted.push(current)
 
       setChat(formatted)
     })
@@ -96,30 +116,73 @@ export default function App() {
   const send = async () => {
     if (!msg) return
 
+    const userMsg = msg
+    setMsg('')
+    setErr('')
+
+    // add placeholder assistant message
+    setChat(prev => [...prev, { u: userMsg, a: '' }])
+
+    setIsStreaming(true)
+
     try {
-      const r = await axios.post(
-        `${API}/api/chat`,
-        { message: msg, conversation_id: cid },
-        { headers: { Authorization: token } }
-      )
-
-      const newCid = r.data.conversation_id
-
-      setCid(newCid)
-
-      setChat(prev => [...prev, { u: msg, a: r.data.response }])
-      setMsg('')
-      setErr('')
-
-      // ✅ REFRESH conversations (important!)
-      const convs = await axios.get(`${API}/api/conversations`, {
-        headers: { Authorization: token }
+      const res = await fetch(`${API}/api/chat/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token
+        },
+        body: JSON.stringify({
+          message: userMsg,
+          conversation_id: cid
+        })
       })
 
-      setConversations(convs.data)
+      if (!res.body) throw new Error('No stream')
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder('utf-8')
+
+      let buffer = ''
+      let assistantText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+
+        const lines = buffer.split('\n')
+        buffer = lines.pop()  // keep incomplete line
+
+        for (let line of lines) {
+          let data = line.trim()
+
+          if (!data.startsWith('data:')) continue
+
+          data = line.replace(/^data:\s?/, '')
+
+          if (data === '[DONE]') {
+            setIsStreaming(false)
+            return
+          }
+
+          assistantText += data
+
+          // 🔥 live update last message
+          setChat(prev => {
+            const updated = [...prev]
+            updated[updated.length - 1].a = assistantText
+            return updated
+          })
+        }
+      }
 
     } catch (e) {
-      setErr('Chat failed')
+      console.error(e)
+      setErr('Streaming failed')
+    } finally {
+      setIsStreaming(false)
     }
   }
 
@@ -151,17 +214,31 @@ export default function App() {
       </div>
 
       {/* Chat */}
-      <div style={{ flex: 1, padding: 10 }}>
+      <div style={{ flex: 1, padding: 10, overflowY: 'auto', height: '100vh' }}>
         {chat.map((c, i) => (
           <div key={i}>
             <div style={{ marginBottom: 12 }}>
               <div><b>You:</b> {c.u}</div>
               <div style={{ background: '#f5f5f5', padding: 8 }}>
-                <ReactMarkdown>{c.a}</ReactMarkdown>
+                {isStreaming && i === chat.length - 1 ? (
+                  <div style={{
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: '1.5',
+                    fontFamily: 'system-ui'
+                  }}>
+                    {c.a}
+                  </div>
+                ) : (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {c.a}
+                  </ReactMarkdown>
+                )}
               </div>
             </div>
           </div>
         ))}
+
+        <div ref={bottomRef}></div>
 
         <input
           value={msg}

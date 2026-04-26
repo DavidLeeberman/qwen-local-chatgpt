@@ -1,5 +1,5 @@
-from flask import Flask, request, jsonify
-import psycopg2, requests, hashlib
+from flask import Flask, request, jsonify, Response, stream_with_context
+import psycopg2, requests, hashlib, json
 from auth import generate_token, verify_token
 
 app = Flask(__name__)
@@ -149,7 +149,7 @@ def get_messages(cid):
 # CHAT
 # ========================
 
-@app.route('/chat', methods=['POST'])
+@app.route('/chat/stream', methods=['POST'])
 def chat():
     user = verify_token(request.headers.get("Authorization"))
     if not user or 'user_id' not in user:
@@ -209,23 +209,46 @@ def chat():
 
     prompt = f"{history_text}\nAssistant:"
 
-    # ✅ 4. Call Ollama
-    try:
-        r = requests.post(OLLAMA, json={
-            "model": "qwen3.5:9b",
-            "prompt": prompt,
-            "stream": False
-        })
-        ans = r.json().get("response", "")
-    except Exception as e:
-        print("OLLAMA ERROR:", e)
-        return jsonify({"error": "llm_failed"}), 500
+    # ✅ 4. Call Ollama and generate response (streaming)
+    def generate():
+        full_response = ""
 
-    # ✅ 5. store assistant reply
-    cur.execute(
-        "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
-        (cid, "assistant", ans)
-    )
+        try:
+            with requests.post(OLLAMA, json={
+                "model": "qwen3.5:9b",
+                "prompt": prompt,
+                "stream": True
+            }, stream=True) as r:
+
+                for line in r.iter_lines():
+                    if not line:
+                        continue
+
+                    try:
+                        data = json.loads(line.decode("utf-8"))
+                        chunk = data.get("response", "")
+                    except:
+                        continue
+
+                    if chunk:
+                        full_response += chunk
+
+                        # 🔥 CRITICAL: SSE format to send chunk AS-IS (contains spaces/newlines)
+                        yield f"data: {chunk}\n\n"
+
+        except Exception as e:
+            print("STREAM ERROR:", e)
+            yield "data: [ERROR]\n\n"
+
+        # ✅ 5. store final response AFTER stream ends
+        cur.execute(
+            "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
+            (cid, "assistant", full_response)
+        )
+        conn.commit()
+
+        # signal end
+        yield "data: [DONE]\n\n"
 
     # update conversation timestamp
     cur.execute("""
@@ -256,10 +279,7 @@ def chat():
     except Exception as e:
         print("TITLE UPDATE ERROR:", e)
 
-    return jsonify({
-        "response": ans,
-        "conversation_id": cid
-    })
+    return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
 
 app.run(host="0.0.0.0", port=5000, debug=True)
