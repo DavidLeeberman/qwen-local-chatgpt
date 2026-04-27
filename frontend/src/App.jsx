@@ -121,7 +121,7 @@ export default function App() {
     setErr('')
 
     // add placeholder assistant message
-    setChat(prev => [...prev, { u: userMsg, a: '' }])
+    setChat(prev => [...prev, { u: userMsg, a: '', done: false }])
 
     setIsStreaming(true)
 
@@ -143,6 +143,7 @@ export default function App() {
       const reader = res.body.getReader()
       const decoder = new TextDecoder('utf-8')
 
+      const prefix = 'data: '
       let buffer = ''
       let assistantText = ''
 
@@ -152,27 +153,34 @@ export default function App() {
 
         buffer += decoder.decode(value, { stream: true })
 
-        const lines = buffer.split('\n')
+        const lines = buffer.split('\n\n')
         buffer = lines.pop()  // keep incomplete line
 
         for (let line of lines) {
-          let data = line.trim()
+          if (!line.startsWith(prefix)) continue
 
-          if (!data.startsWith('data:')) continue
+          line = line.slice(prefix.length)
 
-          data = line.replace(/^data:\s?/, '')
+          if (line === '[DONE]') {
+            setChat(prev => {
+              const updated = [...prev]
+              updated[updated.length - 1].done = true
+              return updated
+            })
 
-          if (data === '[DONE]') {
             setIsStreaming(false)
             return
           }
 
-          assistantText += data
+          assistantText += line
 
           // 🔥 live update last message
           setChat(prev => {
             const updated = [...prev]
-            updated[updated.length - 1].a = assistantText
+            updated[updated.length - 1] = {
+              ...updated[updated.length - 1],
+              a: assistantText
+            }
             return updated
           })
         }
