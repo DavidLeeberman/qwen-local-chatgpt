@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, request, jsonify, Response, stream_with_context
 import psycopg2, requests, hashlib, json
 from auth import generate_token, verify_token
@@ -211,6 +213,9 @@ def chat():
 
     # ✅ 4. Call Ollama and generate response (streaming)
     def generate():
+        SSE_PREFIX = os.getenv("SSE_PREFIX", "data: ")
+        SSE_DELIMITER = os.getenv("SSE_DELIMITER", "\n\n")
+        SSE_DONE = os.getenv("SSE_DONE", "[DONE]")
         full_response = ""
 
         try:
@@ -234,11 +239,11 @@ def chat():
                         full_response += chunk
 
                         # 🔥 CRITICAL: SSE format to send chunk AS-IS (contains spaces/newlines)
-                        yield f"data: {chunk}\n\n"
+                        yield f"{SSE_PREFIX}{chunk}{SSE_DELIMITER}"
 
         except Exception as e:
             print("STREAM ERROR:", e)
-            yield "data: [ERROR]\n\n"
+            yield f"{SSE_PREFIX}[ERROR]{SSE_DELIMITER}"
 
         # ✅ 5. store final response AFTER stream ends
         cur.execute(
@@ -248,7 +253,7 @@ def chat():
         conn.commit()
 
         # signal end
-        yield "data: [DONE]\n\n"
+        yield f"{SSE_PREFIX}{SSE_DONE}{SSE_DELIMITER}"
 
     # update conversation timestamp
     cur.execute("""

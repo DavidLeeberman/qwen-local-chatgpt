@@ -143,7 +143,10 @@ export default function App() {
       const reader = res.body.getReader()
       const decoder = new TextDecoder('utf-8')
 
-      const prefix = 'data: '
+      const prefix = import.meta.env.VITE_SSE_PREFIX || 'data: '
+      const delimiter = import.meta.env.VITE_SSE_DELIMITER || '\n\n'
+      const doneSignal = import.meta.env.VITE_SSE_DONE || '[DONE]'
+
       let buffer = ''
       let assistantText = ''
 
@@ -153,7 +156,7 @@ export default function App() {
 
         buffer += decoder.decode(value, { stream: true })
 
-        const lines = buffer.split('\n\n')
+        const lines = buffer.split(delimiter)
         buffer = lines.pop()  // keep incomplete line
 
         for (let line of lines) {
@@ -161,7 +164,7 @@ export default function App() {
 
           line = line.slice(prefix.length)
 
-          if (line === '[DONE]') {
+          if (line === doneSignal) {
             setChat(prev => {
               const updated = [...prev]
               updated[updated.length - 1].done = true
