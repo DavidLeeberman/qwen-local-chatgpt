@@ -143,9 +143,10 @@ export default function App() {
       const reader = res.body.getReader()
       const decoder = new TextDecoder('utf-8')
 
-      const prefix = import.meta.env.VITE_SSE_PREFIX || 'data: '
-      const delimiter = import.meta.env.VITE_SSE_DELIMITER || '\n\n'
-      const doneSignal = import.meta.env.VITE_SSE_DONE || '[DONE]'
+      const SSE_PREFIX = import.meta.env.VITE_SSE_PREFIX || 'data: '
+      const SSE_DELIMITER = import.meta.env.VITE_SSE_DELIMITER || '\n\n\n\n'
+      const SSE_CHUNK = import.meta.env.VITE_SSE_CHUNK || 'chunk'
+      const SSE_DONE = import.meta.env.VITE_SSE_DONE || 'done'
 
       let buffer = ''
       let assistantText = ''
@@ -156,42 +157,52 @@ export default function App() {
 
         buffer += decoder.decode(value, { stream: true })
 
-        const lines = buffer.split(delimiter)
+        const lines = buffer.split(SSE_DELIMITER)
         buffer = lines.pop()  // keep incomplete line
 
-        for (let line of lines) {
-          if (!line.startsWith(prefix)) continue
+        for (let i = 0; i < lines.length; i ++) {
+          if (!lines[i].startsWith(SSE_PREFIX)) continue
 
-          line = line.slice(prefix.length)
+          const rawJson = lines[i].slice(SSE_PREFIX.length)
 
-          if (line === doneSignal) {
+          try {
+            const data = JSON.parse(rawJson)
+            if (data[SSE_DONE]) {
+              setChat(prev => {
+                const updated = [...prev]
+                updated[updated.length - 1].done = true
+                return updated
+              })
+
+              setIsStreaming(false)
+              return
+            }
+
+            assistantText += data[SSE_CHUNK]
+
+            // 🔥 live update last message
             setChat(prev => {
               const updated = [...prev]
-              updated[updated.length - 1].done = true
+              updated[updated.length - 1] = {
+                ...updated[updated.length - 1],
+                a: assistantText
+              }
               return updated
             })
-
-            setIsStreaming(false)
-            return
+          } catch (e) {
+            console.error(e)
+            // setErr(`JSON Error: ${lines[i]}` + i === lines.length - 1 ? `` : ` + ${lines[i + 1]}`)
+            throw new Error(`JSON Error: `
+                          + `line ${i - 1}: ` + (i === 0 ? `[]` : `[${lines[i - 1]}]`) + `, `
+                          + `line ${i}: [${lines[i]}], ` 
+                          + `line ${i + 1}: ` + (i === lines.length - 1 ? `[]` : `[${lines[i + 1]}]`))
           }
-
-          assistantText += line
-
-          // 🔥 live update last message
-          setChat(prev => {
-            const updated = [...prev]
-            updated[updated.length - 1] = {
-              ...updated[updated.length - 1],
-              a: assistantText
-            }
-            return updated
-          })
         }
       }
 
     } catch (e) {
       console.error(e)
-      setErr('Streaming failed')
+      setErr('Streaming failed: ' + e.message)
     } finally {
       setIsStreaming(false)
     }

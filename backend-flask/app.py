@@ -214,8 +214,10 @@ def chat():
     # ✅ 4. Call Ollama and generate response (streaming)
     def generate():
         SSE_PREFIX = os.getenv("SSE_PREFIX", "data: ")
-        SSE_DELIMITER = os.getenv("SSE_DELIMITER", "\n\n")
-        SSE_DONE = os.getenv("SSE_DONE", "[DONE]")
+        SSE_DELIMITER = os.getenv("SSE_DELIMITER", "\n\n\n\n")
+        SSE_CHUNK = os.getenv("SSE_CHUNK", "chunk")
+        SSE_DONE = os.getenv("SSE_DONE", "done")
+
         full_response = ""
 
         try:
@@ -239,7 +241,8 @@ def chat():
                         full_response += chunk
 
                         # 🔥 CRITICAL: SSE format to send chunk AS-IS (contains spaces/newlines)
-                        yield f"{SSE_PREFIX}{chunk}{SSE_DELIMITER}"
+                        chunk_data = json.dumps({SSE_CHUNK: chunk, SSE_DONE: False})
+                        yield f"{SSE_PREFIX}{chunk_data}{SSE_DELIMITER}"
 
         except Exception as e:
             print("STREAM ERROR:", e)
@@ -252,8 +255,9 @@ def chat():
         )
         conn.commit()
 
-        # signal end
-        yield f"{SSE_PREFIX}{SSE_DONE}{SSE_DELIMITER}"
+        # signal end handling 'jailbreak'
+        done_data = json.dumps({SSE_CHUNK: "", SSE_DONE: True})
+        yield f"{SSE_PREFIX}{done_data}{SSE_DELIMITER}"
 
     # update conversation timestamp
     cur.execute("""
