@@ -242,19 +242,10 @@ export default function App() {
             <div style={{ marginBottom: 12 }}>
               <div><b>You:</b> {c.u}</div>
               <div style={{ background: '#f5f5f5', padding: 8 }}>
-                {isStreaming && i === chat.length - 1 ? (
-                  <div style={{
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: '1.5',
-                    fontFamily: 'system-ui'
-                  }}>
-                    {c.a}
-                  </div>
-                ) : (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {c.a}
-                  </ReactMarkdown>
-                )}
+                {/* Stream or static, always parse Markdown */}
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {c.a}
+                </ReactMarkdown>
               </div>
             </div>
           </div>

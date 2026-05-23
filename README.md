@@ -1,5 +1,12 @@
 # Local ChatGPT-class System
 ```
+Version    : 0.4
+Model      : Qwen3.5-9B + Ollama
+Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
+```
+Updates:
+- Milestone: Markdowns while streaming works!
+```
 Version    : 0.3
 Model      : Qwen3.5-9B + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
@@ -79,6 +86,7 @@ qwen-local-chatgpt/
 │   ├── Dockerfile
 │   ├── package.json
 │   ├── vite.config.js
+│   ├── index.html
 │   └── src/
 │       ├── main.jsx
 │       ├── App.jsx
