@@ -8,7 +8,7 @@ Updates:
 - Streaming responses
 - Better chat rendering with markdowns and basic styling
 - Conversations titles by the first prompt and no entry for empty conversation on the sidebar
-- Auto-create first conversation on login → removes need for clicking “New Chat”
+- Auto-create first conversation on login → removes need for clicking "New Chat"
 ```
 Version    : 0.2
 Model      : Qwen3.5-9B + Ollama
