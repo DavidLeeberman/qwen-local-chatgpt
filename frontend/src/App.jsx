@@ -149,7 +149,6 @@ export default function App() {
       const SSE_DONE = import.meta.env.VITE_SSE_DONE || 'done'
 
       let buffer = ''
-      let assistantText = ''
 
       while (true) {
         const { done, value } = await reader.read()
@@ -178,17 +177,21 @@ export default function App() {
               return
             }
 
-            assistantText += data[SSE_CHUNK]
-
             // 🔥 live update last message
+            const contentChunk = data[SSE_CHUNK];
+
             setChat(prev => {
-              const updated = [...prev]
-              updated[updated.length - 1] = {
-                ...updated[updated.length - 1],
-                a: assistantText
-              }
-              return updated
-            })
+              const updated = [...prev];
+              const lastIndex = updated.length - 1;
+              
+              // Directly append the chunk onto the actual previous UI state
+              const currentText = updated[lastIndex]?.a || '';
+              updated[lastIndex] = {
+                ...updated[lastIndex],
+                a: currentText + contentChunk
+              };
+              return updated;
+            });
           } catch (e) {
             console.error(e)
             // setErr(`JSON Error: ${lines[i]}` + i === lines.length - 1 ? `` : ` + ${lines[i + 1]}`)

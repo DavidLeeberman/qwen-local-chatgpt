@@ -7,10 +7,10 @@ from auth import generate_token, verify_token
 app = Flask(__name__)
 
 conn = psycopg2.connect(
-    host="postgres",
-    dbname="qwen",
-    user="admin",
-    password="password"
+    host=os.getenv("POSTGRES_HOST", "postgres"),
+    dbname=os.getenv("POSTGRES_DB", "qwen"),
+    user=os.getenv("POSTGRES_USER", "admin"),
+    password=os.getenv("POSTGRES_PASSWORD", "password")
 )
 
 OLLAMA = "http://ollama:11434/api/generate"
