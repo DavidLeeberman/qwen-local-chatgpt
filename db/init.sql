@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     id SERIAL PRIMARY KEY,
     user_id INT REFERENCES users(id) ON DELETE CASCADE,
     title TEXT DEFAULT 'New Chat',
+    system_prompt TEXT DEFAULT 'You are a helpful assistant powered by a large language model running locally.',
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );

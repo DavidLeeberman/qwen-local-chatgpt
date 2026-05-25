@@ -1,5 +1,13 @@
 # Local ChatGPT-class System
 ```
+Version    : 0.4
+Model      : Qwen3.5-9B + Ollama
+Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
+```
+Updates:
+- System prompts
+- Switched from the legacy /api/generate string endpoint to the standardized /api/chat payload structure for ollama to handle engine compatibility without changing backend logic
+```
 Version    : 0.3
 Model      : Qwen3.5-9B + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD

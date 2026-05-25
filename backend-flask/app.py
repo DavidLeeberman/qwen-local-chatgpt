@@ -6,6 +6,7 @@ from auth import generate_token, verify_token
 
 app = Flask(__name__)
 
+# ✅ SECURITY FIX: Read from environment variables populated via env_file (.env)
 conn = psycopg2.connect(
     host=os.getenv("POSTGRES_HOST", "postgres"),
     dbname=os.getenv("POSTGRES_DB", "qwen"),
@@ -13,7 +14,11 @@ conn = psycopg2.connect(
     password=os.getenv("POSTGRES_PASSWORD", "password")
 )
 
-OLLAMA = "http://ollama:11434/api/generate"
+# OLLAMA = "http://ollama:11434/api/generate"
+
+# ✅ MODEL ROUTING FIX: Switched endpoint to /api/chat to let Ollama manage ChatML/Gemma templates natively
+OLLAMA_CHAT_URL = "http://ollama:11434/api/chat"
+MODEL_NAME = os.getenv("LLM_MODEL_NAME", "qwen3.5:9b")
 
 def hash_password(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
@@ -97,7 +102,7 @@ def list_conversations():
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT id, title, updated_at
+        SELECT id, title, updated_at, system_prompt
         FROM conversations
         WHERE user_id=%s
         ORDER BY updated_at DESC
@@ -106,7 +111,7 @@ def list_conversations():
     rows = cur.fetchall()
 
     return jsonify([
-        {"id": r[0], "title": r[1], "updated_at": str(r[2])}
+        {"id": r[0], "title": r[1], "updated_at": str(r[2]), "system_prompt": r[3]}
         for r in rows
     ])
 
@@ -124,7 +129,7 @@ def get_messages(cid):
 
     cur = conn.cursor()
 
-    # ownership check
+    # Ownership check
     cur.execute("""
         SELECT 1 FROM conversations
         WHERE id=%s AND user_id=%s
@@ -133,7 +138,7 @@ def get_messages(cid):
     if not cur.fetchone():
         return jsonify({"error": "forbidden"}), 403
 
-    # ✅ IMPORTANT: enforce ownership
+    # ✅ IMPORTANT: Enforce ownership
     cur.execute("""
         SELECT role, content FROM messages
         WHERE conversation_id=%s
@@ -168,7 +173,7 @@ def chat():
 
     cur = conn.cursor()
 
-    # ✅ 1. create conversation if not provided
+    # ✅ 1. Create conversation if not provided
     if not cid:
         cur.execute(
             "INSERT INTO conversations (user_id) VALUES (%s) RETURNING id",
@@ -178,7 +183,7 @@ def chat():
         conn.commit()
 
     else:
-        # ownership check
+        # Ownership check
         cur.execute("""
             SELECT 1 FROM conversations
             WHERE id=%s AND user_id=%s
@@ -187,31 +192,40 @@ def chat():
         if not cur.fetchone():
             return jsonify({"error": "forbidden"}), 403
 
-    # ✅ 2. store user message
+    # ✅ 2. Store user message securely using parameterization
     cur.execute(
         "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
         (cid, "user", msg)
     )
     conn.commit()
 
-    # ✅ 3. fetch history - last N messages (context)
+    # 3. Pull System Instructions for this Conversation
+    cur.execute("SELECT system_prompt FROM conversations WHERE id=%s", (cid,))
+    system_prompt_row = cur.fetchone()
+    system_prompt = system_prompt_row[0] if system_prompt_row else "You are a helpful assistant."
+
+    # 4. Fetch history - last N messages (context) with ownership check already done, ordered oldest to newest for proper conversation flow
     cur.execute("""
         SELECT role, content FROM messages
         WHERE conversation_id=%s
         ORDER BY id DESC
         LIMIT 10
     """, (cid,))
+    message_rows = cur.fetchall()
+    message_rows.reverse()
 
-    rows = cur.fetchall()
-    rows.reverse()
+    # 5. Build agnostic structured message array payload
+    ollama_messages = []
+    
+    # Inject the system guidelines first
+    if system_prompt:
+        ollama_messages.append({"role": "system", "content": system_prompt})
+        
+    # Append past message sequences dynamically
+    for role, content in message_rows:
+        ollama_messages.append({"role": role, "content": content})
 
-    history_text = ""
-    for role, content in rows:
-        history_text += f"{role.capitalize()}: {content}\n"
-
-    prompt = f"{history_text}\nAssistant:"
-
-    # ✅ 4. Call Ollama and generate response (streaming)
+    # 6. Call Ollama and generate streaming response with the agnostic Chat API schema
     def generate():
         SSE_PREFIX = os.getenv("SSE_PREFIX", "data: ")
         SSE_DELIMITER = os.getenv("SSE_DELIMITER", "\n\n\n\n")
@@ -221,74 +235,72 @@ def chat():
         full_response = ""
 
         try:
-            with requests.post(OLLAMA, json={
-                "model": "qwen3.5:9b",
-                "prompt": prompt,
+            payload = {
+                "model": MODEL_NAME,
+                "messages": ollama_messages,
                 "stream": True
-            }, stream=True) as r:
-
+            }
+            
+            with requests.post(OLLAMA_CHAT_URL, json=payload, stream=True) as r:
                 for line in r.iter_lines():
                     if not line:
                         continue
 
                     try:
-                        data = json.loads(line.decode("utf-8"))
-                        chunk = data.get("response", "")
-                    except:
+                        line_data = json.loads(line.decode("utf-8"))
+                        # Note: /api/chat payload yields chunk fragments nested in a 'message' object
+                        chunk = line_data.get("message", {}).get("content", "")
+                    except Exception:
                         continue
 
                     if chunk:
                         full_response += chunk
-
-                        # 🔥 CRITICAL: SSE format to send chunk AS-IS (contains spaces/newlines)
                         chunk_data = json.dumps({SSE_CHUNK: chunk, SSE_DONE: False})
                         yield f"{SSE_PREFIX}{chunk_data}{SSE_DELIMITER}"
 
         except Exception as e:
-            print("STREAM ERROR:", e)
+            print("OLLAMA CHAT STREAM ERROR:", e)
             yield f"{SSE_PREFIX}[ERROR]{SSE_DELIMITER}"
 
-        # ✅ 5. store final response AFTER stream ends
-        cur.execute(
-            "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
-            (cid, "assistant", full_response)
-        )
-        conn.commit()
+        # 7. Store assistant metrics (full response) once pipeline yields empty/done statuses safely
+        try:
+            db_cur = conn.cursor()
+            db_cur.execute(
+                "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
+                (cid, "assistant", full_response)
+            )
+            
+            # Timestamp bookkeeping updates
+            db_cur.execute("""
+                UPDATE conversations SET updated_at=NOW() WHERE id=%s
+            """, (cid,))
+            conn.commit()
+        except Exception as db_err:
+            conn.rollback()
+            print("POST-STREAM DB SAVE CRITICAL FAILURE:", db_err)
 
-        # signal end handling 'jailbreak'
+        # Signal stream completion and handle 'jailbreak'
         done_data = json.dumps({SSE_CHUNK: "", SSE_DONE: True})
         yield f"{SSE_PREFIX}{done_data}{SSE_DELIMITER}"
 
-    # update conversation timestamp
-    cur.execute("""
-        UPDATE conversations SET updated_at=NOW()
-        WHERE id=%s
-    """, (cid,))
-
-    conn.commit()
-
-    # ✅ 6. Auto-generate conversation title (ONLY if empty)
+    # 8. Auto-generate conversation title (ONLY if empty) based on first user message for better UX
     try:
-        cur.execute(
-            "SELECT title FROM conversations WHERE id=%s AND user_id=%s",
-            (cid, uid)
-        )
+        cur.execute("SELECT title FROM conversations WHERE id=%s", (cid,))
         row = cur.fetchone()
-
         if row and not row[0]:
-            # Simple version: use first user message (fast & reliable)
             title = msg[:50]
-
             cur.execute(
                 "UPDATE conversations SET title=%s WHERE id=%s",
                 (title, cid)
             )
             conn.commit()
-
     except Exception as e:
         print("TITLE UPDATE ERROR:", e)
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
 
-app.run(host="0.0.0.0", port=5000, debug=True)
+if __name__ == '__main__':
+    # Toggle debug setting safely for containerized runtimes
+    flask_debug = os.getenv("FLASK_ENV") == "development"
+    app.run(host="0.0.0.0", port=5000, debug=flask_debug)
