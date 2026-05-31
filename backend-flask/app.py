@@ -16,9 +16,11 @@ conn = psycopg2.connect(
 
 # OLLAMA = "http://ollama:11434/api/generate"
 
-# ✅ MODEL ROUTING FIX: Switched endpoint to /api/chat to let Ollama manage ChatML/Gemma templates natively
-OLLAMA_CHAT_URL = "http://ollama:11434/api/chat"
-MODEL_NAME = os.getenv("LLM_MODEL_NAME", "qwen3.5:9b")
+# ✅ MODEL ROUTING FIX: Switched endpoint to /api/chat to let LLM engine manage ChatML/Gemma templates natively
+# MODEL_CHAT_URL = os.getenv("OLLAMA_CHAT_URL", "http://ollama:11434/api/chat")
+# MODEL_NAME = os.getenv("OLLAMA_QWEN_NAME", "qwen3.5:9b")
+MODEL_CHAT_URL = os.getenv("VLLM_CHAT_URL", "http://vllm:10000/v1/chat/completions")
+MODEL_NAME = os.getenv("VLLM_QWEN_NAME", "Qwen/Qwen3.5-9B")
 
 def hash_password(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
@@ -215,17 +217,17 @@ def chat():
     message_rows.reverse()
 
     # 5. Build agnostic structured message array payload
-    ollama_messages = []
+    engine_messages = []
     
     # Inject the system guidelines first
     if system_prompt:
-        ollama_messages.append({"role": "system", "content": system_prompt})
+        engine_messages.append({"role": "system", "content": system_prompt})
         
     # Append past message sequences dynamically
     for role, content in message_rows:
-        ollama_messages.append({"role": role, "content": content})
+        engine_messages.append({"role": role, "content": content})
 
-    # 6. Call Ollama and generate streaming response with the agnostic Chat API schema
+    # 6. Call LLM engine and generate streaming response with the agnostic Chat API schema
     def generate():
         SSE_PREFIX = os.getenv("SSE_PREFIX", "data: ")
         SSE_DELIMITER = os.getenv("SSE_DELIMITER", "\n\n\n\n")
@@ -237,19 +239,43 @@ def chat():
         try:
             payload = {
                 "model": MODEL_NAME,
-                "messages": ollama_messages,
+                "messages": engine_messages,
                 "stream": True
             }
             
-            with requests.post(OLLAMA_CHAT_URL, json=payload, stream=True) as r:
+            with requests.post(MODEL_CHAT_URL, json=payload, stream=True) as r:
                 for line in r.iter_lines():
                     if not line:
                         continue
 
+                    # Handles Ollama streaming only
+                    # try:
+                    #     line_data = json.loads(line.decode("utf-8"))
+                    #     # Note: /api/chat payload yields chunk fragments nested in a 'message' object
+                    #     chunk = line_data.get("message", {}).get("content", "")
+                    # except Exception:
+                    #     continue
+
+                    # Handles both vLLM and Ollama streaming
                     try:
-                        line_data = json.loads(line.decode("utf-8"))
-                        # Note: /api/chat payload yields chunk fragments nested in a 'message' object
-                        chunk = line_data.get("message", {}).get("content", "")
+                        # 1. Handles standard OpenAI SSE trimming to cleanly decode and trim the SSE prefix
+                        decoded_line = line.decode("utf-8").lstrip("data: ").strip()
+                        
+                        # 🔥 CRITICAL GUARD: Catch vLLM/OpenAI completion signal before parsing JSON
+                        if decoded_line == "[DONE]":
+                            break
+
+                        line_data = json.loads(decoded_line)
+                        
+                        # 2. Handle standard OpenAI/vLLM nested stream fragment dictionary structure
+                        choices = line_data.get("choices", [])
+                        if choices:
+                            # vLLM/OpenAI structure path
+                            chunk = choices[0].get("delta", {}).get("content", "")
+                        else:
+                            # Fallback to standard Ollama response architecture if you switch back
+                            chunk = line_data.get("message", {}).get("content", "")
+                            
                     except Exception:
                         continue
 
@@ -259,8 +285,8 @@ def chat():
                         yield f"{SSE_PREFIX}{chunk_data}{SSE_DELIMITER}"
 
         except Exception as e:
-            print("OLLAMA CHAT STREAM ERROR:", e)
-            yield f"{SSE_PREFIX}[ERROR]{SSE_DELIMITER}"
+            print("LLM ENGINE CHAT STREAM ERROR:", e)
+            yield f"{SSE_PREFIX}[ERROR: {e}]{SSE_DELIMITER}"
 
         # 7. Store assistant metrics (full response) once pipeline yields empty/done statuses safely
         try:

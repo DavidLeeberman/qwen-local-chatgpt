@@ -1,5 +1,12 @@
 # Local ChatGPT-class System
 ```
+Version    : 0.5
+Model      : Qwen3.5-9B + vLLM + Ollama
+Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
+```
+Updates:
+- Milestone: Adapts to both vLLM and Ollama
+```
 Version    : 0.4
 Model      : Qwen3.5-9B + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
