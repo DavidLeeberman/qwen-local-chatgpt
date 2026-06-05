@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 import axios from 'axios'
 import Login from './Login'
+
+import './App.css'
 
 export default function App() {
   const [token, setToken] = useState(null)
@@ -14,6 +17,8 @@ export default function App() {
   const [err, setErr] = useState('')
 
   const API = import.meta.env.VITE_API_URL
+
+  const abortControllerRef = useRef(null)
 
   const bottomRef = useRef(null)
 
@@ -116,6 +121,9 @@ export default function App() {
   const send = async () => {
     if (!msg) return
 
+    // Create the Abort controller
+    abortControllerRef.current = new AbortController()
+
     const userMsg = msg
     setMsg('')
     setErr('')
@@ -135,7 +143,8 @@ export default function App() {
         body: JSON.stringify({
           message: userMsg,
           conversation_id: cid
-        })
+        }),
+        signal: abortControllerRef.current.signal // 🔥 Link the signal
       })
 
       if (!res.body) throw new Error('No stream')
@@ -204,8 +213,12 @@ export default function App() {
       }
 
     } catch (e) {
-      console.error(e)
-      setErr('Streaming failed: ' + e.message)
+      if (e.name === 'AbortError') {
+        console.log('Stream cancelled by user')
+      } else {
+        console.error(e)
+        setErr('Streaming failed: ' + e.message)
+      }
     } finally {
       setIsStreaming(false)
     }
@@ -246,8 +259,16 @@ export default function App() {
               <div><b>You:</b> {c.u}</div>
               <div style={{ background: '#f5f5f5', padding: 8 }}>
                 {/* Stream or static, always parse Markdown */}
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {c.a}
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                >
+                  {
+                    c.a +
+                    (!c.done && i === chat.length - 1
+                      ? '<span class="streaming-cursor">▋</span>'
+                      : '')
+                  }
                 </ReactMarkdown>
               </div>
             </div>
@@ -256,13 +277,51 @@ export default function App() {
 
         <div ref={bottomRef}></div>
 
-        <input
-          value={msg}
-          onChange={e => setMsg(e.target.value)}
-          placeholder="Say something..."
-        />
+        {/* --- CHAT INPUT AREA --- */}
+        <div style={{ marginTop: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <input
+            style={{ flex: 1, padding: '10px' }}
+            value={msg}
+            onChange={(e) => setMsg(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && !isStreaming && send()}
+            placeholder="Say something..."
+            disabled={isStreaming}
+          />
 
-        <button onClick={send}>Send</button>
+          {isStreaming ? (
+            <button 
+              onClick={() => {
+                if (abortControllerRef.current) {
+                  abortControllerRef.current.abort();
+                }
+              }}
+              style={{ 
+                padding: '10px 20px', 
+                backgroundColor: '#ff4d4f', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Stop
+            </button>
+          ) : (
+            <button 
+              onClick={send}
+              style={{ 
+                padding: '10px 20px', 
+                backgroundColor: '#007bff', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Send
+            </button>
+          )}
+        </div>
 
         {err && <div style={{ color: 'red' }}>{err}</div>}
       </div>

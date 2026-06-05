@@ -65,9 +65,10 @@ services:
     command: >
       Qwen/Qwen3.5-9B
       --port 10000 
-      --max-model-len 4096 
-      --gpu-memory-utilization 0.85
+      --max-model-len 32768 
+      --gpu-memory-utilization 0.90
       --max-num-seqs 24
+      --enable-log-requests
     # 🔥 Container-native check using the underlying Python runtime environment
     healthcheck:
       # test: ["CMD-SHELL", "curl -f http://localhost:10000/health || exit 1"]

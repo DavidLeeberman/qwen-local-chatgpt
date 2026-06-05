@@ -13,6 +13,12 @@ app.use(express.json())
  * Handles: /api/chat/stream
  */
 app.post('/api/chat/stream', async (req, res) => {
+  req.on('close', () => {
+    // This event fires when the browser disconnects (e.g. tab closed or stop button)
+    console.log('Client closed connection - Cleaning up...')
+    // If you were tracking the Axios request in a variable, you could abort it here too
+  });
+  
   try {
     const r = await axios({
       method: 'POST',
