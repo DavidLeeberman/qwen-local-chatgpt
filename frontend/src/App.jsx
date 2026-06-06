@@ -5,7 +5,53 @@ import rehypeRaw from 'rehype-raw'
 import axios from 'axios'
 import Login from './Login'
 
+import 'katex/dist/katex.min.css'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+
+// import { atomDark } from ...
+// import { vscDarkPlus } from ...
+// import { materialDark } from ...
+
 import './App.css'
+
+const MarkdownRenderer = ({ children }) => {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[
+        remarkGfm,
+        remarkMath
+      ]}
+      rehypePlugins={[
+        rehypeRaw,
+        rehypeKatex
+      ]}
+      components={{
+        code({ node, inline, className, children, ...props }) {
+          const match = /language-(\w+)/.exec(className || '')
+
+          return !inline && match ? (
+            <SyntaxHighlighter
+              style={oneDark}
+              language={match[1]}
+              PreTag="div"
+            >
+              {String(children).replace(/\n$/, '')}
+            </SyntaxHighlighter>
+          ) : (
+            <code className={className} {...props}>
+              {children}
+            </code>
+          )
+        }
+      }}
+    >
+      {children}
+    </ReactMarkdown>
+  )
+}
 
 export default function App() {
   const [token, setToken] = useState(null)
@@ -259,17 +305,14 @@ export default function App() {
               <div><b>You:</b> {c.u}</div>
               <div style={{ background: '#f5f5f5', padding: 8 }}>
                 {/* Stream or static, always parse Markdown */}
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeRaw]}
-                >
+                <MarkdownRenderer>
                   {
                     c.a +
                     (!c.done && i === chat.length - 1
                       ? '<span class="streaming-cursor">▋</span>'
                       : '')
                   }
-                </ReactMarkdown>
+                </MarkdownRenderer>
               </div>
             </div>
           </div>

@@ -14,3 +14,22 @@
     opacity: 0;
   }
 }
+
+pre {
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+code {
+  font-family:
+    Consolas,
+    Monaco,
+    'Courier New',
+    monospace;
+}
+
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
