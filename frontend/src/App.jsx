@@ -15,43 +15,9 @@ import rehypeKatex from 'rehype-katex'
 // import { vscDarkPlus } from ...
 // import { materialDark } from ...
 
+import ChatMessage from './components/ChatMessage'
+
 import './App.css'
-
-const MarkdownRenderer = ({ children }) => {
-  return (
-    <ReactMarkdown
-      remarkPlugins={[
-        remarkGfm,
-        remarkMath
-      ]}
-      rehypePlugins={[
-        rehypeRaw,
-        rehypeKatex
-      ]}
-      components={{
-        code({ node, inline, className, children, ...props }) {
-          const match = /language-(\w+)/.exec(className || '')
-
-          return !inline && match ? (
-            <SyntaxHighlighter
-              style={oneDark}
-              language={match[1]}
-              PreTag="div"
-            >
-              {String(children).replace(/\n$/, '')}
-            </SyntaxHighlighter>
-          ) : (
-            <code className={className} {...props}>
-              {children}
-            </code>
-          )
-        }
-      }}
-    >
-      {children}
-    </ReactMarkdown>
-  )
-}
 
 export default function App() {
   const [token, setToken] = useState(null)
@@ -66,6 +32,8 @@ export default function App() {
 
   const abortControllerRef = useRef(null)
 
+  const textareaRef = useRef(null)
+
   const bottomRef = useRef(null)
 
   const isNearBottom = () => {
@@ -76,9 +44,17 @@ export default function App() {
 
   useEffect(() => {
     if (isNearBottom()) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      bottomRef.current?.scrollIntoView()
     }
   }, [chat])
+
+  useEffect(() => {
+    if (!textareaRef.current) return
+
+    textareaRef.current.style.height = 'auto'
+    textareaRef.current.style.height =
+      `${textareaRef.current.scrollHeight}px`
+  }, [msg])
 
   // ✅ 1. Load token from localStorage (once)
   useEffect(() => {
@@ -300,35 +276,51 @@ export default function App() {
       {/* Chat */}
       <div style={{ flex: 1, padding: 10, overflowY: 'auto', height: '100vh' }}>
         {chat.map((c, i) => (
-          <div key={i}>
-            <div style={{ marginBottom: 12 }}>
-              <div><b>You:</b> {c.u}</div>
-              <div style={{ background: '#f5f5f5', padding: 8 }}>
-                {/* Stream or static, always parse Markdown */}
-                <MarkdownRenderer>
-                  {
-                    c.a +
-                    (!c.done && i === chat.length - 1
-                      ? '<span class="streaming-cursor">▋</span>'
-                      : '')
-                  }
-                </MarkdownRenderer>
-              </div>
-            </div>
-          </div>
+          <ChatMessage
+            key={i}
+            message={c}
+            isLastStreaming={
+              !c.done &&
+              i === chat.length - 1
+            }
+          />
         ))}
 
         <div ref={bottomRef}></div>
 
         {/* --- CHAT INPUT AREA --- */}
-        <div style={{ marginTop: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <input
-            style={{ flex: 1, padding: '10px' }}
+        <div style={{ marginTop: '20px', display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+          <textarea
+            ref={textareaRef}
+            style={{
+              flex: 1,
+              padding: '10px',
+              fontSize: '16px',
+              fontFamily: 'inherit',
+              lineHeight: '1.5',
+              resize: 'none',
+              overflow: 'hidden',
+              minHeight: '44px',
+              maxHeight: '200px'
+            }}
             value={msg}
             onChange={(e) => setMsg(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && !isStreaming && send()}
             placeholder="Say something..."
             disabled={isStreaming}
+            onKeyDown={(e) => {
+              if (
+                e.key === 'Enter' &&
+                !e.shiftKey &&
+                !e.ctrlKey &&
+                !e.altKey
+              ) {
+                e.preventDefault()
+
+                if (!isStreaming && msg.trim()) {
+                  send()
+                }
+              }
+            }}
           />
 
           {isStreaming ? (
