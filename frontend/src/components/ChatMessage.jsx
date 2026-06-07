@@ -38,7 +38,8 @@ function ChatMessage({ message, isLastStreaming }) {
       <div
         style={{
           background: '#f5f5f5',
-          padding: 8
+          padding: 8,
+          position: 'relative'
         }}
       >
         <ReactMarkdown
@@ -52,15 +53,14 @@ function ChatMessage({ message, isLastStreaming }) {
           ]}
           components={markdownComponents}
         >
-          {
-            message.a +
-            (
-              isLastStreaming
-                ? '<span class="streaming-cursor">▋</span>'
-                : ''
-            )
-          }
+          {message.a}
         </ReactMarkdown>
+
+        {isLastStreaming && (
+          <span className="streaming-cursor">
+            ▋
+          </span>
+        )}
       </div>
     </div>
   )

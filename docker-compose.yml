@@ -68,6 +68,7 @@ services:
       --max-model-len 32768 
       --gpu-memory-utilization 0.90
       --max-num-seqs 24
+      --enforce-eager
       --enable-log-requests
     # 🔥 Container-native check using the underlying Python runtime environment
     healthcheck:
