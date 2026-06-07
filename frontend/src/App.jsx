@@ -31,10 +31,40 @@ export default function App() {
 
   const textareaRef = useRef(null)
   const virtuosoRef = useRef(null)
+  const pendingTextRef = useRef('')
+  const flushTimerRef = useRef(null)
 
   const handleAtBottomChange = (isAtBottom) => {
     setAutoScroll(isAtBottom)
   }
+
+  const flushPendingText = () => {
+    if (!pendingTextRef.current) return
+
+    const text = pendingTextRef.current
+    pendingTextRef.current = ''
+
+    setChat(prev => {
+      const updated = [...prev]
+
+      const lastIndex = updated.length - 1
+
+      updated[lastIndex] = {
+        ...updated[lastIndex],
+        a: (updated[lastIndex]?.a || '') + text
+      }
+
+      return updated
+    })
+  }
+
+  useEffect(() => {
+    return () => {
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (!textareaRef.current) return
@@ -216,6 +246,9 @@ export default function App() {
           try {
             const data = JSON.parse(rawJson)
             if (data[SSE_DONE]) {
+
+              flushPendingText()
+
               setChat(prev => {
                 const updated = [...prev]
                 updated[updated.length - 1].done = true
@@ -227,20 +260,16 @@ export default function App() {
             }
 
             // 🔥 live update last message
-            const contentChunk = data[SSE_CHUNK];
+            const contentChunk = data[SSE_CHUNK]
 
-            setChat(prev => {
-              const updated = [...prev];
-              const lastIndex = updated.length - 1;
-              
-              // Directly append the chunk onto the actual previous UI state
-              const currentText = updated[lastIndex]?.a || '';
-              updated[lastIndex] = {
-                ...updated[lastIndex],
-                a: currentText + contentChunk
-              };
-              return updated;
-            });
+            pendingTextRef.current += contentChunk
+
+            if (!flushTimerRef.current) {
+              flushTimerRef.current = setTimeout(() => {
+                flushPendingText()
+                flushTimerRef.current = null
+              }, 50)
+            }
           } catch (e) {
             console.error(e)
             // setErr(`JSON Error: ${lines[i]}` + i === lines.length - 1 ? `` : ` + ${lines[i + 1]}`)
@@ -384,8 +413,11 @@ export default function App() {
           {isStreaming ? (
             <button 
               onClick={() => {
+
+                flushPendingText()
+
                 if (abortControllerRef.current) {
-                  abortControllerRef.current.abort();
+                  abortControllerRef.current.abort()
                 }
               }}
               style={{ 
