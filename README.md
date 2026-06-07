@@ -1,5 +1,16 @@
 # Local ChatGPT-class System
 ```
+Version    : 0.51
+Model      : Qwen3.5-9B + vLLM + Ollama
+Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
+```
+Updates:
+- Stop button to implement request and streaming cancellation, which can also be triggered by reloading or closing Chat UI
+- LaTex/KaTeX and code block syntax highlighting
+- Virtualization for long chats
+- Streaming optimization by accumulating and flushing chunks 
+- Streaming cursor animation
+```
 Version    : 0.5
 Model      : Qwen3.5-9B + vLLM + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
