@@ -1,15 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import rehypeRaw from 'rehype-raw'
+import { Virtuoso } from 'react-virtuoso'
 import axios from 'axios'
 import Login from './Login'
-
-import 'katex/dist/katex.min.css'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import remarkMath from 'remark-math'
-import rehypeKatex from 'rehype-katex'
 
 // import { atomDark } from ...
 // import { vscDarkPlus } from ...
@@ -19,10 +11,15 @@ import ChatMessage from './components/ChatMessage'
 
 import './App.css'
 
+const generateId = () =>
+  Date.now().toString(36) +
+  Math.random().toString(36).slice(2)
+
 export default function App() {
   const [token, setToken] = useState(null)
   const [conversations, setConversations] = useState([])
   const [isStreaming, setIsStreaming] = useState(false)
+  const [autoScroll, setAutoScroll] = useState(true)
   const [cid, setCid] = useState(null)
   const [chat, setChat] = useState([])
   const [msg, setMsg] = useState('')
@@ -33,20 +30,11 @@ export default function App() {
   const abortControllerRef = useRef(null)
 
   const textareaRef = useRef(null)
+  const virtuosoRef = useRef(null)
 
-  const bottomRef = useRef(null)
-
-  const isNearBottom = () => {
-    const el = bottomRef.current?.parentElement
-    if (!el) return true
-    return el.scrollHeight - el.scrollTop - el.clientHeight < 100
+  const handleAtBottomChange = (isAtBottom) => {
+    setAutoScroll(isAtBottom)
   }
-
-  useEffect(() => {
-    if (isNearBottom()) {
-      bottomRef.current?.scrollIntoView()
-    }
-  }, [chat])
 
   useEffect(() => {
     if (!textareaRef.current) return
@@ -109,9 +97,19 @@ export default function App() {
       r.data.forEach(m => {
         if (m.role === 'user') {
           if (current) formatted.push(current)
-          current = { u: m.content, a: '' }
+          current = {
+            id: generateId(),
+            u: m.content,
+            a: ''
+          }
         } else if (m.role === 'assistant') {
-          if (!current) current = { u: '', a: '' }
+          if (!current) {
+            current = {
+              id: generateId(),
+              u: '',
+              a: ''
+            }
+          }
           current.a = m.content
           formatted.push(current)
           current = null
@@ -121,8 +119,18 @@ export default function App() {
       if (current) formatted.push(current)
 
       setChat(formatted)
+
+      requestAnimationFrame(() => {
+        virtuosoRef.current?.scrollToIndex({
+          index: Math.max(formatted.length - 1, 0),
+          align: 'end'
+        })
+      })
     })
-    .catch(() => setErr('Failed to load messages'))
+    .catch(err => {
+      console.error(err)
+      setErr(`Failed to load messages: ${err.message}`)
+    })
   }
 
   // ✅ create new chat
@@ -151,7 +159,17 @@ export default function App() {
     setErr('')
 
     // add placeholder assistant message
-    setChat(prev => [...prev, { u: userMsg, a: '', done: false }])
+    setChat(prev => [
+      ...prev,
+      {
+        id: generateId(),
+        u: userMsg,
+        a: '',
+        done: false
+      }
+    ])
+
+    setAutoScroll(true)
 
     setIsStreaming(true)
 
@@ -274,22 +292,62 @@ export default function App() {
       </div>
 
       {/* Chat */}
-      <div style={{ flex: 1, padding: 10, overflowY: 'auto', height: '100vh' }}>
-        {chat.map((c, i) => (
-          <ChatMessage
-            key={i}
-            message={c}
-            isLastStreaming={
-              !c.done &&
-              i === chat.length - 1
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh'
+        }}
+      >
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0
+          }}
+        >
+          <Virtuoso
+            ref={virtuosoRef}
+            data={chat}
+            increaseViewportBy={800}
+            followOutput={(isAtBottom) =>
+              autoScroll && isAtBottom ? 'smooth' : false
             }
+            atBottomStateChange={handleAtBottomChange}
+            computeItemKey={(index, item) => item.id}
+            itemContent={(index, item) => (
+              <ChatMessage
+                message={item}
+                isLastStreaming={
+                  !item.done &&
+                  index === chat.length - 1
+                }
+              />
+            )}
           />
-        ))}
+        </div>
 
-        <div ref={bottomRef}></div>
+        {err && (
+          <div
+            style={{
+              color: 'red',
+              padding: '8px 12px'
+            }}
+          >
+            {err}
+          </div>
+        )}
 
         {/* --- CHAT INPUT AREA --- */}
-        <div style={{ marginTop: '20px', display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+        <div
+          style={{
+            borderTop: '1px solid #ddd',
+            padding: '12px',
+            display: 'flex',
+            gap: '10px',
+            alignItems: 'flex-end'
+          }}
+        >
           <textarea
             ref={textareaRef}
             style={{
@@ -357,8 +415,6 @@ export default function App() {
             </button>
           )}
         </div>
-
-        {err && <div style={{ color: 'red' }}>{err}</div>}
       </div>
     </div>
   )
