@@ -119,7 +119,7 @@ qwen-local-chatgpt/
 └── memory/
     └── chroma/
 ```
-# Local ChatGPT Clone Roadmap
+# Roadmap
 
 ## Phase 0 — Completed Foundation
 
