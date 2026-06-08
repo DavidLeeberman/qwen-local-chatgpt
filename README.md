@@ -119,177 +119,648 @@ qwen-local-chatgpt/
 └── memory/
     └── chroma/
 ```
-## Next Upgrades - A Clean Progression from Easy → Hard and Highest Impact First
+# Local ChatGPT Clone Roadmap
 
-### 🧭 Phase 1 — Stability & Core UX (do these first)
+## Phase 0 — Completed Foundation
 
-These give you immediate “feels like ChatGPT” improvements with low risk.
+### Core Chat
 
-1️⃣ Persistent chat history (DB-backed)
+- [x] User registration
+- [x] User login
+- [x] JWT authentication
+- [x] PostgreSQL persistence
+- [x] Conversation threads
+- [x] Chat history loading
+- [x] System prompts
+- [x] Streaming SSE responses
 
-⭐ highest ROI, very easy
-   - Store messages in PostgreSQL
-   - Load last N messages into prompt
-   - Enables:
-      - refresh without losing chat
-      - future memory / RAG
+### Rendering
 
-2️⃣ Conversation threads + sidebar
+- [x] Markdown
+- [x] GitHub Flavored Markdown (GFM)
+- [x] KaTeX math rendering
+- [x] Syntax highlighting
+- [x] Streaming cursor animation
 
-⭐ turns your app into real ChatGPT UX
-   - conversations table
-   - messages linked to conversation_id
-   - frontend:
-      - left sidebar
-      - switch chats
+### Performance
 
-3️⃣ Streaming responses (ChatGPT typing effect)
+- [x] vLLM backend
+- [x] Stop generation
+- [x] Virtualized chat list (react-virtuoso)
+- [x] Streaming chunk batching
 
-⭐ huge UX upgrade, medium difficulty
-   - Flask → stream tokens (or chunked responses)
-   - Node → proxy stream
-   - React → render incrementally
-      
-4️⃣ System prompts per chat
+### Infrastructure
 
-⭐ small change, big flexibility
+- [x] Docker Compose deployment
+- [x] Container health checks
 
-   - each conversation has:
-      - system_prompt column
-      - enables:
-         - “You are a coding assistant”
-         - “You are a trader”
+---
 
-### ⚙️ Phase 2 — Performance & Architecture
+# Phase 1 — Data Model Cleanup
 
-Now you make it fast and scalable.
+## 1. Real Message IDs
 
-5️⃣ Switch Ollama → vLLM
+### Current
 
-⭐ biggest performance gain
-   - fully utilize your 5090
-   - benefits:
-      - batching
-      - lower latency
-      - higher throughput
-
-6️⃣ Async LLM request queue
-
-⭐ prevents blocking & crashes
-   - use:
-      - Celery / Redis OR simple queue
-      - allows:
-         - multiple users
-         - long prompts safely
-
-7️⃣ Healthchecks + startup ordering
-
-⭐ solves all container race issues permanently
-   - add:
-      - healthcheck in docker-compose
-      - wait-for-it or depends_on with condition
-
-### 🧠 Phase 3 — Memory System (do AFTER stable)
-
-Now revisit what broke earlier — but properly.
-
-8️⃣ Basic memory (non-embedding)
-
-⭐ safe re-entry point
-   - store:
-      - key facts (manual or rule-based)
-      - inject into prompt
-
-9️⃣ Vector DB (FAISS / Chroma)
-
-⭐ real semantic memory
-   - store embeddings
-   - retrieve relevant past info
-
-🔟 Memory intelligence (advanced)
-
-⭐ this is where it becomes “smart”
-   - LLM extracts facts:
-      - “user likes X”
-      - add:
-         - ranking
-         - decay
-         - pruning
-
-1️⃣1️⃣ Editable memory UI
-
-⭐ very high UX value
-   - show:
-      - “what AI knows about you”
-   - allow:
-      - delete / edit
-
-### 🧰 Phase 4 — Agents & Tools
-
-Now you go beyond ChatGPT.
-
-1️⃣2️⃣ Tool calling (APIs, DB, browser)
-
-⭐ function calling style
-   - examples:
-      - query DB
-      - fetch URL
-
-1️⃣3️⃣ Agent workflows
-
-⭐ multi-step reasoning
-   -planner → executor pattern
-
-1️⃣4️⃣ Full agent system
-
-⭐ tools + memory + reasoning combined
-
-### 🔐 Phase 5 — Production Security
-
-Don’t do this too early, but don’t skip it.
-
-1️⃣5️⃣ Password hashing (bcrypt)
-
-1️⃣6️⃣ Refresh tokens (real auth system)
-
-1️⃣7️⃣ HTTPS (reverse proxy, nginx)
-
-### 🎨 Phase 6 — Advanced UX polish
-
-1️⃣8️⃣ Memory panel upgrade
-   - editable
-   - categorized
-
-1️⃣9️⃣ Better ChatGPT-like UI
-   - typing cursor
-   - loading states
-   - error recovery
-
-## Final Simplified Optimal Roadmap
+```javascript
+id: generateId()
 ```
-1. Chat history (DB)
-2. Conversation threads
-3. Streaming responses
-4. System prompts
+
+### Target
+
+```sql
+messages
+---------
+id BIGSERIAL PRIMARY KEY
+conversation_id BIGINT
+role TEXT
+content TEXT
+created_at TIMESTAMP
 ```
+
+Frontend:
+
+```javascript
+id: m.id
 ```
-5. vLLM (performance)
-6. Async queue
-7. Healthchecks
+
+### Enables
+
+- Edit message
+- Regenerate response
+- Delete message
+- Diff rendering
+- Citations
+- Memory linkage
+
+---
+
+## 2. Conversation Metadata
+
+### Current
+
+```sql
+conversations
+-------------
+id
+user_id
+title
 ```
+
+### Target
+
+```sql
+conversations
+-------------
+id
+user_id
+title
+created_at
+updated_at
+archived
+pinned
 ```
-8. Basic memory
-9. Vector DB
-10. Memory intelligence
-11. Memory UI
+
+### Enables
+
+- Search
+- Pinning
+- Archiving
+- Better sorting
+
+---
+
+# Phase 2 — Chat UX
+
+## 3. Conversation Rename
+
+Add manual title editing.
+
+Example:
+
+```text
+✏ Rename Conversation
 ```
+
+---
+
+## 4. Conversation Search
+
+Search across:
+
+- Conversation title
+- User messages
+- Assistant messages
+
+Example:
+
+```text
+docker
+postgres
+memory
 ```
-12. Tools
-13. Agents
+
+---
+
+## 5. Conversation Delete / Archive
+
+Features:
+
+```text
+Delete
+Archive
+Restore
 ```
+
+---
+
+## 6. Conversation Pinning
+
+Features:
+
+```text
+📌 Pin Conversation
 ```
-14. Security (bcrypt, tokens, HTTPS)
+
+Stored in database.
+
+---
+
+## 7. Conversation Export
+
+Supported formats:
+
+```text
+Markdown
+JSON
+HTML
+PDF
 ```
+
+---
+
+# Phase 3 — Rendering Engine
+
+## 8. Incremental Markdown Rendering
+
+### Current
+
+Every chunk:
+
+```text
+append text
+reparse markdown
+rerender markdown
 ```
-15. UX polish
+
+### Target
+
+```text
+stable content
++
+streaming tail
 ```
+
+Only the streaming tail is reparsed.
+
+### Benefits
+
+- Faster rendering
+- Smoother code blocks
+- Better tables
+- Better math rendering
+
+Priority: High
+
+---
+
+## 9. Diff Rendering
+
+Show edits visually.
+
+Example:
+
+```diff
+- old content
++ new content
+```
+
+### Use Cases
+
+- Message editing
+- Response regeneration
+- Tool updates
+- Memory updates
+
+Priority: Medium
+
+---
+
+## 10. Edit User Message
+
+ChatGPT-style:
+
+```text
+User Message
+└ Edit
+```
+
+### Options
+
+```text
+Fork Conversation
+Replace Branch
+```
+
+Requires real message IDs.
+
+---
+
+## 11. Regenerate Assistant Response
+
+```text
+↻ Regenerate
+```
+
+Requires real message IDs.
+
+---
+
+# Phase 4 — Scalability
+
+## 12. Async Queue
+
+### Current
+
+```text
+Browser
+  ↓
+Flask
+  ↓
+vLLM
+```
+
+### Target
+
+```text
+Browser
+  ↓
+Queue
+  ↓
+Worker
+  ↓
+vLLM
+```
+
+### Candidate Technologies
+
+- Redis
+- Dramatiq
+- Celery
+- RQ
+
+### Recommended
+
+```text
+Redis + Dramatiq
+```
+
+---
+
+## 13. Database Connection Pooling
+
+### Current
+
+```python
+conn = psycopg2.connect(...)
+```
+
+### Target
+
+```python
+from psycopg2.pool import ThreadedConnectionPool
+```
+
+Benefits:
+
+- Better concurrency
+- Faster requests
+- Lower connection overhead
+
+---
+
+## 14. Streaming Metrics
+
+Track:
+
+```text
+Tokens/sec
+First token latency
+Total latency
+Queue depth
+```
+
+---
+
+## 15. Admin Dashboard
+
+Display:
+
+```text
+GPU utilization
+VRAM usage
+Active chats
+Request queue
+Token throughput
+```
+
+---
+
+# Phase 5 — Memory
+
+## 16. Basic Memory
+
+Store:
+
+```text
+Facts
+Preferences
+Projects
+```
+
+---
+
+## 17. Memory UI
+
+Features:
+
+```text
+View memories
+Edit memories
+Delete memories
+```
+
+---
+
+## 18. Vector Database
+
+### Candidates
+
+- pgvector
+- Qdrant
+- Milvus
+
+### Recommended
+
+```text
+PostgreSQL + pgvector
+```
+
+Reason:
+
+- Already using PostgreSQL
+- Simpler deployment
+- Excellent performance for single-node setups
+
+---
+
+## 19. Retrieval Pipeline
+
+Prompt construction:
+
+```text
+Conversation History
+        +
+Relevant Memories
+        +
+User Query
+```
+
+---
+
+## 20. Memory Intelligence
+
+Automatic:
+
+```text
+Extract
+Merge
+Summarize
+Forget
+```
+
+---
+
+# Phase 6 — Tools
+
+## 21. Tool Framework
+
+OpenAI-compatible tool schema.
+
+Example:
+
+```json
+{
+  "name": "search",
+  "description": "Search the web"
+}
+```
+
+---
+
+## 22. Built-in Tools
+
+Planned:
+
+```text
+Web Search
+Calculator
+Python
+Filesystem
+Database
+```
+
+---
+
+## 23. Tool Streaming
+
+Display intermediate steps:
+
+```text
+Thinking...
+Calling Tool...
+Tool Result...
+Generating Answer...
+```
+
+---
+
+# Phase 7 — Agents
+
+## 24. Single-Agent Workflow
+
+```text
+Reason
+↓
+Tool
+↓
+Observe
+↓
+Respond
+```
+
+---
+
+## 25. Multi-Agent System
+
+Possible agents:
+
+```text
+Planner
+Researcher
+Coder
+Reviewer
+```
+
+---
+
+# Phase 8 — Security
+
+## 26. Password Hashing
+
+### Current
+
+```python
+hashlib.sha256(...)
+```
+
+### Target
+
+```python
+bcrypt.hashpw(...)
+```
+
+Priority: Critical
+
+---
+
+## 27. HTTPS
+
+Reverse proxy:
+
+- Nginx
+- Traefik
+
+---
+
+## 28. Rate Limiting
+
+Protect against:
+
+```text
+Spam
+Abuse
+DoS attacks
+```
+
+---
+
+## 29. CSRF / CORS Hardening
+
+Production requirement.
+
+---
+
+# Phase 9 — UX Polish
+
+## 30. Mobile UI
+
+Responsive layouts.
+
+---
+
+## 31. Themes
+
+```text
+Dark Mode
+Light Mode
+```
+
+---
+
+## 32. Keyboard Shortcuts
+
+Examples:
+
+```text
+Ctrl+Enter
+Ctrl+K
+Ctrl+/
+```
+
+---
+
+## 33. Message Actions
+
+```text
+Copy
+Edit
+Delete
+Regenerate
+```
+
+---
+
+## 34. Typing Indicators
+
+Examples:
+
+```text
+Thinking...
+Generating...
+```
+
+---
+
+## 35. Token Usage Statistics
+
+Display:
+
+```text
+Prompt Tokens
+Completion Tokens
+Total Tokens
+Estimated Cost
+```
+
+---
+
+# Recommended Next Priorities
+
+## Immediate
+
+1. Real DB Message IDs
+2. Conversation Rename
+3. Conversation Search
+4. bcrypt Migration
+5. Async Queue
+
+---
+
+## Next Wave
+
+6. Edit Message
+7. Regenerate Response
+8. Incremental Markdown Rendering
+9. Diff Rendering
+10. Memory V1
+
+---
+
+## Long-Term
+
+11. pgvector Integration
+12. Retrieval Pipeline
+13. Tool Framework
+14. Agent Framework
+15. Production Security Hardening
