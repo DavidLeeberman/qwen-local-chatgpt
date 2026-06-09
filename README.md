@@ -125,34 +125,34 @@ qwen-local-chatgpt/
 
 ### Core Chat
 
-- [x] User registration
-- [x] User login
-- [x] JWT authentication
-- [x] PostgreSQL persistence
-- [x] Conversation threads
-- [x] Chat history loading
-- [x] System prompts
-- [x] Streaming SSE responses
+- ✅ User registration
+- ✅ User login
+- ✅ JWT authentication
+- ✅ PostgreSQL persistence
+- ✅ Conversation threads
+- ✅ Chat history loading
+- ✅ System prompts
+- ✅ Streaming SSE responses
 
 ### Rendering
 
-- [x] Markdown
-- [x] GitHub Flavored Markdown (GFM)
-- [x] KaTeX math rendering
-- [x] Syntax highlighting
-- [x] Streaming cursor animation
+- ✅ Markdown
+- ✅ GitHub Flavored Markdown (GFM)
+- ✅ KaTeX math rendering
+- ✅ Syntax highlighting
+- ✅ Streaming cursor animation
 
 ### Performance
 
-- [x] vLLM backend
-- [x] Stop generation
-- [x] Virtualized chat list (react-virtuoso)
-- [x] Streaming chunk batching
+- ✅ vLLM backend
+- ✅ Stop generation
+- ✅ Virtualized chat list (react-virtuoso)
+- ✅ Streaming chunk batching
 
 ### Infrastructure
 
-- [x] Docker Compose deployment
-- [x] Container health checks
+- ✅ Docker Compose deployment
+- ✅ Container health checks
 
 ---
 
@@ -476,7 +476,7 @@ Token throughput
 
 ---
 
-# Phase 5 — Memory
+# Phase 5 — Memory & RAG
 
 ## 16. Basic Memory
 
@@ -498,19 +498,37 @@ Features:
 View memories
 Edit memories
 Delete memories
+Pin
 ```
 
 ---
 
-## 18. Vector Database
+## 18. Conversation Intelligence
 
-### Candidates
+Auto-generate:
 
-- pgvector
-- Qdrant
-- Milvus
+```text
+Title
+Summary
+Tags
+System Prompt
+```
 
-### Recommended
+Examples:
+
+```text
+User is building a Dockerized React application.
+
+Prefer production-ready code examples.
+```
+
+This becomes the foundation for memory.
+
+---
+
+## 19. Vector Database
+
+Recommended:
 
 ```text
 PostgreSQL + pgvector
@@ -518,27 +536,54 @@ PostgreSQL + pgvector
 
 Reason:
 
-- Already using PostgreSQL
-- Simpler deployment
-- Excellent performance for single-node setups
+```text
+Already using PostgreSQL
+Simple deployment
+Excellent single-node performance
+```
 
 ---
 
-## 19. Retrieval Pipeline
+## 20. Retrieval Pipeline
 
-Prompt construction:
+Prompt assembly:
 
 ```text
 Conversation History
         +
+Conversation Summary
+        +
 Relevant Memories
+        +
+Relevant Documents
         +
 User Query
 ```
 
 ---
 
-## 20. Memory Intelligence
+## 21. RAG (Retrieval-Augmented Generation)
+
+Sources:
+
+```text
+Conversation Memory
+User Memory
+Uploaded Files
+Knowledge Base
+```
+
+Retrieval:
+
+```text
+Embedding Search
+Hybrid Search
+Metadata Filtering
+```
+
+---
+
+## 22. Memory Intelligence
 
 Automatic:
 
@@ -546,14 +591,26 @@ Automatic:
 Extract
 Merge
 Summarize
+Deduplicate
 Forget
+Update
 ```
+
+Examples:
+
+```text
+User uses Docker
+User owns RTX 5090
+User prefers complete code
+```
+
+This is where memory becomes self-maintaining.
 
 ---
 
 # Phase 6 — Tools
 
-## 21. Tool Framework
+## 23. Tool Framework
 
 OpenAI-compatible tool schema.
 
@@ -568,7 +625,7 @@ Example:
 
 ---
 
-## 22. Built-in Tools
+## 24. Built-in Tools
 
 Planned:
 
@@ -582,7 +639,7 @@ Database
 
 ---
 
-## 23. Tool Streaming
+## 25. Tool Streaming
 
 Display intermediate steps:
 
@@ -597,7 +654,7 @@ Generating Answer...
 
 # Phase 7 — Agents
 
-## 24. Single-Agent Workflow
+## 26. Single-Agent Workflow
 
 ```text
 Reason
@@ -611,7 +668,7 @@ Respond
 
 ---
 
-## 25. Multi-Agent System
+## 27. Multi-Agent System
 
 Possible agents:
 
@@ -626,7 +683,7 @@ Reviewer
 
 # Phase 8 — Security
 
-## 26. Password Hashing
+## 28. Password Hashing
 
 ### Current
 
@@ -644,7 +701,7 @@ Priority: Critical
 
 ---
 
-## 27. HTTPS
+## 29. HTTPS
 
 Reverse proxy:
 
@@ -653,7 +710,7 @@ Reverse proxy:
 
 ---
 
-## 28. Rate Limiting
+## 30. Rate Limiting
 
 Protect against:
 
@@ -665,7 +722,7 @@ DoS attacks
 
 ---
 
-## 29. CSRF / CORS Hardening
+## 31. CSRF / CORS Hardening
 
 Production requirement.
 
@@ -673,13 +730,13 @@ Production requirement.
 
 # Phase 9 — UX Polish
 
-## 30. Mobile UI
+## 32. Mobile UI
 
 Responsive layouts.
 
 ---
 
-## 31. Themes
+## 33. Themes
 
 ```text
 Dark Mode
@@ -688,7 +745,7 @@ Light Mode
 
 ---
 
-## 32. Keyboard Shortcuts
+## 34. Keyboard Shortcuts
 
 Examples:
 
@@ -700,7 +757,7 @@ Ctrl+/
 
 ---
 
-## 33. Message Actions
+## 35. Message Actions
 
 ```text
 Copy
@@ -711,7 +768,7 @@ Regenerate
 
 ---
 
-## 34. Typing Indicators
+## 36. Typing Indicators
 
 Examples:
 
@@ -722,7 +779,7 @@ Generating...
 
 ---
 
-## 35. Token Usage Statistics
+## 37. Token Usage Statistics
 
 Display:
 
@@ -737,30 +794,54 @@ Estimated Cost
 
 # Recommended Next Priorities
 
-## Immediate
+## Immediate (Next Sprint)
 
-1. Real DB Message IDs
-2. Conversation Rename
-3. Conversation Search
-4. bcrypt Migration
-5. Async Queue
-
----
-
-## Next Wave
-
-6. Edit Message
-7. Regenerate Response
-8. Incremental Markdown Rendering
-9. Diff Rendering
-10. Memory V1
+1. Database Connection Pooling
+2. Real Message IDs
+3. Conversation Rename
+4. Conversation Search
+5. bcrypt Migration
 
 ---
 
-## Long-Term
+## Near-Term
 
-11. pgvector Integration
-12. Retrieval Pipeline
-13. Tool Framework
-14. Agent Framework
-15. Production Security Hardening
+6. Async Queue (Redis + Dramatiq)
+7. Edit Message
+8. Regenerate Response
+9. Incremental Markdown Rendering
+10. Diff Rendering
+
+---
+
+## Memory Foundation
+
+11. Conversation Intelligence
+12. Basic Memory
+13. Memory UI
+
+---
+
+## RAG Layer
+
+14. pgvector Integration
+15. Retrieval Pipeline
+16. RAG
+17. Memory Intelligence
+
+---
+
+## AI Platform
+
+18. Tool Framework
+19. Tool Streaming
+20. Agent Framework
+
+---
+
+## Production Readiness
+
+21. HTTPS
+22. Rate Limiting
+23. Security Hardening
+24. Monitoring Dashboard
