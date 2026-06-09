@@ -806,52 +806,52 @@ Estimated Cost
 
 ## Immediate (Next Sprint)
 
-✓ Database Connection Pooling
-2. Real Message IDs
-3. Conversation Rename
-4. Conversation Search
-5. bcrypt Migration
+- [x] Database Connection Pooling
+- [ ] Real Message IDs
+- [ ] Conversation Rename
+- [ ] Conversation Search
+- [ ] bcrypt Migration
 
 ---
 
 ## Near-Term
 
-6. Async Queue (Redis + Dramatiq)
-7. Edit Message
-8. Regenerate Response
-9. Incremental Markdown Rendering
-10. Diff Rendering
+- [ ] Async Queue (Redis + Dramatiq)
+- [ ] Edit Message
+- [ ] Regenerate Response
+- [ ] Incremental Markdown Rendering
+- [ ] Diff Rendering
 
 ---
 
 ## Memory Foundation
 
-11. Conversation Intelligence
-12. Basic Memory
-13. Memory UI
+- [ ] Conversation Intelligence
+- [ ] Basic Memory
+- [ ] Memory UI
 
 ---
 
 ## RAG Layer
 
-14. pgvector Integration
-15. Retrieval Pipeline
-16. RAG
-17. Memory Intelligence
+- [ ] pgvector Integration
+- [ ] Retrieval Pipeline
+- [ ] RAG
+- [ ] Memory Intelligence
 
 ---
 
 ## AI Platform
 
-18. Tool Framework
-19. Tool Streaming
-20. Agent Framework
+- [ ] Tool Framework
+- [ ] Tool Streaming
+- [ ] Agent Framework
 
 ---
 
 ## Production Readiness
 
-21. HTTPS
-22. Rate Limiting
-23. Security Hardening
-24. Monitoring Dashboard
+- [ ] HTTPS
+- [ ] Rate Limiting
+- [ ] Security Hardening
+- [ ] Monitoring Dashboard
