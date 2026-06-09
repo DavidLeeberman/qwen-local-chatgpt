@@ -148,11 +148,21 @@ qwen-local-chatgpt/
 - ✅ Stop generation
 - ✅ Virtualized chat list (react-virtuoso)
 - ✅ Streaming chunk batching
+- ✅ Auto-scroll during streaming
+- ✅ Scroll preservation while reading history
+
+### Database
+- ✅ PostgreSQL connection pooling
+- ✅ Thread-safe connection pool
+- ✅ Cursor lifecycle management
+- ✅ Safe streaming database writes
 
 ### Infrastructure
 
 - ✅ Docker Compose deployment
 - ✅ Container health checks
+- ✅ vLLM OpenAI-compatible API integration
+- ✅ Backend/frontend container separation
 
 ---
 

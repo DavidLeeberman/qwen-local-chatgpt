@@ -3,15 +3,16 @@ import os
 from flask import Flask, request, jsonify, Response, stream_with_context
 import requests, hashlib, json
 from auth import generate_token, verify_token
-from psycopg2.pool import SimpleConnectionPool
+from psycopg2.pool import ThreadedConnectionPool
 from contextlib import contextmanager
+import atexit
 
 app = Flask(__name__)
 
 # ✅ SECURITY FIX: Read from environment variables populated via env_file (.env)
-db_pool = SimpleConnectionPool(
-    1,
-    20,
+db_pool = ThreadedConnectionPool(
+    minconn=2,
+    maxconn=20,
     host=os.getenv("POSTGRES_HOST", "postgres"),
     dbname=os.getenv("POSTGRES_DB", "qwen"),
     user=os.getenv("POSTGRES_USER", "admin"),
@@ -21,10 +22,23 @@ db_pool = SimpleConnectionPool(
 @contextmanager
 def get_db():
     conn = db_pool.getconn()
+
     try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+
         yield conn
+
+    except Exception:
+        conn.rollback()
+        raise
+
     finally:
         db_pool.putconn(conn)
+
+@atexit.register
+def close_pool():
+    db_pool.closeall()
 
 # OLLAMA = "http://ollama:11434/api/generate"
 
@@ -33,6 +47,8 @@ def get_db():
 # MODEL_NAME = os.getenv("OLLAMA_QWEN_NAME", "qwen3.5:9b")
 MODEL_CHAT_URL = os.getenv("VLLM_CHAT_URL", "http://vllm:10000/v1/chat/completions")
 MODEL_NAME = os.getenv("VLLM_QWEN_NAME", "Qwen/Qwen3.5-9B")
+
+MAX_CONTEXT_MESSAGES = 10
 
 def hash_password(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
@@ -49,18 +65,17 @@ def register():
         return jsonify({"error": "invalid request"}), 400
 
     with get_db() as conn:
-        cur = conn.cursor()
-
-        try:
-            cur.execute(
-                "INSERT INTO users (username,password) VALUES (%s,%s) RETURNING id",
-                (d['username'], hash_password(d['password']))
-            )
-            uid = cur.fetchone()[0]
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            return jsonify({"error": "user exists"}), 400
+        with conn.cursor() as cur:
+            try:
+                cur.execute(
+                    "INSERT INTO users (username,password) VALUES (%s,%s) RETURNING id",
+                    (d['username'], hash_password(d['password']))
+                )
+                uid = cur.fetchone()[0]
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                return jsonify({"error": "user exists"}), 400
 
     return jsonify({"token": generate_token(uid)})
 
@@ -73,12 +88,12 @@ def login():
         return jsonify({"error": "invalid request"}), 400
 
     with get_db() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT id FROM users WHERE username=%s AND password=%s",
-            (d['username'], hash_password(d['password']))
-        )
-        u = cur.fetchone()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id FROM users WHERE username=%s AND password=%s",
+                (d['username'], hash_password(d['password']))
+            )
+            u = cur.fetchone()
 
     if not u:
         return jsonify({"error": "invalid credentials"}), 401
@@ -97,15 +112,14 @@ def create_conversation():
         return jsonify({"error": "unauthorized"}), 401
 
     with get_db() as conn:
-        cur = conn.cursor()
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO conversations (user_id) VALUES (%s) RETURNING id",
+                (user['user_id'],)
+            )
 
-        cur.execute(
-            "INSERT INTO conversations (user_id) VALUES (%s) RETURNING id",
-            (user['user_id'],)
-        )
-
-        cid = cur.fetchone()[0]
-        conn.commit()
+            cid = cur.fetchone()[0]
+            conn.commit()
 
     return jsonify({"conversation_id": cid})
 
@@ -117,16 +131,15 @@ def list_conversations():
         return jsonify({"error": "unauthorized"}), 401
 
     with get_db() as conn:
-        cur = conn.cursor()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, title, updated_at, system_prompt
+                FROM conversations
+                WHERE user_id=%s
+                ORDER BY updated_at DESC
+            """, (user['user_id'],))
 
-        cur.execute("""
-            SELECT id, title, updated_at, system_prompt
-            FROM conversations
-            WHERE user_id=%s
-            ORDER BY updated_at DESC
-        """, (user['user_id'],))
-
-        rows = cur.fetchall()
+            rows = cur.fetchall()
 
     return jsonify([
         {"id": r[0], "title": r[1], "updated_at": str(r[2]), "system_prompt": r[3]}
@@ -146,25 +159,24 @@ def get_messages(cid):
         return jsonify({"error": "unauthorized"}), 401
 
     with get_db() as conn:
-        cur = conn.cursor()
+        with conn.cursor() as cur:
+            # Ownership check
+            cur.execute("""
+                SELECT 1 FROM conversations
+                WHERE id=%s AND user_id=%s
+            """, (cid, user['user_id']))
 
-        # Ownership check
-        cur.execute("""
-            SELECT 1 FROM conversations
-            WHERE id=%s AND user_id=%s
-        """, (cid, user['user_id']))
+            if not cur.fetchone():
+                return jsonify({"error": "forbidden"}), 403
 
-        if not cur.fetchone():
-            return jsonify({"error": "forbidden"}), 403
+            # ✅ IMPORTANT: Enforce ownership
+            cur.execute("""
+                SELECT role, content FROM messages
+                WHERE conversation_id=%s
+                ORDER BY id ASC
+            """, (cid,))
 
-        # ✅ IMPORTANT: Enforce ownership
-        cur.execute("""
-            SELECT role, content FROM messages
-            WHERE conversation_id=%s
-            ORDER BY id ASC
-        """, (cid,))
-
-        rows = cur.fetchall()
+            rows = cur.fetchall()
 
     return jsonify([
         {"role": r[0], "content": r[1]}
@@ -191,161 +203,168 @@ def chat():
         return jsonify({"error": "empty message"}), 400
 
     with get_db() as conn:
-        cur = conn.cursor()
+        with conn.cursor() as cur:
 
-        # ✅ 1. Create conversation if not provided
-        if not cid:
+            # ✅ 1. Create conversation if not provided
+            if not cid:
+                cur.execute(
+                    "INSERT INTO conversations (user_id) VALUES (%s) RETURNING id",
+                    (uid,)
+                )
+                cid = cur.fetchone()[0]
+                conn.commit()
+
+            else:
+                # Ownership check
+                cur.execute("""
+                    SELECT 1 FROM conversations
+                    WHERE id=%s AND user_id=%s
+                """, (cid, uid))
+
+                if not cur.fetchone():
+                    return jsonify({"error": "forbidden"}), 403
+
+            # ✅ 2. Store user message securely using parameterization
             cur.execute(
-                "INSERT INTO conversations (user_id) VALUES (%s) RETURNING id",
-                (uid,)
+                "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
+                (cid, "user", msg)
             )
-            cid = cur.fetchone()[0]
             conn.commit()
 
-        else:
-            # Ownership check
+            # 3. Pull System Instructions for this Conversation
+            cur.execute("SELECT system_prompt FROM conversations WHERE id=%s", (cid,))
+            system_prompt_row = cur.fetchone()
+            system_prompt = system_prompt_row[0] if system_prompt_row else "You are a helpful assistant."
+
+            # 4. Fetch history - last N messages (context) with ownership check already done, ordered oldest to newest for proper conversation flow
             cur.execute("""
-                SELECT 1 FROM conversations
-                WHERE id=%s AND user_id=%s
-            """, (cid, uid))
+                SELECT role, content FROM messages
+                WHERE conversation_id=%s
+                ORDER BY id DESC
+                LIMIT %s
+            """, (cid, MAX_CONTEXT_MESSAGES))
+            message_rows = cur.fetchall()
+            message_rows.reverse()
 
-            if not cur.fetchone():
-                return jsonify({"error": "forbidden"}), 403
-
-        # ✅ 2. Store user message securely using parameterization
-        cur.execute(
-            "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
-            (cid, "user", msg)
-        )
-        conn.commit()
-
-        # 3. Pull System Instructions for this Conversation
-        cur.execute("SELECT system_prompt FROM conversations WHERE id=%s", (cid,))
-        system_prompt_row = cur.fetchone()
-        system_prompt = system_prompt_row[0] if system_prompt_row else "You are a helpful assistant."
-
-        # 4. Fetch history - last N messages (context) with ownership check already done, ordered oldest to newest for proper conversation flow
-        cur.execute("""
-            SELECT role, content FROM messages
-            WHERE conversation_id=%s
-            ORDER BY id DESC
-            LIMIT 10
-        """, (cid,))
-        message_rows = cur.fetchall()
-        message_rows.reverse()
-
-        # 5. Build agnostic structured message array payload
-        engine_messages = []
-        
-        # Inject the system guidelines first
-        if system_prompt:
-            engine_messages.append({"role": "system", "content": system_prompt})
+            # 5. Build agnostic structured message array payload
+            engine_messages = []
             
-        # Append past message sequences dynamically
-        for role, content in message_rows:
-            engine_messages.append({"role": role, "content": content})
-
-        # 6. Call LLM engine and generate streaming response with the agnostic Chat API schema
-        def generate():
-            SSE_PREFIX = os.getenv("SSE_PREFIX", "data: ")
-            SSE_DELIMITER = os.getenv("SSE_DELIMITER", "\n\n\n\n")
-            SSE_CHUNK = os.getenv("SSE_CHUNK", "chunk")
-            SSE_DONE = os.getenv("SSE_DONE", "done")
-
-            full_response = ""
-
-            try:
-                payload = {
-                    "model": MODEL_NAME,
-                    "messages": engine_messages,
-                    "stream": True
-                }
+            # Inject the system guidelines first
+            if system_prompt:
+                engine_messages.append({"role": "system", "content": system_prompt})
                 
-                with requests.post(MODEL_CHAT_URL, json=payload, stream=True) as r:
-                    for line in r.iter_lines():
-                        if not line:
-                            continue
+            # Append past message sequences dynamically
+            for role, content in message_rows:
+                engine_messages.append({"role": role, "content": content})
 
-                        # Handles Ollama streaming only
-                        # try:
-                        #     line_data = json.loads(line.decode("utf-8"))
-                        #     # Note: /api/chat payload yields chunk fragments nested in a 'message' object
-                        #     chunk = line_data.get("message", {}).get("content", "")
-                        # except Exception:
-                        #     continue
+            # 6. Call LLM engine and generate streaming response with the agnostic Chat API schema
+            def generate():
+                SSE_PREFIX = os.getenv("SSE_PREFIX", "data: ")
+                SSE_DELIMITER = os.getenv("SSE_DELIMITER", "\n\n\n\n")
+                SSE_CHUNK = os.getenv("SSE_CHUNK", "chunk")
+                SSE_DONE = os.getenv("SSE_DONE", "done")
 
-                        # Handles both vLLM and Ollama streaming
-                        try:
-                            # 1. Handles standard OpenAI SSE trimming to cleanly decode and trim the SSE prefix
-                            decoded_line = line.decode("utf-8")
+                full_response = ""
 
-                            prefix = "data: "
-                            if decoded_line.startswith(prefix):
-                                decoded_line = decoded_line[len(prefix):]
+                try:
+                    payload = {
+                        "model": MODEL_NAME,
+                        "messages": engine_messages,
+                        "stream": True
+                    }
+                    
+                    with requests.post(
+                        MODEL_CHAT_URL,
+                        json=payload,
+                        stream=True,
+                        timeout=(10, 600)
+                    ) as r:
+                        for line in r.iter_lines():
+                            if not line:
+                                continue
 
-                            decoded_line = decoded_line.strip()
-                            
-                            # 🔥 CRITICAL GUARD: Catch vLLM/OpenAI completion signal before parsing JSON
-                            if decoded_line == "[DONE]":
-                                break
+                            # Handles Ollama streaming only
+                            # try:
+                            #     line_data = json.loads(line.decode("utf-8"))
+                            #     # Note: /api/chat payload yields chunk fragments nested in a 'message' object
+                            #     chunk = line_data.get("message", {}).get("content", "")
+                            # except Exception:
+                            #     continue
 
-                            line_data = json.loads(decoded_line)
-                            
-                            # 2. Handle standard OpenAI/vLLM nested stream fragment dictionary structure
-                            choices = line_data.get("choices", [])
-                            if choices:
-                                # vLLM/OpenAI structure path
-                                chunk = choices[0].get("delta", {}).get("content", "")
-                            else:
-                                # Fallback to standard Ollama response architecture if you switch back
-                                chunk = line_data.get("message", {}).get("content", "")
+                            # Handles both vLLM and Ollama streaming
+                            try:
+                                # 1. Handles standard OpenAI SSE trimming to cleanly decode and trim the SSE prefix
+                                decoded_line = line.decode("utf-8")
+
+                                prefix = "data: "
+                                if decoded_line.startswith(prefix):
+                                    decoded_line = decoded_line[len(prefix):]
+
+                                decoded_line = decoded_line.strip()
                                 
-                        except Exception:
-                            continue
+                                # 🔥 CRITICAL GUARD: Catch vLLM/OpenAI completion signal before parsing JSON
+                                if decoded_line == "[DONE]":
+                                    break
 
-                        if chunk:
-                            full_response += chunk
-                            chunk_data = json.dumps({SSE_CHUNK: chunk, SSE_DONE: False})
-                            yield f"{SSE_PREFIX}{chunk_data}{SSE_DELIMITER}"
+                                line_data = json.loads(decoded_line)
+                                
+                                # 2. Handle standard OpenAI/vLLM nested stream fragment dictionary structure
+                                choices = line_data.get("choices", [])
+                                if choices:
+                                    # vLLM/OpenAI structure path
+                                    chunk = choices[0].get("delta", {}).get("content", "")
+                                else:
+                                    # Fallback to standard Ollama response architecture if you switch back
+                                    chunk = line_data.get("message", {}).get("content", "")
+                                    
+                            except Exception:
+                                continue
 
-            except Exception as e:
-                print("LLM ENGINE CHAT STREAM ERROR:", e)
-                yield f"{SSE_PREFIX}[ERROR: {e}]{SSE_DELIMITER}"
+                            if chunk:
+                                full_response += chunk
+                                chunk_data = json.dumps({SSE_CHUNK: chunk, SSE_DONE: False})
+                                yield f"{SSE_PREFIX}{chunk_data}{SSE_DELIMITER}"
 
-            # 7. Store assistant metrics (full response) once pipeline yields empty/done statuses safely
+                except Exception as e:
+                    print("LLM ENGINE CHAT STREAM ERROR:", e)
+                    yield f"{SSE_PREFIX}[ERROR: {e}]{SSE_DELIMITER}"
+
+                # 7. Store assistant metrics (full response) once pipeline yields empty/done statuses safely
+                if full_response:
+                    with get_db() as save_conn:
+                        try:
+                            with save_conn.cursor() as db_cur:
+                                db_cur.execute(
+                                    "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
+                                    (cid, "assistant", full_response)
+                                )
+                                
+                                # Timestamp bookkeeping updates
+                                db_cur.execute("""
+                                    UPDATE conversations SET updated_at=NOW() WHERE id=%s
+                                """, (cid,))
+                                save_conn.commit()
+                        except Exception as db_err:
+                            save_conn.rollback()
+                            print("POST-STREAM DB SAVE CRITICAL FAILURE:", db_err)
+
+                # Signal stream completion and handle 'jailbreak'
+                done_data = json.dumps({SSE_CHUNK: "", SSE_DONE: True})
+                yield f"{SSE_PREFIX}{done_data}{SSE_DELIMITER}"
+
+            # 8. Auto-generate conversation title (ONLY if empty) based on first user message for better UX
             try:
-                db_cur = conn.cursor()
-                db_cur.execute(
-                    "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
-                    (cid, "assistant", full_response)
-                )
-                
-                # Timestamp bookkeeping updates
-                db_cur.execute("""
-                    UPDATE conversations SET updated_at=NOW() WHERE id=%s
-                """, (cid,))
-                conn.commit()
-            except Exception as db_err:
-                conn.rollback()
-                print("POST-STREAM DB SAVE CRITICAL FAILURE:", db_err)
-
-            # Signal stream completion and handle 'jailbreak'
-            done_data = json.dumps({SSE_CHUNK: "", SSE_DONE: True})
-            yield f"{SSE_PREFIX}{done_data}{SSE_DELIMITER}"
-
-        # 8. Auto-generate conversation title (ONLY if empty) based on first user message for better UX
-        try:
-            cur.execute("SELECT title FROM conversations WHERE id=%s", (cid,))
-            row = cur.fetchone()
-            if row and not row[0]:
-                title = msg[:50]
-                cur.execute(
-                    "UPDATE conversations SET title=%s WHERE id=%s",
-                    (title, cid)
-                )
-                conn.commit()
-        except Exception as e:
-            print("TITLE UPDATE ERROR:", e)
+                cur.execute("SELECT title FROM conversations WHERE id=%s", (cid,))
+                row = cur.fetchone()
+                if row and not row[0]:
+                    title = msg[:50]
+                    cur.execute(
+                        "UPDATE conversations SET title=%s WHERE id=%s",
+                        (title, cid)
+                    )
+                    conn.commit()
+            except Exception as e:
+                print("TITLE UPDATE ERROR:", e)
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
