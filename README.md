@@ -806,7 +806,7 @@ Estimated Cost
 
 ## Immediate (Next Sprint)
 
-1. Database Connection Pooling
+✅ Database Connection Pooling
 2. Real Message IDs
 3. Conversation Rename
 4. Conversation Search
