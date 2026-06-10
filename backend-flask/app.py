@@ -1,7 +1,7 @@
 import os
 
 from flask import Flask, request, jsonify, Response, stream_with_context
-import requests, hashlib, json
+import requests, hashlib, bcrypt, json
 from auth import generate_token, verify_token
 from psycopg2.pool import ThreadedConnectionPool
 from contextlib import contextmanager
@@ -50,8 +50,25 @@ MODEL_NAME = os.getenv("VLLM_QWEN_NAME", "Qwen/Qwen3.5-9B")
 
 MAX_CONTEXT_MESSAGES = 10
 
-def hash_password(pw):
-    return hashlib.sha256(pw.encode()).hexdigest()
+def hash_password(password):
+    return bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt()
+    ).decode("utf-8")
+
+def verify_password(password, stored_hash):
+
+    if stored_hash.startswith("$2"):
+        return bcrypt.checkpw(
+            password.encode(),
+            stored_hash.encode()
+        ), None
+
+    legacy_hash = hashlib.sha256(
+        password.encode()
+    ).hexdigest()
+
+    return legacy_hash == stored_hash, legacy_hash
     
 # ========================
 # AUTH
@@ -90,15 +107,44 @@ def login():
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id FROM users WHERE username=%s AND password=%s",
-                (d['username'], hash_password(d['password']))
+                """
+                SELECT id,password
+                FROM users
+                WHERE username=%s
+                """,
+                (d['username'],)
             )
+
             u = cur.fetchone()
 
     if not u:
         return jsonify({"error": "invalid credentials"}), 401
 
-    return jsonify({"token": generate_token(u[0])})
+    uid, stored_hash = u
+
+    is_valid, legacy_hash = verify_password(
+        d['password'],
+        stored_hash
+    )
+    
+    if not is_valid:
+        return jsonify({"error": "invalid credentials"}), 401
+    
+    if legacy_hash:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                try:
+                    cur.execute(
+                        "UPDATE users SET password=%s WHERE id=%s",
+                        (hash_password(d['password']), uid)
+                    )
+                    conn.commit()
+                except Exception as e:
+                    conn.rollback()
+                    print("LEGACY PASSWORD HASH UPGRADE FAILED:", e)
+                    return jsonify({"error": "legacy password hash upgrade failed"}), 500
+
+    return jsonify({"token": generate_token(uid)})
 
 # ========================
 # CONVERSATIONS

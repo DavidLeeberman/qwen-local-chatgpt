@@ -127,7 +127,6 @@ qwen-local-chatgpt/
 
 - ✅ User registration
 - ✅ User login
-- ✅ JWT authentication
 - ✅ PostgreSQL persistence
 - ✅ Conversation threads
 - ✅ Chat history loading
@@ -163,6 +162,11 @@ qwen-local-chatgpt/
 - ✅ Container health checks
 - ✅ vLLM OpenAI-compatible API integration
 - ✅ Backend/frontend container separation
+
+### Security Foundation
+
+- ✅ JWT authentication
+- ✅ Password hashing (bcrypt)
 
 ---
 
@@ -807,10 +811,10 @@ Estimated Cost
 ## Immediate (Next Sprint)
 
 - [x] Database Connection Pooling
+- [x] bcrypt Migration
 - [ ] Real Message IDs
 - [ ] Conversation Rename
 - [ ] Conversation Search
-- [ ] bcrypt Migration
 
 ---
 
