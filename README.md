@@ -1,5 +1,15 @@
 # Local ChatGPT-class System
 ```
+Version    : 0.52
+Model      : Qwen3.5-9B + vLLM + Ollama
+Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
+```
+Updates:
+- Thread-safe Database Connection Pooling
+- Bcrypt Migration for password hashing
+- Real Message IDs for conversation renaming, searching, pinning, archiving and better sorting
+- Streaming Cancellation in cases of pressing Stop button, reloading or closing page, and switching conversation
+```
 Version    : 0.51
 Model      : Qwen3.5-9B + vLLM + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
@@ -149,6 +159,7 @@ qwen-local-chatgpt/
 - ✅ Streaming chunk batching
 - ✅ Auto-scroll during streaming
 - ✅ Scroll preservation while reading history
+- ✅ Streaming cancellation
 
 ### Database
 - ✅ PostgreSQL connection pooling
