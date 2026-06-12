@@ -812,17 +812,17 @@ Estimated Cost
 
 - [x] Database Connection Pooling
 - [x] bcrypt Migration
-- [ ] Real Message IDs
+- [x] Real Message IDs
 - [ ] Conversation Rename
 - [ ] Conversation Search
+- [ ] Edit Message
+- [ ] Regenerate Response
 
 ---
 
 ## Near-Term
 
 - [ ] Async Queue (Redis + Dramatiq)
-- [ ] Edit Message
-- [ ] Regenerate Response
 - [ ] Incremental Markdown Rendering
 - [ ] Diff Rendering
 

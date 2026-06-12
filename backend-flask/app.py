@@ -9,6 +9,8 @@ import atexit
 
 app = Flask(__name__)
 
+active_streams = {}
+
 # ✅ SECURITY FIX: Read from environment variables populated via env_file (.env)
 db_pool = ThreadedConnectionPool(
     minconn=2,
@@ -48,7 +50,7 @@ def close_pool():
 MODEL_CHAT_URL = os.getenv("VLLM_CHAT_URL", "http://vllm:10000/v1/chat/completions")
 MODEL_NAME = os.getenv("VLLM_QWEN_NAME", "Qwen/Qwen3.5-9B")
 
-MAX_CONTEXT_MESSAGES = 10
+MAX_CONTEXT_MESSAGES = 20
 
 def hash_password(password):
     return bcrypt.hashpw(
@@ -217,7 +219,8 @@ def get_messages(cid):
 
             # ✅ IMPORTANT: Enforce ownership
             cur.execute("""
-                SELECT role, content FROM messages
+                SELECT id, role, content, created_at
+                FROM messages
                 WHERE conversation_id=%s
                 ORDER BY id ASC
             """, (cid,))
@@ -225,7 +228,12 @@ def get_messages(cid):
             rows = cur.fetchall()
 
     return jsonify([
-        {"role": r[0], "content": r[1]}
+        {
+            "id": r[0],
+            "role": r[1],
+            "content": r[2],
+            "created_at": r[3].isoformat()
+        }
         for r in rows
     ])
 
@@ -260,6 +268,7 @@ def chat():
                 cid = cur.fetchone()[0]
                 conn.commit()
 
+                new_id = True
             else:
                 # Ownership check
                 cur.execute("""
@@ -269,12 +278,21 @@ def chat():
 
                 if not cur.fetchone():
                     return jsonify({"error": "forbidden"}), 403
+                
+                new_id = False
 
             # ✅ 2. Store user message securely using parameterization
             cur.execute(
-                "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
+                """
+                INSERT INTO messages
+                (conversation_id, role, content)
+                VALUES (%s,%s,%s)
+                RETURNING id
+                """,
                 (cid, "user", msg)
             )
+
+            user_message_id = cur.fetchone()[0]
             conn.commit()
 
             # 3. Pull System Instructions for this Conversation
@@ -309,6 +327,16 @@ def chat():
                 SSE_DELIMITER = os.getenv("SSE_DELIMITER", "\n\n\n\n")
                 SSE_CHUNK = os.getenv("SSE_CHUNK", "chunk")
                 SSE_DONE = os.getenv("SSE_DONE", "done")
+                SSE_IDS = os.getenv("SSE_IDS", "message_ids")
+                SSE_ERR = os.getenv("SSE_ERR", "error")
+
+                if new_id:
+                    SSE_META = os.getenv("SSE_META", "meta")
+                    meta_data = json.dumps({SSE_META: {"conversation_id": cid}})
+                    yield f"{SSE_PREFIX}{meta_data}{SSE_DELIMITER}"
+
+                llm_response = None
+                cancelled = False
 
                 full_response = ""
 
@@ -319,80 +347,117 @@ def chat():
                         "stream": True
                     }
                     
-                    with requests.post(
+                    llm_response = requests.post(
                         MODEL_CHAT_URL,
                         json=payload,
                         stream=True,
                         timeout=(10, 600)
-                    ) as r:
-                        for line in r.iter_lines():
-                            if not line:
-                                continue
+                    )
+                    llm_response.raise_for_status()
 
-                            # Handles Ollama streaming only
-                            # try:
-                            #     line_data = json.loads(line.decode("utf-8"))
-                            #     # Note: /api/chat payload yields chunk fragments nested in a 'message' object
-                            #     chunk = line_data.get("message", {}).get("content", "")
-                            # except Exception:
-                            #     continue
+                    # Register the active stream for potential cancellation if client disconnects
+                    active_streams[cid] = llm_response
 
-                            # Handles both vLLM and Ollama streaming
-                            try:
-                                # 1. Handles standard OpenAI SSE trimming to cleanly decode and trim the SSE prefix
-                                decoded_line = line.decode("utf-8")
+                    for line in llm_response.iter_lines():
+                        if not line:
+                            continue
 
-                                prefix = "data: "
-                                if decoded_line.startswith(prefix):
-                                    decoded_line = decoded_line[len(prefix):]
+                        # Handles Ollama streaming only
+                        # try:
+                        #     line_data = json.loads(line.decode("utf-8"))
+                        #     # Note: /api/chat payload yields chunk fragments nested in a 'message' object
+                        #     chunk = line_data.get("message", {}).get("content", "")
+                        # except Exception:
+                        #     continue
 
-                                decoded_line = decoded_line.strip()
+                        # Handles both vLLM and Ollama streaming
+                        try:
+                            # 1. Handles standard OpenAI SSE trimming to cleanly decode and trim the SSE prefix
+                            decoded_line = line.decode("utf-8")
+
+                            prefix = "data: "
+                            if decoded_line.startswith(prefix):
+                                decoded_line = decoded_line[len(prefix):]
+
+                            decoded_line = decoded_line.strip()
+                            
+                            # 🔥 CRITICAL GUARD: Catch vLLM/OpenAI completion signal before parsing JSON
+                            if decoded_line == "[DONE]":
+                                break
+
+                            line_data = json.loads(decoded_line)
+                            
+                            # 2. Handle standard OpenAI/vLLM nested stream fragment dictionary structure
+                            choices = line_data.get("choices", [])
+                            if choices:
+                                # vLLM/OpenAI structure path
+                                chunk = choices[0].get("delta", {}).get("content", "")
+                            else:
+                                # Fallback to standard Ollama response architecture if you switch back
+                                chunk = line_data.get("message", {}).get("content", "")
                                 
-                                # 🔥 CRITICAL GUARD: Catch vLLM/OpenAI completion signal before parsing JSON
-                                if decoded_line == "[DONE]":
-                                    break
+                        except Exception:
+                            continue
 
-                                line_data = json.loads(decoded_line)
-                                
-                                # 2. Handle standard OpenAI/vLLM nested stream fragment dictionary structure
-                                choices = line_data.get("choices", [])
-                                if choices:
-                                    # vLLM/OpenAI structure path
-                                    chunk = choices[0].get("delta", {}).get("content", "")
-                                else:
-                                    # Fallback to standard Ollama response architecture if you switch back
-                                    chunk = line_data.get("message", {}).get("content", "")
-                                    
-                            except Exception:
-                                continue
+                        if chunk:
+                            full_response += chunk
+                            chunk_data = json.dumps({SSE_CHUNK: chunk, SSE_DONE: False})
+                            yield f"{SSE_PREFIX}{chunk_data}{SSE_DELIMITER}"
 
-                            if chunk:
-                                full_response += chunk
-                                chunk_data = json.dumps({SSE_CHUNK: chunk, SSE_DONE: False})
-                                yield f"{SSE_PREFIX}{chunk_data}{SSE_DELIMITER}"
-
+                except (
+                    GeneratorExit,
+                    BrokenPipeError,
+                    ConnectionResetError
+                ):
+                    cancelled = True
+                    llm_response.close() if llm_response else None
+                    return
+                
                 except Exception as e:
                     print("LLM ENGINE CHAT STREAM ERROR:", e)
-                    yield f"{SSE_PREFIX}[ERROR: {e}]{SSE_DELIMITER}"
+                    error_data = json.dumps({SSE_ERR: f"LLM ENGINE CHAT STREAM ERROR: {str(e)}"})
+                    yield f"{SSE_PREFIX}{error_data}{SSE_DELIMITER}"
 
                 # 7. Store assistant metrics (full response) once pipeline yields empty/done statuses safely
-                if full_response:
-                    with get_db() as save_conn:
-                        try:
-                            with save_conn.cursor() as db_cur:
-                                db_cur.execute(
-                                    "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s)",
-                                    (cid, "assistant", full_response)
-                                )
-                                
-                                # Timestamp bookkeeping updates
-                                db_cur.execute("""
-                                    UPDATE conversations SET updated_at=NOW() WHERE id=%s
-                                """, (cid,))
-                                save_conn.commit()
-                        except Exception as db_err:
-                            save_conn.rollback()
-                            print("POST-STREAM DB SAVE CRITICAL FAILURE:", db_err)
+                finally:
+                    # Cleanup active stream registry to prevent memory leaks
+                    active_streams.pop(cid, None)
+
+                    if full_response:
+                        with get_db() as save_conn:
+                            try:
+                                with save_conn.cursor() as db_cur:
+                                    db_cur.execute(
+                                        """
+                                        INSERT INTO messages
+                                        (conversation_id, role, content)
+                                        VALUES (%s,%s,%s)
+                                        RETURNING id
+                                        """,
+                                        (cid, "assistant", full_response)
+                                    )
+
+                                    assistant_message_id = db_cur.fetchone()[0]
+                                    
+                                    # Timestamp bookkeeping updates
+                                    db_cur.execute("""
+                                        UPDATE conversations SET updated_at=NOW() WHERE id=%s
+                                    """, (cid,))
+                                    save_conn.commit()
+
+                                    # Prevent RuntimeErrors by yielding ONLY if not interrupted natively
+                                    if not cancelled:
+                                        ids_data = json.dumps({
+                                            SSE_IDS: {
+                                                "user_message_id": user_message_id,
+                                                "assistant_message_id": assistant_message_id
+                                            }
+                                        })
+
+                                        yield f"{SSE_PREFIX}{ids_data}{SSE_DELIMITER}"
+                            except Exception as db_err:
+                                save_conn.rollback()
+                                print("POST-STREAM DB SAVE CRITICAL FAILURE:", db_err)
 
                 # Signal stream completion and handle 'jailbreak'
                 done_data = json.dumps({SSE_CHUNK: "", SSE_DONE: True})
@@ -413,6 +478,36 @@ def chat():
                 print("TITLE UPDATE ERROR:", e)
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
+
+@app.route('/chat/stop', methods=['POST'])
+def stop_chat():
+    user = verify_token(request.headers.get("Authorization"))
+    if not user or 'user_id' not in user:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    data = request.get_json()
+    cid = data.get('conversation_id')
+    
+    if not cid:
+        return jsonify({"error": "missing conversation_id"}), 400
+        
+    # Verify ownership to prevent maliciously stopping others' streams
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 1 FROM conversations
+                WHERE id=%s AND user_id=%s
+            """, (cid, user['user_id']))
+            if not cur.fetchone():
+                return jsonify({"error": "forbidden"}), 403
+
+    # Close the HTTP socket directly, which instantly interrupts the generator and stops the GPU
+    resp = active_streams.pop(cid, None)
+    if resp:
+        resp.close() 
+        return jsonify({"status": "stopped"})
+        
+    return jsonify({"status": "not_found"})
 
 
 if __name__ == '__main__':

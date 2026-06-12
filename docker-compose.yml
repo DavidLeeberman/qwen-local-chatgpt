@@ -128,6 +128,9 @@ services:
       - VITE_SSE_DELIMITER=${SSE_DELIMITER}
       - VITE_SSE_CHUNK=${SSE_CHUNK}
       - VITE_SSE_DONE=${SSE_DONE}
+      - VITE_SSE_IDS=${SSE_IDS}
+      - VITE_SSE_META=${SSE_META}
+      - VITE_SSE_ERR=${SSE_ERR}
     volumes:
       - ./frontend:/app
       - /app/node_modules
