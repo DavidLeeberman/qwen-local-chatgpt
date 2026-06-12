@@ -39,3 +39,69 @@ textarea {
   font-family: inherit;
   line-height: 1.5;
 }
+
+/* Sidebar Item Base */
+.chat-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  margin-bottom: 5px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #ececf1;
+  transition: background-color 0.2s ease;
+  group: sidebar-item; /* Helpful if using Tailwind, but we will use standard CSS */
+}
+
+/* 2. Less highlight on hover */
+.chat-list-item:hover {
+  background-color: #2A2B32; 
+}
+
+/* 1. Full highlight for current conversation */
+.chat-list-item.active {
+  background-color: #343541; 
+}
+
+/* Hide actions by default, show them on hover or if active */
+.chat-list-actions {
+  display: none;
+  gap: 5px;
+}
+.chat-list-item:hover .chat-list-actions,
+.chat-list-item.active .chat-list-actions {
+  display: flex;
+}
+
+.chat-list-actions button {
+  background: transparent;
+  border: none;
+  color: #c5c5d2;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.chat-list-actions button:hover {
+  color: white;
+  background-color: #40414f;
+}
+
+/* Title Truncation and Input */
+.chat-title-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
+  margin-right: 10px;
+}
+.chat-title-input {
+  flex-grow: 1;
+  background: #40414f;
+  color: white;
+  border: 1px solid #565869;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin-right: 10px;
+  outline: none;
+}

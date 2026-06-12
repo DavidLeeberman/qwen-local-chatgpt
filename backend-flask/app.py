@@ -181,7 +181,7 @@ def list_conversations():
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT id, title, updated_at, system_prompt
+                SELECT id, title, updated_at, system_prompt, is_pinned
                 FROM conversations
                 WHERE user_id=%s
                 ORDER BY updated_at DESC
@@ -190,7 +190,13 @@ def list_conversations():
             rows = cur.fetchall()
 
     return jsonify([
-        {"id": r[0], "title": r[1], "updated_at": str(r[2]), "system_prompt": r[3]}
+        {
+            "id": r[0], 
+            "title": r[1], 
+            "updated_at": str(r[2]), 
+            "system_prompt": r[3], 
+            "is_pinned": bool(r[4]) # ✅ Ensure boolean mapping
+        }
         for r in rows
     ])
 
@@ -508,6 +514,57 @@ def stop_chat():
         return jsonify({"status": "stopped"})
         
     return jsonify({"status": "not_found"})
+
+@app.route('/chat/rename', methods=['POST'])
+def rename_conversation():
+    user = verify_token(request.headers.get("Authorization"))
+    if not user or 'user_id' not in user:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    data = request.get_json()
+    cid = data.get('conversation_id')
+    new_title = data.get('title')
+
+    if not cid or not new_title:
+        return jsonify({"error": "missing conversation_id or title"}), 400
+
+    # ✅ Securely update title belonging ONLY to this user
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE conversations 
+                SET title = %s 
+                WHERE id = %s AND user_id = %s
+            """, (new_title, cid, user['user_id']))
+            conn.commit()
+            
+    return jsonify({"status": "success"})
+
+
+@app.route('/chat/pin', methods=['POST'])
+def pin_conversation():
+    user = verify_token(request.headers.get("Authorization"))
+    if not user or 'user_id' not in user:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    data = request.get_json()
+    cid = data.get('conversation_id')
+    is_pinned = data.get('is_pinned', False)
+
+    if not cid:
+        return jsonify({"error": "missing conversation_id"}), 400
+
+    # ✅ Securely update pin status belonging ONLY to this user
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE conversations 
+                SET is_pinned = %s 
+                WHERE id = %s AND user_id = %s
+            """, (is_pinned, cid, user['user_id']))
+            conn.commit()
+            
+    return jsonify({"status": "success"})
 
 
 if __name__ == '__main__':

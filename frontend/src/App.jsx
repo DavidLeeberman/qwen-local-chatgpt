@@ -25,6 +25,9 @@ export default function App() {
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
 
+  const [editingChatId, setEditingChatId] = useState(null)
+  const [editTitleBuffer, setEditTitleBuffer] = useState('')
+
   const API = import.meta.env.VITE_API_URL
 
   const abortControllerRef = useRef(null)
@@ -42,6 +45,48 @@ export default function App() {
   // Create a single ref to track real-time streaming state without re-binding listeners
   const lifecycleStateRef = useRef({ isStreaming, cid, token })
   lifecycleStateRef.current = { isStreaming, cid, token }
+
+  const togglePin = async (id, currentPinStatus) => {
+    try {
+      // Optimistic UI update
+      setConversations(prev => prev.map(c => 
+        c.id === id ? { ...c, is_pinned: !currentPinStatus } : c
+      ))
+      
+      await axios.post(
+        `${API}/api/chat/pin`, 
+        { conversation_id: id, is_pinned: !currentPinStatus }, 
+        { headers: { Authorization: token } }
+      )
+    } catch (err) {
+      console.error("Failed to pin/unpin", err)
+      loadMessages() // Revert on failure
+    }
+  }
+
+  const saveRenamedTitle = async (id) => {
+    if (!editTitleBuffer.trim()) {
+      setEditingChatId(null)
+      return
+    }
+
+    try {
+      // Optimistic UI update
+      setConversations(prev => prev.map(c => 
+        c.id === id ? { ...c, title: editTitleBuffer } : c
+      ))
+      setEditingChatId(null)
+
+      await axios.post(
+        `${API}/api/chat/rename`, 
+        { conversation_id: id, title: editTitleBuffer }, 
+        { headers: { Authorization: token } }
+      )
+    } catch (err) {
+      console.error("Failed to rename", err)
+      loadMessages() // Revert on failure
+    }
+  }
 
   const handleAtBottomChange = (isAtBottom) => {
     setAutoScroll(isAtBottom)
@@ -602,19 +647,68 @@ export default function App() {
 
         <hr />
 
-        {conversations.map(c => (
-          <div
-            key={c.id}
-            onClick={() => loadMessages(c.id)}
-            style={{
-              cursor: 'pointer',
-              padding: '5px 0',
-              fontWeight: cid === c.id ? 'bold' : 'normal'
-            }}
-          >
-            {c.title || ''}
-          </div>
-        ))}
+        {/* Conversation List */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {[...conversations]
+            // Sort pinned items to the top
+            .sort((a, b) => {
+              if (a.is_pinned === b.is_pinned) return 0;
+              return a.is_pinned ? -1 : 1;
+            })
+            .map((c) => (
+              <div 
+                key={c.id} 
+                className={`chat-list-item ${c.id === cid ? 'active' : ''}`}
+                onClick={() => {
+                  if (editingChatId !== c.id) {
+                    loadMessages(c.id)
+                  }
+                }}
+              >
+                
+                {/* Feature 4: Rename Input vs Normal Title */}
+                {editingChatId === c.id ? (
+                  <input
+                    className="chat-title-input"
+                    value={editTitleBuffer}
+                    onChange={(e) => setEditTitleBuffer(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveRenamedTitle(c.id)
+                      if (e.key === 'Escape') setEditingChatId(null)
+                    }}
+                    onClick={(e) => e.stopPropagation()} // Prevent loading chat while clicking input
+                    autoFocus
+                  />
+                ) : (
+                  <div className="chat-title-text">
+                    {c.is_pinned ? '📌 ' : ''}
+                    {c.title || 'New Chat'}
+                  </div>
+                )}
+
+                {/* Feature 3 & 4: Action Buttons */}
+                <div className="chat-list-actions" onClick={(e) => e.stopPropagation()}>
+                  <button 
+                    onClick={() => togglePin(c.id, c.is_pinned)}
+                    title={c.is_pinned ? "Unpin" : "Pin"}
+                  >
+                    {c.is_pinned ? '📍' : '📌'}
+                  </button>
+                  
+                  {editingChatId === c.id ? (
+                    <button onClick={() => saveRenamedTitle(c.id)}>✅</button>
+                  ) : (
+                    <button onClick={() => {
+                      setEditingChatId(c.id)
+                      setEditTitleBuffer(c.title || '')
+                    }}>✏️</button>
+                  )}
+                </div>
+
+              </div>
+            ))
+          }
+        </div>
       </div>
 
       {/* Chat */}
