@@ -1,5 +1,14 @@
 # Local ChatGPT-class System
 ```
+Version    : 0.55
+Model      : Qwen3.5-9B + vLLM + Ollama
+Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
+```
+Updates:
+- Mainstream Chat UI style (Dark Theme)
+- Conversation Pin/Unpin
+- Conversation Rename
+```
 Version    : 0.52
 Model      : Qwen3.5-9B + vLLM + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
@@ -824,7 +833,7 @@ Estimated Cost
 - [x] Database Connection Pooling
 - [x] bcrypt Migration
 - [x] Real Message IDs
-- [ ] Conversation Rename
+- [x] Conversation Rename
 - [ ] Conversation Search
 - [ ] Edit Message
 - [ ] Regenerate Response
