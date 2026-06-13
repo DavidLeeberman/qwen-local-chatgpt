@@ -3,10 +3,6 @@ import { Virtuoso } from 'react-virtuoso'
 import axios from 'axios'
 import Login from './Login'
 
-// import { atomDark } from ...
-// import { vscDarkPlus } from ...
-// import { materialDark } from ...
-
 import ChatMessage from './components/ChatMessage'
 
 import './App.css'
@@ -46,6 +42,43 @@ export default function App() {
   const lifecycleStateRef = useRef({ isStreaming, cid, token })
   lifecycleStateRef.current = { isStreaming, cid, token }
 
+  // ✅ Standalone implementation with AbortController support and auto-creation
+  const fetchConversations = async (signal = null) => {
+    if (!token) {
+      setConversations([])
+      return
+    }
+
+    try {
+      const r = await axios.get(`${API}/api/conversations`, {
+        headers: { Authorization: token },
+        signal
+      })
+
+      setConversations(r.data)
+
+      // Auto-create first chat if list is empty
+      if (r.data.length === 0) {
+        const res = await axios.post(
+          `${API}/api/conversations`,
+          {},
+          {
+            headers: { Authorization: token },
+            signal
+          }
+        )
+
+        setCid(res.data.conversation_id)
+        setConversations([{ id: res.data.conversation_id }])
+      }
+    } catch (err) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+        return // Safely ignore abort cancellations
+      }
+      console.error('Failed to fetch conversations:', err)
+    }
+  }
+
   const togglePin = async (id, currentPinStatus) => {
     try {
       // Optimistic UI update
@@ -60,7 +93,7 @@ export default function App() {
       )
     } catch (err) {
       console.error("Failed to pin/unpin", err)
-      loadMessages() // Revert on failure
+      fetchConversations() // Revert on failure
     }
   }
 
@@ -84,7 +117,7 @@ export default function App() {
       )
     } catch (err) {
       console.error("Failed to rename", err)
-      loadMessages() // Revert on failure
+      fetchConversations() // Revert on failure
     }
   }
 
@@ -237,52 +270,11 @@ export default function App() {
     }
   }, [])
 
-  // ✅ 2. Load conversations after token is ready
+  // ✅ 2. Load conversations after token is ready (passing the signal)
   useEffect(() => {
-    if (!token) return
-
     const controller = new AbortController()
 
-    axios.get(`${API}/api/conversations`, {
-      headers: {
-        Authorization: token
-      },
-      signal: controller.signal
-    })
-    .then(async r => {
-      setConversations(r.data)
-
-      if (r.data.length === 0) {
-        const res = await axios.post(
-          `${API}/api/conversations`,
-          {},
-          {
-            headers: {
-              Authorization: token
-            },
-            signal: controller.signal
-          }
-        )
-
-        setCid(res.data.conversation_id)
-
-        setConversations([
-          {
-            id: res.data.conversation_id
-          }
-        ])
-      }
-    })
-    .catch(err => {
-      if (
-        err.name === 'CanceledError' ||
-        err.code === 'ERR_CANCELED'
-      ) {
-        return
-      }
-
-      console.error(err)
-    })
+    fetchConversations(controller.signal)
 
     return () => {
       controller.abort()

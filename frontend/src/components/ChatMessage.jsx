@@ -8,6 +8,10 @@ import rehypeRaw from 'rehype-raw'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
+// import { atomDark } from ...
+// import { vscDarkPlus } from ...
+// import { materialDark } from ...
+
 const markdownComponents = {
   code({ className, children }) {
     const match = /language-(\w+)/.exec(className || '')
