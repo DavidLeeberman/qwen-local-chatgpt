@@ -40,68 +40,320 @@ textarea {
   line-height: 1.5;
 }
 
-/* Sidebar Item Base */
-.chat-list-item {
+/* ==========================================================================
+   OpenAI ChatGPT Dark Theme Core Definitions & Typography
+   ========================================================================== */
+
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: #212121; /* Main UI Base Background */
+  color: #ececf1; /* Main UI Base Foreground */
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Explicitly displayed dark scrollbars for the whole app and Chat Area */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background-color: #212121; /* Dark background matching the main chat area */
+}
+::-webkit-scrollbar-thumb {
+  background-color: #565869; /* Explicitly visible dark gray thumb */
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #8e8ea0;
+}
+
+/* Base Layout App Grid */
+.app-container {
   display: flex;
-  justify-content: space-between;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: #212121;
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar & Navigation (Independent Scroll Layout)
+   -------------------------------------------------------------------------- */
+.sidebar {
+  width: 260px;
+  background-color: #171717; /* Sidebar Background Color */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.sidebar-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+}
+
+/* Override the global scrollbar background specifically for the sidebar */
+.sidebar-scroll-area::-webkit-scrollbar {
+  background-color: #171717; 
+}
+
+/* Conversation Selection Lists & State Highlights */
+.conversation-item {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 10px 12px;
-  margin-bottom: 5px;
-  border-radius: 6px;
+  margin: 2px 0;
+  border-radius: 8px;
   cursor: pointer;
+  position: relative;
   color: #ececf1;
-  transition: background-color 0.2s ease;
-  group: sidebar-item; /* Helpful if using Tailwind, but we will use standard CSS */
+  font-size: 14px;
+  height: 42px;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease;
 }
 
-/* 2. Less highlight on hover */
-.chat-list-item:hover {
-  background-color: #2A2B32; 
+/* Selected conversation highlighted OBVIOUSLY MORE than hover */
+.conversation-item:hover {
+  background-color: #212121; /* Subtle highlight for hover */
 }
 
-/* 1. Full highlight for current conversation */
-.chat-list-item.active {
-  background-color: #343541; 
+.conversation-item.active {
+  background-color: #2a2b32; /* Obvious, brighter highlight for active */
 }
 
-/* Hide actions by default, show them on hover or if active */
-.chat-list-actions {
+.conversation-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.conversation-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #ececf1;
+}
+
+/* Action Button Layout Visibility Modifiers */
+.conversation-actions {
   display: none;
-  gap: 5px;
+  align-items: center;
+  gap: 4px;
 }
-.chat-list-item:hover .chat-list-actions,
-.chat-list-item.active .chat-list-actions {
+
+/* Force standard triggers visible when hovered or explicitly selected active */
+.conversation-item:hover .conversation-actions,
+.conversation-item.active .conversation-actions {
   display: flex;
 }
 
-.chat-list-actions button {
-  background: transparent;
+.action-btn {
+  background: none;
   border: none;
   color: #c5c5d2;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 4px;
   border-radius: 4px;
-}
-.chat-list-actions button:hover {
-  color: white;
-  background-color: #40414f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Title Truncation and Input */
-.chat-title-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-grow: 1;
-  margin-right: 10px;
+.action-btn:hover {
+  color: #fff;
 }
-.chat-title-input {
-  flex-grow: 1;
-  background: #40414f;
-  color: white;
-  border: 1px solid #565869;
-  border-radius: 4px;
-  padding: 4px 8px;
-  margin-right: 10px;
+
+/* Dropdown Floating Context Box Setup */
+.dropdown-menu {
+  position: absolute;
+  right: 12px;
+  top: 38px;
+  background-color: #2f2f2f;
+  border: 1px solid #424242;
+  border-radius: 10px;
+  padding: 6px;
+  z-index: 999;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  min-width: 130px;
+}
+
+.dropdown-item {
+  padding: 8px 10px;
+  color: #ececf1;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dropdown-item:hover {
+  background-color: #424242;
+}
+
+.chat-rename-input {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 14px;
   outline: none;
+  width: 100%;
+  padding: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Main Workspace Frame & Left/Right Message Alignment Layouts
+   -------------------------------------------------------------------------- */
+.main-chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #212121;
+  height: 100%;
+  position: relative;
+}
+
+.message-pair {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.message-row {
+  display: flex;
+  width: 100%;
+  padding: 12px 24px;
+  box-sizing: border-box;
+}
+
+.message-row-inner {
+  max-width: 768px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+}
+
+/* Force Historical User Submissions flush Right */
+.message-row.user .message-row-inner {
+  justify-content: flex-end; 
+}
+
+/* Force Assistant responses flush Left */
+.message-row.assistant .message-row-inner {
+  justify-content: flex-start; 
+}
+
+/* Chat Area Content Container Blocks */
+.message-bubble {
+  font-size: 16px;
+  line-height: 1.6;
+  font-family: inherit;
+}
+
+/* User Bubbles: Pill bounding-box wrapping style */
+.message-row.user .message-bubble {
+  background-color: #2f2f2f;
+  color: #ececf1;
+  padding: 10px 20px;
+  border-radius: 24px;
+  max-width: 70%;
+  word-break: break-word;
+}
+
+/* Assistant responses layout flow */
+.message-row.assistant .message-bubble {
+  background-color: transparent;
+  color: #ececf1;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   Input Container Blocks
+   -------------------------------------------------------------------------- */
+.input-area-footer {
+  padding: 0 24px 24px 24px;
+  background-color: #212121;
+}
+
+.input-box-wrapper {
+  max-width: 768px;
+  margin: 0 auto;
+  background-color: #2f2f2f;
+  border-radius: 26px;
+  padding: 10px 14px 10px 20px;
+  display: flex;
+  align-items: flex-end;
+  box-sizing: border-box;
+}
+
+.chat-textarea {
+  flex: 1;
+  background: transparent;
+  border: none;
+  resize: none;
+  color: #ececf1;
+  font-size: 16px;
+  outline: none;
+  font-family: inherit;
+  line-height: 1.5;
+  max-height: 200px;
+  padding: 4px 0;
+}
+
+.chat-textarea::placeholder {
+  color: #8e8e93;
+}
+
+/* ==========================================================================
+   Sidebar Groups (Pinned & Recents)
+   ========================================================================== */
+
+.sidebar-group {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8e8ea0; /* Standard subtext color */
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s ease;
+}
+
+.sidebar-group-header:hover {
+  color: #ececf1; /* Brightens up on hover */
+}
+
+/* Chevron animations for open/closed states */
+.sidebar-group-header .chevron {
+  transition: transform 0.2s ease;
+  transform: rotate(-90deg); /* Points right when closed */
+}
+
+.sidebar-group-header .chevron.open {
+  transform: rotate(0deg); /* Points down when open */
+}
+
+/* Ensure our icon buttons inside dropdowns have standard spacing */
+.dropdown-menu button svg {
+  margin-right: 8px;
 }

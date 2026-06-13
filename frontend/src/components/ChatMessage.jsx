@@ -33,39 +33,42 @@ const markdownComponents = {
 }
 
 function ChatMessage({ message, isLastStreaming }) {
+  // Virtuoso requires a single root element per item, so we wrap the pair in a parent div
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div>
-        <b>You:</b> {message.u}
-      </div>
+    <div className="message-pair">
+      
+      {/* 10. User Message Row (Rendered on the Right) */}
+      {message.u && (
+        <div className="message-row user">
+          <div className="message-row-inner">
+            <div className="message-bubble">
+              {message.u}
+            </div>
+          </div>
+        </div>
+      )}
 
-      <div
-        style={{
-          background: '#f5f5f5',
-          padding: 8,
-          position: 'relative'
-        }}
-      >
-        <ReactMarkdown
-          remarkPlugins={[
-            remarkGfm,
-            remarkMath
-          ]}
-          rehypePlugins={[
-            rehypeRaw,
-            rehypeKatex
-          ]}
-          components={markdownComponents}
-        >
-          {message.a}
-        </ReactMarkdown>
+      {/* 10. Assistant Message Row (Rendered on the Left) */}
+      {(message.a || isLastStreaming) && (
+        <div className="message-row assistant">
+          <div className="message-row-inner">
+            <div className="message-bubble">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeRaw, rehypeKatex]}
+                components={markdownComponents}
+              >
+                {message.a}
+              </ReactMarkdown>
 
-        {isLastStreaming && (
-          <span className="streaming-cursor">
-            ▋
-          </span>
-        )}
-      </div>
+              {isLastStreaming && (
+                <span className="streaming-cursor">▋</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

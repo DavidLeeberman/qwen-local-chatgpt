@@ -23,6 +23,13 @@ export default function App() {
 
   const [editingChatId, setEditingChatId] = useState(null)
   const [editTitleBuffer, setEditTitleBuffer] = useState('')
+    
+  // Added state for handling the 3-dots dropdown menu
+  const [openDropdownCid, setOpenDropdownCid] = useState(null)
+
+  // Sidebar collapsible states
+  const [isPinnedOpen, setIsPinnedOpen] = useState(true)
+  const [isRecentsOpen, setIsRecentsOpen] = useState(true)
 
   const API = import.meta.env.VITE_API_URL
 
@@ -79,7 +86,8 @@ export default function App() {
     }
   }
 
-  const togglePin = async (id, currentPinStatus) => {
+  const togglePin = async (e, id, currentPinStatus) => {
+    e.stopPropagation()
     try {
       // Optimistic UI update
       setConversations(prev => prev.map(c => 
@@ -627,206 +635,253 @@ export default function App() {
     }
   }
 
+  // --- REUSABLE COMPONENT: Renders individual items for both sections ---
+  const renderChatItem = (c) => (
+    <div 
+      key={c.id} 
+      className={`conversation-item ${c.id === cid ? 'active' : ''}`}
+      onClick={(e) => {
+        e.stopPropagation()
+        if (editingChatId !== c.id) {
+          loadMessages(c.id)
+          setOpenDropdownCid(null)
+        }
+      }}
+    >
+      <div className="conversation-title-wrapper">
+        {/* Only mark pinned conversations with a bubble icon */}
+        {c.is_pinned && (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        )}
+
+        {editingChatId === c.id ? (
+          <input
+            className="chat-rename-input"
+            value={editTitleBuffer}
+            onChange={(e) => setEditTitleBuffer(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveRenamedTitle(c.id)
+              if (e.key === 'Escape') setEditingChatId(null)
+            }}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+          />
+        ) : (
+          <span className="conversation-title-text">
+            {c.title || 'New Chat'}
+          </span>
+        )}
+      </div>
+
+      {/* Context Controls: Pin on left, 3 horizontal dots on right */}
+      <div className="conversation-actions" onClick={(e) => e.stopPropagation()}>
+        <button 
+          className="action-btn"
+          onClick={(e) => togglePin(e, c.id, c.is_pinned)}
+          title={c.is_pinned ? "Unpin Chat" : "Pin Chat"}
+        >
+          {/* Tilted Pin, with vertical crossing line for "Unpin" state */}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg)' }}>
+            <path d="M12 17v5" />
+            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76Z" />
+            {c.is_pinned && <line x1="4" y1="12" x2="20" y2="12" />}
+          </svg>
+        </button>
+        
+        <button 
+          className="action-btn"
+          onClick={(e) => {
+            e.stopPropagation()
+            setOpenDropdownCid(openDropdownCid === c.id ? null : c.id)
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="5" cy="12" r="2"/>
+            <circle cx="12" cy="12" r="2"/>
+            <circle cx="19" cy="12" r="2"/>
+          </svg>
+        </button>
+
+        {/* Droplist Popover Menu */}
+        {openDropdownCid === c.id && (
+          <div className="dropdown-menu">
+            <div className="dropdown-item" onClick={(e) => togglePin(e, c.id, c.is_pinned)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg)' }}>
+                <path d="M12 17v5" />
+                <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76Z" />
+                {c.is_pinned && <line x1="4" y1="12" x2="20" y2="12" />}
+              </svg>
+              {c.is_pinned ? 'Unpin' : 'Pin'}
+            </div>
+            
+            <div className="dropdown-item" onClick={() => {
+              setEditingChatId(c.id)
+              setEditTitleBuffer(c.title || '')
+              setOpenDropdownCid(null)
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+              Rename
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
   // ✅ if not logged in → show login
   if (!token) return <Login setToken={setToken} />
 
+  // Split logic for the sidebar groups
+  const pinnedChats = conversations.filter(c => c.is_pinned)
+  const recentChats = conversations.filter(c => !c.is_pinned)
+
   return (
-    <div style={{ display: 'flex' }}>
-      {/* Sidebar */}
-      <div style={{ width: 220, borderRight: '1px solid #ccc', padding: 10 }}>
-        <button onClick={newChat}>+ New Chat</button>
-        <button onClick={logout} style={{ marginLeft: 10 }}>Logout</button>
+    <div className="app-container" onClick={() => setOpenDropdownCid(null)}>
+      
+      {/* Sidebar Framework */}
+      <div className="sidebar">
+        <div style={{ padding: '12px' }}>
+          <button
+            onClick={() => {
+              if (!isStreaming) {
+                setCid(null)
+                setChat([])
+                setErr('')
+              }
+            }}
+            style={{ width: '100%', padding: '10px', backgroundColor: 'transparent', color: '#ececf1', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', textAlign: 'left', transition: 'background-color 0.2s' }}
+            onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+            onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+          >
+            + New Chat
+          </button>
+        </div>
 
-        <hr />
-
-        {/* Conversation List */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {[...conversations]
-            // Sort pinned items to the top
-            .sort((a, b) => {
-              if (a.is_pinned === b.is_pinned) return 0;
-              return a.is_pinned ? -1 : 1;
-            })
-            .map((c) => (
-              <div 
-                key={c.id} 
-                className={`chat-list-item ${c.id === cid ? 'active' : ''}`}
-                onClick={() => {
-                  if (editingChatId !== c.id) {
-                    loadMessages(c.id)
-                  }
-                }}
-              >
-                
-                {/* Feature 4: Rename Input vs Normal Title */}
-                {editingChatId === c.id ? (
-                  <input
-                    className="chat-title-input"
-                    value={editTitleBuffer}
-                    onChange={(e) => setEditTitleBuffer(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') saveRenamedTitle(c.id)
-                      if (e.key === 'Escape') setEditingChatId(null)
-                    }}
-                    onClick={(e) => e.stopPropagation()} // Prevent loading chat while clicking input
-                    autoFocus
-                  />
-                ) : (
-                  <div className="chat-title-text">
-                    {c.is_pinned ? '📌 ' : ''}
-                    {c.title || 'New Chat'}
-                  </div>
-                )}
-
-                {/* Feature 3 & 4: Action Buttons */}
-                <div className="chat-list-actions" onClick={(e) => e.stopPropagation()}>
-                  <button 
-                    onClick={() => togglePin(c.id, c.is_pinned)}
-                    title={c.is_pinned ? "Unpin" : "Pin"}
-                  >
-                    {c.is_pinned ? '📍' : '📌'}
-                  </button>
-                  
-                  {editingChatId === c.id ? (
-                    <button onClick={() => saveRenamedTitle(c.id)}>✅</button>
-                  ) : (
-                    <button onClick={() => {
-                      setEditingChatId(c.id)
-                      setEditTitleBuffer(c.title || '')
-                    }}>✏️</button>
-                  )}
-                </div>
-
+        {/* Scroll Bar Area containing collapsible groups */}
+        <div className="sidebar-scroll-area">
+          
+          {/* PINNED GROUP */}
+          {pinnedChats.length > 0 && (
+            <div className="sidebar-group">
+              <div className="sidebar-group-header" onClick={() => setIsPinnedOpen(!isPinnedOpen)}>
+                <span>Pinned</span>
+                <svg className={`chevron ${isPinnedOpen ? 'open' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
               </div>
-            ))
-          }
+              {isPinnedOpen && pinnedChats.map(c => renderChatItem(c))}
+            </div>
+          )}
+
+          {/* RECENTS GROUP */}
+          <div className="sidebar-group">
+            <div className="sidebar-group-header" onClick={() => setIsRecentsOpen(!isRecentsOpen)}>
+              <span>Recents</span>
+              <svg className={`chevron ${isRecentsOpen ? 'open' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+            {isRecentsOpen && recentChats.map(c => renderChatItem(c))}
+          </div>
+        </div>
+        
+        <div style={{ padding: '12px' }}>
+          <button
+            onClick={logout}
+            style={{ width: '100%', padding: '10px', background: 'transparent', color: '#ececf1', border: 'none', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', transition: 'background-color 0.2s' }}
+            onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+            onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+          >
+            Log Out
+          </button>
         </div>
       </div>
 
-      {/* Chat */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100vh'
-        }}
-      >
-        <div
-          style={{
-            flex: 1,
-            minHeight: 0
-          }}
-        >
+      {/* Main Chat Area */}
+      <div className="main-chat-area">
+        <div style={{ flex: 1, minHeight: 0 }}>
           <Virtuoso
             ref={virtuosoRef}
             data={chat}
             increaseViewportBy={800}
-            followOutput={(isAtBottom) =>
-              autoScroll && isAtBottom ? 'smooth' : false
-            }
+            followOutput={(isAtBottom) => autoScroll && isAtBottom ? 'smooth' : false }
             atBottomStateChange={handleAtBottomChange}
             computeItemKey={(index, item) => item.id}
             itemContent={(index, item) => (
               <ChatMessage
                 message={item}
-                isLastStreaming={
-                  !item.done &&
-                  index === chat.length - 1
-                }
+                isLastStreaming={!item.done && index === chat.length - 1}
               />
             )}
           />
         </div>
 
         {err && (
-          <div
-            style={{
-              color: 'red',
-              padding: '8px 12px'
-            }}
-          >
+          <div style={{ color: '#ff4d4f', padding: '8px 12px', textAlign: 'center' }}>
             {err}
           </div>
         )}
 
-        {/* --- CHAT INPUT AREA --- */}
-        <div
-          style={{
-            borderTop: '1px solid #ddd',
-            padding: '12px',
-            display: 'flex',
-            gap: '10px',
-            alignItems: 'flex-end'
-          }}
-        >
-          <textarea
-            ref={textareaRef}
-            style={{
-              flex: 1,
-              padding: '10px',
-              fontSize: '16px',
-              fontFamily: 'inherit',
-              lineHeight: '1.5',
-              resize: 'none',
-              overflow: 'hidden',
-              minHeight: '44px',
-              maxHeight: '200px'
-            }}
-            value={msg}
-            onChange={(e) => setMsg(e.target.value)}
-            placeholder="Say something..."
-            disabled={isStreaming}
-            onKeyDown={(e) => {
-              if (
-                e.key === 'Enter' &&
-                !e.shiftKey &&
-                !e.ctrlKey &&
-                !e.altKey
-              ) {
-                e.preventDefault()
-
-                if (!isStreaming && msg.trim()) {
-                  send()
+        {/* Input Footer Area */}
+        <div className="input-area-footer">
+          <div className="input-box-wrapper">
+            <textarea
+              ref={textareaRef}
+              className="chat-textarea"
+              rows={1}
+              value={msg}
+              onChange={(e) => {
+                setMsg(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = `${e.target.scrollHeight}px`
+              }}
+              placeholder="Message ChatGPT..."
+              disabled={isStreaming}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey) {
+                  e.preventDefault()
+                  if (!isStreaming && msg.trim()) send()
                 }
-              }
-            }}
-          />
+              }}
+            />
 
-          {isStreaming ? (
-            <button 
-              onClick={() => {
-                finishCurrentStreamingMessage()
-                cleanupStream(true, true)
-              }}
-              style={{ 
-                padding: '10px 20px', 
-                backgroundColor: '#ff4d4f', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              Stop
-            </button>
-          ) : (
-            <button 
-              onClick={send}
-              style={{ 
-                padding: '10px 20px', 
-                backgroundColor: '#007bff', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              Send
-            </button>
-          )}
+            {isStreaming ? (
+              <button 
+                onClick={() => {
+                  finishCurrentStreamingMessage()
+                  cleanupStream(true, true)
+                }}
+                style={{ 
+                  background: '#ececf1', color: '#000', border: 'none', borderRadius: '50%', width: '32px', height: '32px',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="4" y="4" width="16" height="16" rx="2" />
+                </svg>
+              </button>
+            ) : (
+              <button 
+                onClick={send}
+                disabled={!msg.trim()}
+                style={{ 
+                  background: msg.trim() ? '#ececf1' : '#494949', color: msg.trim() ? '#000' : '#212121', border: 'none', borderRadius: '50%', width: '32px', height: '32px',
+                  cursor: msg.trim() ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background-color 0.2s'
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 4l-8 8h6v8h4v-8h6z" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
     </div>
   )
 }
