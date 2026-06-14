@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     title TEXT DEFAULT 'New Chat',
     system_prompt TEXT DEFAULT 'You are a helpful assistant powered by a large language model running locally.',
     is_pinned BOOLEAN DEFAULT FALSE,
+    is_archived BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );

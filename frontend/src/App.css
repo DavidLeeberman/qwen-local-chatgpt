@@ -101,6 +101,49 @@ body, html, #root {
   background-color: #171717; 
 }
 
+/* ==========================================================================
+   Sidebar Groups (Pinned & Recents)
+   ========================================================================== */
+
+.sidebar-group {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8e8ea0; /* Standard subtext color */
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s ease;
+}
+
+.sidebar-group-header:hover {
+  color: #ececf1; /* Brightens up on hover */
+}
+
+/* Chevron animations for open/closed states */
+.sidebar-group-header .chevron {
+  transition: transform 0.2s ease;
+  transform: rotate(-90deg); /* Points right when closed */
+}
+
+.sidebar-group-header .chevron.open {
+  transform: rotate(0deg); /* Points down when open */
+}
+
+/* Ensure our icon buttons inside dropdowns have standard spacing */
+.dropdown-menu button svg {
+  margin-right: 8px;
+}
+
 /* Conversation Selection Lists & State Highlights */
 .conversation-item {
   display: flex;
@@ -149,9 +192,10 @@ body, html, #root {
   gap: 4px;
 }
 
-/* Force standard triggers visible when hovered or explicitly selected active */
+/* ✅ Feature 1 Fix: Appended '.dropdown-open' logic so the 3-dots stay visible when the menu is open */
 .conversation-item:hover .conversation-actions,
-.conversation-item.active .conversation-actions {
+.conversation-item.active .conversation-actions,
+.conversation-item.dropdown-open .conversation-actions {
   display: flex;
 }
 
@@ -200,6 +244,14 @@ body, html, #root {
   background-color: #424242;
 }
 
+.dropdown-item.danger {
+  color: #ff4d4f;
+}
+
+.dropdown-item.danger:hover {
+  background-color: rgba(255, 77, 79, 0.1);
+}
+
 .chat-rename-input {
   background: transparent;
   border: none;
@@ -208,6 +260,39 @@ body, html, #root {
   outline: none;
   width: 100%;
   padding: 0;
+}
+
+/* ==========================================================================
+   ✅ Feature 2: Custom Tooltip Pop-up Design
+   ========================================================================== */
+
+.custom-tooltip {
+  position: fixed;
+  background-color: #ececf1; /* Light gray bubble from screenshot */
+  color: #0f0f0f;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 99999; /* Ensure it stays above everything */
+  pointer-events: none; /* Let clicks pass through it naturally */
+  max-width: 300px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  transform: translateY(-50%); /* Centered relative to the calculated Y pos */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  line-height: 1.4;
+}
+
+/* Creates the little speech bubble triangle pointing left */
+.custom-tooltip::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -6px;
+  transform: translateY(-50%);
+  border-width: 6px 6px 6px 0;
+  border-style: solid;
+  border-color: transparent #ececf1 transparent transparent;
 }
 
 /* --------------------------------------------------------------------------
@@ -313,47 +398,4 @@ body, html, #root {
 
 .chat-textarea::placeholder {
   color: #8e8e93;
-}
-
-/* ==========================================================================
-   Sidebar Groups (Pinned & Recents)
-   ========================================================================== */
-
-.sidebar-group {
-  margin-bottom: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.sidebar-group-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #8e8ea0; /* Standard subtext color */
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.2s ease;
-}
-
-.sidebar-group-header:hover {
-  color: #ececf1; /* Brightens up on hover */
-}
-
-/* Chevron animations for open/closed states */
-.sidebar-group-header .chevron {
-  transition: transform 0.2s ease;
-  transform: rotate(-90deg); /* Points right when closed */
-}
-
-.sidebar-group-header .chevron.open {
-  transform: rotate(0deg); /* Points down when open */
-}
-
-/* Ensure our icon buttons inside dropdowns have standard spacing */
-.dropdown-menu button svg {
-  margin-right: 8px;
 }

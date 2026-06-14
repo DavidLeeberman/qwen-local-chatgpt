@@ -181,7 +181,7 @@ def list_conversations():
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT id, title, updated_at, system_prompt, is_pinned
+                SELECT id, title, updated_at, system_prompt, is_pinned, is_archived
                 FROM conversations
                 WHERE user_id=%s
                 ORDER BY updated_at DESC
@@ -195,7 +195,8 @@ def list_conversations():
             "title": r[1], 
             "updated_at": str(r[2]), 
             "system_prompt": r[3], 
-            "is_pinned": bool(r[4]) # ✅ Ensure boolean mapping
+            "is_pinned": bool(r[4]), # ✅ Ensure boolean mapping
+            "is_archived": bool(r[5]) if r[5] is not None else False # ✅ Map archived status safely
         }
         for r in rows
     ])
@@ -474,14 +475,13 @@ def chat():
                 cur.execute("SELECT title FROM conversations WHERE id=%s", (cid,))
                 row = cur.fetchone()
                 if row and not row[0]:
-                    title = msg[:50]
                     cur.execute(
                         "UPDATE conversations SET title=%s WHERE id=%s",
-                        (title, cid)
+                        (msg, cid)
                     )
                     conn.commit()
             except Exception as e:
-                print("TITLE UPDATE ERROR:", e)
+                print("CONVERSATION TITLE UPDATE ERROR:", e)
 
     return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
@@ -562,6 +562,61 @@ def pin_conversation():
                 SET is_pinned = %s 
                 WHERE id = %s AND user_id = %s
             """, (is_pinned, cid, user['user_id']))
+            conn.commit()
+            
+    return jsonify({"status": "success"})
+
+# ✅ New Endpoint: Archive Conversation
+@app.route('/chat/archive', methods=['POST'])
+def archive_conversation():
+    user = verify_token(request.headers.get("Authorization"))
+    if not user or 'user_id' not in user:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    data = request.get_json()
+    cid = data.get('conversation_id')
+
+    if not cid:
+        return jsonify({"error": "missing conversation_id"}), 400
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE conversations 
+                SET is_archived = TRUE 
+                WHERE id = %s AND user_id = %s
+            """, (cid, user['user_id']))
+            conn.commit()
+            
+    return jsonify({"status": "success"})
+
+# ✅ New Endpoint: Delete Conversation Permanently
+@app.route('/chat/delete', methods=['POST'])
+def delete_conversation():
+    user = verify_token(request.headers.get("Authorization"))
+    if not user or 'user_id' not in user:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    data = request.get_json()
+    cid = data.get('conversation_id')
+
+    if not cid:
+        return jsonify({"error": "missing conversation_id"}), 400
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # 1. Delete associated messages first to prevent foreign key errors (if CASCADE is not configured)
+            cur.execute("""
+                DELETE FROM messages 
+                WHERE conversation_id = %s
+            """, (cid,))
+            
+            # 2. Delete the conversation itself, enforcing ownership
+            cur.execute("""
+                DELETE FROM conversations 
+                WHERE id = %s AND user_id = %s
+            """, (cid, user['user_id']))
+            
             conn.commit()
             
     return jsonify({"status": "success"})

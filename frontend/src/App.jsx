@@ -27,6 +27,9 @@ export default function App() {
   // Added state for handling the 3-dots dropdown menu
   const [openDropdownCid, setOpenDropdownCid] = useState(null)
 
+  // ✅ Feature 2: State for the custom hover tooltip
+  const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 })
+
   // Sidebar collapsible states
   const [isPinnedOpen, setIsPinnedOpen] = useState(true)
   const [isRecentsOpen, setIsRecentsOpen] = useState(true)
@@ -127,6 +130,74 @@ export default function App() {
       console.error("Failed to rename", err)
       fetchConversations() // Revert on failure
     }
+  }
+  
+  // ✅ New Feature: Archive Conversation
+  const archiveConversation = async (id) => {
+    // Optimistically remove it from the local list
+    setConversations(prev => prev.filter(c => c.id !== id))
+    if (cid === id) {
+      setCid(null)
+      setChat([])
+    }
+    setOpenDropdownCid(null)
+
+    try {
+      await axios.post(
+        `${API}/api/chat/archive`, 
+        { conversation_id: id }, 
+        { headers: { Authorization: token } }
+      )
+    } catch (err) {
+      console.error("Failed to archive", err)
+      fetchConversations() // Revert on failure
+    }
+  }
+
+  // ✅ New Feature: Delete Conversation
+  const deleteConversation = async (id) => {
+    // Optimistically remove it from the local list
+    setConversations(prev => prev.filter(c => c.id !== id))
+    if (cid === id) {
+      setCid(null)
+      setChat([])
+    }
+    setOpenDropdownCid(null)
+
+    try {
+      await axios.post(
+        `${API}/api/chat/delete`, 
+        { conversation_id: id }, 
+        { headers: { Authorization: token } }
+      )
+    } catch (err) {
+      console.error("Failed to delete", err)
+      fetchConversations() // Revert on failure
+    }
+  }
+
+  // ✅ Feature 2: Handlers to calculate and display the Tooltip only if truncated
+  const handleTitleMouseEnter = (e, text) => {
+    const el = e.currentTarget
+    
+    // Mathematically proves if the text overflowed its container
+    if (el.scrollWidth > el.clientWidth) {
+      // Find the parent item so we can position the tooltip outside the right edge of the sidebar
+      const parentItem = el.closest('.conversation-item')
+      if (parentItem) {
+        const rect = parentItem.getBoundingClientRect()
+        setTooltip({
+          visible: true,
+          text: text,
+          x: rect.right + 12, // 12px padding away from the sidebar scrollbar
+          y: rect.top + (rect.height / 2) // Vertically center it with the item
+        })
+      }
+    }
+  }
+
+  const handleTitleMouseLeave = () => {
+    setTooltip({ visible: false, text: '', x: 0, y: 0 })
   }
 
   const handleAtBottomChange = (isAtBottom) => {
@@ -261,6 +332,34 @@ export default function App() {
       }
     }
   }, [API]) // API is stable, so this effect runs exactly once on mount
+  
+  // ✅ Robust Dropdown Menu Interaction Catchers
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      // If clicking anywhere outside the 3-dots action area, close the menu.
+      // NOTE: Because mousedown captures BOTH left and right clicks, this fulfills the mouse requirement perfectly.
+      if (!e.target.closest('.conversation-actions')) {
+        setOpenDropdownCid(null)
+      }
+    }
+
+    const handleEscapeKey = (e) => {
+      if (e.key === 'Escape') {
+        setOpenDropdownCid(null)
+      }
+    }
+
+    // Capture Left Click, Right Click, and ESC to dismiss the menu
+    document.addEventListener('mousedown', handleOutsideClick)
+    document.addEventListener('contextmenu', handleOutsideClick)
+    document.addEventListener('keydown', handleEscapeKey)
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      document.removeEventListener('contextmenu', handleOutsideClick)
+      document.removeEventListener('keydown', handleEscapeKey)
+    }
+  }, [])
 
   useEffect(() => {
     if (!textareaRef.current) return
@@ -639,7 +738,8 @@ export default function App() {
   const renderChatItem = (c) => (
     <div 
       key={c.id} 
-      className={`conversation-item ${c.id === cid ? 'active' : ''}`}
+      // ✅ Feature 1 Fix: Appends 'dropdown-open' class so CSS keeps the actions visible
+      className={`conversation-item ${c.id === cid ? 'active' : ''} ${openDropdownCid === c.id ? 'dropdown-open' : ''}`}
       onClick={(e) => {
         e.stopPropagation()
         if (editingChatId !== c.id) {
@@ -669,7 +769,12 @@ export default function App() {
             autoFocus
           />
         ) : (
-          <span className="conversation-title-text">
+          /* ✅ Feature 2: Removed native HTML title, replaced with custom handlers */
+          <span 
+            className="conversation-title-text" 
+            onMouseEnter={(e) => handleTitleMouseEnter(e, c.title || 'New Chat')}
+            onMouseLeave={handleTitleMouseLeave}
+          >
             {c.title || 'New Chat'}
           </span>
         )}
@@ -716,7 +821,8 @@ export default function App() {
               {c.is_pinned ? 'Unpin' : 'Pin'}
             </div>
             
-            <div className="dropdown-item" onClick={() => {
+            <div className="dropdown-item" onClick={(e) => {
+              e.stopPropagation()
               setEditingChatId(c.id)
               setEditTitleBuffer(c.title || '')
               setOpenDropdownCid(null)
@@ -725,6 +831,33 @@ export default function App() {
                 <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
               </svg>
               Rename
+            </div>
+
+            {/* ✅ New Feature: Archive Button */}
+            <div className="dropdown-item" onClick={(e) => {
+              e.stopPropagation()
+              archiveConversation(c.id)
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="21 8 21 21 3 21 3 8" />
+                <rect x="1" y="3" width="22" height="5" />
+                <line x1="10" y1="12" x2="14" y2="12" />
+              </svg>
+              Archive
+            </div>
+
+            {/* ✅ New Feature: Delete Button */}
+            <div className="dropdown-item danger" onClick={(e) => {
+              e.stopPropagation()
+              deleteConversation(c.id)
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
+              Delete
             </div>
           </div>
         )}
@@ -735,12 +868,13 @@ export default function App() {
   // ✅ if not logged in → show login
   if (!token) return <Login setToken={setToken} />
 
-  // Split logic for the sidebar groups
-  const pinnedChats = conversations.filter(c => c.is_pinned)
-  const recentChats = conversations.filter(c => !c.is_pinned)
+  // Split logic for the sidebar groups, filtering out potentially archived ones 
+  // (Assuming your backend eventually returns is_archived, or we just remove them locally)
+  const pinnedChats = conversations.filter(c => c.is_pinned && !c.is_archived)
+  const recentChats = conversations.filter(c => !c.is_pinned && !c.is_archived)
 
   return (
-    <div className="app-container" onClick={() => setOpenDropdownCid(null)}>
+    <div className="app-container">
       
       {/* Sidebar Framework */}
       <div className="sidebar">
@@ -881,6 +1015,16 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* ✅ Feature 2: Tooltip Overlay */}
+      {tooltip.visible && (
+        <div 
+          className="custom-tooltip"
+          style={{ top: tooltip.y, left: tooltip.x }}
+        >
+          {tooltip.text}
+        </div>
+      )}
 
     </div>
   )
