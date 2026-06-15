@@ -198,7 +198,6 @@ body, html, #root {
 
 /* ✅ Feature 1 Fix: Appended '.dropdown-open' logic so the 3-dots stay visible when the menu is open */
 .conversation-item:hover .conversation-actions,
-.conversation-item.active .conversation-actions,
 .conversation-item.dropdown-open .conversation-actions {
   display: flex;
 }
