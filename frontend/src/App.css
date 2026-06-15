@@ -174,6 +174,15 @@ body, html, #root {
   background-color: #2a2b32; /* Obvious, brighter highlight for active */
 }
 
+/* 1. Allow the title to stretch and handle its own ellipsis */
+.conversation-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0; /* CRITICAL: Allows the flex child to shrink below its content size */
+}
+
 .conversation-title-wrapper {
   display: flex;
   align-items: center;
@@ -190,20 +199,26 @@ body, html, #root {
 }
 
 /* 1. Base State: Always in the layout, but completely invisible */
+/* 2. Hide actions horizontally by default, but keep vertical height locked */
 .conversation-actions {
-  display: flex;           /* MUST be flex, never use 'none' here */
+  display: flex;
   align-items: center;
   gap: 4px;
-  opacity: 0;              /* Makes them transparent */
-  visibility: hidden;      /* Prevents you from accidentally clicking invisible buttons */
-  transition: opacity 0.15s ease, visibility 0.15s ease;
+  opacity: 0;
+  width: 0;             /* Takes 0 horizontal space by default */
+  overflow: hidden;     /* Hides the icons completely when width is 0 */
+  max-height: 20px;     /* Prevents the buttons from causing a vertical layout shift */
+  transition: opacity 0.15s ease;
 }
 
 /* 2. Hover/Active State: Make them visible without changing dimensions */
+/* 3. Reveal actions and claim space ONLY on hover/dropdown */
 .conversation-item:hover .conversation-actions,
 .conversation-item.dropdown-open .conversation-actions {
   opacity: 1;
-  visibility: visible;
+  width: auto;          /* Icons claim their natural width */
+  overflow: visible;
+  margin-left: 8px;     /* The proper space between the text and the icons */
 }
 
 .action-btn {

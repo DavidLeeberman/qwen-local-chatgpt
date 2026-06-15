@@ -178,20 +178,32 @@ export default function App() {
 
   // ✅ Feature 2: Handlers to calculate and display the Tooltip only if truncated
   const handleTitleMouseEnter = (e, text) => {
-    const el = e.currentTarget
+    const titleEl = e.currentTarget; // The <span> (.conversation-title-text)
+    const rowEl = titleEl.closest('.conversation-item');
     
-    // Mathematically proves if the text overflowed its container
-    if (el.scrollWidth > el.clientWidth) {
-      // Find the parent item so we can position the tooltip outside the right edge of the sidebar
-      const parentItem = el.closest('.conversation-item')
-      if (parentItem) {
-        const rect = parentItem.getBoundingClientRect()
-        setTooltip({
-          visible: true,
-          text: text,
-          x: rect.right + 12, // 12px padding away from the sidebar scrollbar
-          y: rect.top + (rect.height / 2) // Vertically center it with the item
-        })
+    if (titleEl && rowEl) {
+      const actionsEl = rowEl.querySelector('.conversation-actions');
+      const actionsWidth = actionsEl ? actionsEl.getBoundingClientRect().width : 0;
+      
+      // Accounts for the margin-left: 8px applied to actions on hover in your CSS
+      const actionsMargin = actionsWidth > 0 ? 8 : 0;
+      
+      // Calculate the exact maximum width available for text when actions are width: 0
+      const maxUnhoveredWidth = titleEl.getBoundingClientRect().width + actionsWidth + actionsMargin;
+
+      // Only trigger the custom tooltip if the full text overflows the unhovered layout
+      if (titleEl.scrollWidth > Math.ceil(maxUnhoveredWidth)) {
+        // Find the parent item so we can position the tooltip outside the right edge of the sidebar
+        const parentItem = titleEl.closest('.conversation-item')
+        if (parentItem) {
+          const rect = parentItem.getBoundingClientRect()
+          setTooltip({
+            visible: true,
+            text: text,
+            x: rect.right + 12, // 12px padding away from the sidebar scrollbar
+            y: rect.top + (rect.height / 2) // Vertically center it with the item
+          })
+        }
       }
     }
   }
