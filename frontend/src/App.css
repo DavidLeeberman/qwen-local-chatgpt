@@ -105,6 +105,10 @@ body, html, #root {
    Sidebar Groups (Pinned & Recents)
    ========================================================================== */
 
+:root {
+  --sidebar-item-padding: 6px 8px;
+}
+
 .sidebar-group {
   margin-bottom: 16px;
   display: flex;
@@ -116,7 +120,7 @@ body, html, #root {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: var(--sidebar-item-padding);
   font-size: 12px;
   font-weight: 600;
   color: #8e8ea0; /* Standard subtext color */
@@ -149,14 +153,14 @@ body, html, #root {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
-  margin: 2px 0;
+  padding: var(--sidebar-item-padding);
+  /* margin: 2px 0; */
   border-radius: 8px;
   cursor: pointer;
   position: relative;
   color: #ececf1;
   font-size: 14px;
-  height: 42px;
+  /* height: 42px; */
   box-sizing: border-box;
   transition: background-color 0.15s ease;
 }
