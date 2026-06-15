@@ -189,17 +189,21 @@ body, html, #root {
   color: #ececf1;
 }
 
-/* Action Button Layout Visibility Modifiers */
+/* 1. Base State: Always in the layout, but completely invisible */
 .conversation-actions {
-  display: none;
+  display: flex;           /* MUST be flex, never use 'none' here */
   align-items: center;
   gap: 4px;
+  opacity: 0;              /* Makes them transparent */
+  visibility: hidden;      /* Prevents you from accidentally clicking invisible buttons */
+  transition: opacity 0.15s ease, visibility 0.15s ease;
 }
 
-/* ✅ Feature 1 Fix: Appended '.dropdown-open' logic so the 3-dots stay visible when the menu is open */
+/* 2. Hover/Active State: Make them visible without changing dimensions */
 .conversation-item:hover .conversation-actions,
 .conversation-item.dropdown-open .conversation-actions {
-  display: flex;
+  opacity: 1;
+  visibility: visible;
 }
 
 .action-btn {
