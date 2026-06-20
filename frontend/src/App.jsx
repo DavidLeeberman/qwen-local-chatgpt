@@ -783,6 +783,7 @@ export default function App() {
         ) : (
           /* ✅ Feature 2: Removed native HTML title, replaced with custom handlers */
           <span 
+            // key={`${c.id}-${c.id === cid ? 'active' : 'inactive'}`}
             className="conversation-title-text" 
             onMouseEnter={(e) => handleTitleMouseEnter(e, c.title || 'New Chat')}
             onMouseLeave={handleTitleMouseLeave}

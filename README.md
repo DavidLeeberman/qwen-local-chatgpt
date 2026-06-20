@@ -87,7 +87,7 @@ Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5
    - user facts
    - relevant memory
    - recent chat
-5. Send to Qwen (Ollama)
+5. Send to Qwen (vllm/Ollama)
 6. Return response
 7. Store new memory
 
@@ -106,7 +106,7 @@ Flask AI service
  │ + PostgreSQL  │ (structured data)
  └───────────────┘
    ↓
-Ollama (Qwen model)
+vllm/Ollama (Qwen model)
 ```
 ## Project Directory Structure
 ```
