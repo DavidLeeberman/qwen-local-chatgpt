@@ -26,7 +26,7 @@ export default function App() {
     
   // Added state for handling the 3-dots dropdown menu
   const [openDropdownCid, setOpenDropdownCid] = useState(null)
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
+  const [dropdownPos, setDropdownPos] = useState({ top: 'auto', bottom: 'auto', left: '0px', maxHeight: 'none' })
   const activeMenuBtnRef = useRef(null) // Tracks the exact button that was clicked
 
   // ✅ Feature 2: State for the custom hover tooltip
@@ -90,6 +90,48 @@ export default function App() {
       console.error('Failed to fetch conversations:', err)
     }
   }
+
+  // The Smart Positioning Engine
+  const updateDropdownPosition = () => {
+    if (!activeMenuBtnRef.current) return;
+
+    const rect = activeMenuBtnRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const estimatedMenuHeight = 165; // Total height of 4 rows + paddings + borders
+    const gap = 4;                   // Distance from the 3-dots button
+    const windowMargin = 8;          // Keeps menu from sticking ugly against screen edge
+
+    // 1. Check if it fits expanding downwards
+    const spaceBelow = viewportHeight - rect.bottom - gap;
+    if (spaceBelow >= estimatedMenuHeight) {
+      setDropdownPos({
+        top: `${rect.bottom + gap}px`,
+        bottom: 'auto',
+        left: `${rect.left}px`,
+        maxHeight: 'none'
+      });
+    } 
+    // 2. If not, check if it fits expanding upwards
+    else if (rect.top - gap >= estimatedMenuHeight) {
+      setDropdownPos({
+        top: 'auto',
+        bottom: `${viewportHeight - rect.top + gap}px`,
+        left: `${rect.left}px`,
+        maxHeight: 'none'
+      });
+    } 
+    // 3. Compressed state: Doesn't fit in either direction -> force down and limit height
+    else {
+      const computedTop = rect.bottom + gap;
+      const computedMaxHeight = Math.max(60, viewportHeight - computedTop - windowMargin);
+      setDropdownPos({
+        top: `${computedTop}px`,
+        bottom: 'auto',
+        left: `${rect.left}px`,
+        maxHeight: `${computedMaxHeight}px`
+      });
+    }
+  };
 
   const togglePin = async (e, id, currentPinStatus) => {
     e.stopPropagation()
@@ -358,13 +400,9 @@ export default function App() {
     }
 
     // As the user scrolls the sidebar, recalculate the button's position and move the menu
-    const handleScroll = () => {
-      if (openDropdownCid && activeMenuBtnRef.current) {
-        const rect = activeMenuBtnRef.current.getBoundingClientRect();
-        setDropdownPos({
-          top: rect.bottom + 4,
-          left: rect.left // Aligns the left edge of the menu with the left edge of the button
-        });
+    const handleLayoutChange = () => {
+      if (openDropdownCid) {
+        updateDropdownPosition();
       }
     };
 
@@ -379,15 +417,17 @@ export default function App() {
     document.addEventListener('contextmenu', handleOutsideClick)
     document.addEventListener('keydown', handleEscapeKey)
     // 'true' forces the listener to capture scroll events on inner containers (like the sidebar)
-    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('scroll', handleLayoutChange, true);
+    window.addEventListener('resize', handleLayoutChange);
 
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick)
       document.removeEventListener('contextmenu', handleOutsideClick)
       document.removeEventListener('keydown', handleEscapeKey)
-      window.removeEventListener('scroll', handleScroll, true)
+      window.removeEventListener('scroll', handleLayoutChange, true)
+      window.removeEventListener('resize', handleLayoutChange)
     }
-  }, [])
+  }, [openDropdownCid])
 
   useEffect(() => {
     if (!textareaRef.current) return
@@ -893,18 +933,13 @@ export default function App() {
               e.preventDefault();
               e.stopPropagation();
               
-              // 1. Save this specific button to the ref so the scroll listener can track it
-              activeMenuBtnRef.current = e.currentTarget;
-              
-              // 2. Get initial coordinates
-              const rect = e.currentTarget.getBoundingClientRect();
-              setDropdownPos({
-                top: rect.bottom + 4,
-                left: rect.left 
-              });
-              
-              // 3. Toggle menu
-              setOpenDropdownCid(isMenuOpen ? null : c.id);
+              if (isMenuOpen) {
+                setOpenDropdownCid(null);
+              } else {
+                activeMenuBtnRef.current = e.currentTarget; // Save button reference
+                updateDropdownPosition();                   // Compute position instantly
+                setOpenDropdownCid(c.id);                   // Reveal menu
+              }
             }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -918,7 +953,13 @@ export default function App() {
           {isMenuOpen && (
             <div 
               className="dropdown-menu"
-              style={{ top: dropdownPos.top, left: dropdownPos.left }}>
+              style={{
+                top: dropdownPos.top,
+                bottom: dropdownPos.bottom,
+                left: dropdownPos.left,
+                maxHeight: dropdownPos.maxHeight
+              }}
+            >
               {renderDropdownMenu(c)}
             </div>
           )}

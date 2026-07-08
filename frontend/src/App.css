@@ -245,6 +245,12 @@ body, html, #root {
   min-width: 130px;
   display: flex;
   flex-direction: column;
+
+  /* ==========================================================================
+     NEW: Handle window shrinking compression and scrollbar configuration
+     ========================================================================== */
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 /* Ensure our icon buttons inside dropdowns have standard spacing */
