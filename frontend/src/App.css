@@ -252,7 +252,9 @@ body, html, #root {
   margin-right: 8px;
 }
 
-.dropdown-item {
+.dropdown-menu button {
+  background: none;
+  border: none;
   padding: 8px 10px;
   color: #ececf1;
   font-size: 13px;
@@ -263,15 +265,15 @@ body, html, #root {
   gap: 8px;
 }
 
-.dropdown-item:hover {
+.dropdown-menu button:hover {
   background-color: #424242;
 }
 
-.dropdown-item.danger {
+.dropdown-menu button.danger {
   color: #ff4d4f;
 }
 
-.dropdown-item.danger:hover {
+.dropdown-menu button.danger:hover {
   background-color: rgba(255, 77, 79, 0.1);
 }
 

@@ -763,21 +763,25 @@ export default function App() {
   }
 
   // --- REUSABLE COMPONENT: Renders individual items for both sections ---
+  const renderPinIcon = (isPinned) => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg)' }}>
+      <path d="M12 17v5" />
+      <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76Z" />
+      {isPinned && <line x1="4" y1="12" x2="20" y2="12" />}
+    </svg>
+  )
+
   const renderDropdownMenu = (c) => {
     if (!c) return null; // Safety check in case the conversation isn't found
 
     return (
       <>
-        <div className="dropdown-item" onClick={(e) => togglePin(e, c.id, c.is_pinned)}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg)' }}>
-            <path d="M12 17v5" />
-            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76Z" />
-            {c.is_pinned && <line x1="4" y1="12" x2="20" y2="12" />}
-          </svg>
+        <button onClick={(e) => togglePin(e, c.id, c.is_pinned)}>
+          {renderPinIcon(c.is_pinned)}
           {c.is_pinned ? 'Unpin' : 'Pin'}
-        </div>
+        </button>
         
-        <div className="dropdown-item" onClick={(e) => {
+        <button onClick={(e) => {
           e.stopPropagation()
           setEditingChatId(c.id)
           setEditTitleBuffer(c.title || '')
@@ -787,10 +791,10 @@ export default function App() {
             <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
           </svg>
           Rename
-        </div>
+        </button>
 
         {/* ✅ New Feature: Archive Button */}
-        <div className="dropdown-item" onClick={(e) => {
+        <button onClick={(e) => {
           e.stopPropagation()
           archiveConversation(c.id)
         }}>
@@ -800,10 +804,10 @@ export default function App() {
             <line x1="10" y1="12" x2="14" y2="12" />
           </svg>
           Archive
-        </div>
+        </button>
 
         {/* ✅ New Feature: Delete Button */}
-        <div className="dropdown-item danger" onClick={(e) => {
+        <button className="danger" onClick={(e) => {
           e.stopPropagation()
           deleteConversation(c.id)
         }}>
@@ -814,7 +818,7 @@ export default function App() {
             <line x1="14" y1="11" x2="14" y2="17" />
           </svg>
           Delete
-        </div>
+        </button>
       </>
     )
   }
@@ -880,11 +884,7 @@ export default function App() {
             title={c.is_pinned ? "Unpin Chat" : "Pin Chat"}
           >
             {/* Tilted Pin, with vertical crossing line for "Unpin" state */}
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg)' }}>
-              <path d="M12 17v5" />
-              <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76Z" />
-              {c.is_pinned && <line x1="4" y1="12" x2="20" y2="12" />}
-            </svg>
+            {renderPinIcon(c.is_pinned)}
           </button>
           
           <button 
