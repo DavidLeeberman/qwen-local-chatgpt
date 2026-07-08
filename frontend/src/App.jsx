@@ -26,6 +26,8 @@ export default function App() {
     
   // Added state for handling the 3-dots dropdown menu
   const [openDropdownCid, setOpenDropdownCid] = useState(null)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
+  const activeMenuBtnRef = useRef(null) // Tracks the exact button that was clicked
 
   // ✅ Feature 2: State for the custom hover tooltip
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 })
@@ -350,10 +352,21 @@ export default function App() {
     const handleOutsideClick = (e) => {
       // If clicking anywhere outside the 3-dots action area, close the menu.
       // NOTE: Because mousedown captures BOTH left and right clicks, this fulfills the mouse requirement perfectly.
-      if (!e.target.closest('.conversation-actions')) {
+      if (openDropdownCid && !e.target.closest('.dropdown-menu') &&!e.target.closest('.conversation-actions')) {
         setOpenDropdownCid(null)
       }
     }
+
+    // As the user scrolls the sidebar, recalculate the button's position and move the menu
+    const handleScroll = () => {
+      if (openDropdownCid && activeMenuBtnRef.current) {
+        const rect = activeMenuBtnRef.current.getBoundingClientRect();
+        setDropdownPos({
+          top: rect.bottom + 4,
+          left: rect.left // Aligns the left edge of the menu with the left edge of the button
+        });
+      }
+    };
 
     const handleEscapeKey = (e) => {
       if (e.key === 'Escape') {
@@ -365,11 +378,14 @@ export default function App() {
     document.addEventListener('mousedown', handleOutsideClick)
     document.addEventListener('contextmenu', handleOutsideClick)
     document.addEventListener('keydown', handleEscapeKey)
+    // 'true' forces the listener to capture scroll events on inner containers (like the sidebar)
+    window.addEventListener('scroll', handleScroll, true);
 
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick)
       document.removeEventListener('contextmenu', handleOutsideClick)
       document.removeEventListener('keydown', handleEscapeKey)
+      window.removeEventListener('scroll', handleScroll, true)
     }
   }, [])
 
@@ -747,136 +763,169 @@ export default function App() {
   }
 
   // --- REUSABLE COMPONENT: Renders individual items for both sections ---
-  const renderChatItem = (c) => (
-    <div 
-      key={c.id} 
-      // ✅ Feature 1 Fix: Appends 'dropdown-open' class so CSS keeps the actions visible
-      className={`conversation-item ${c.id === cid ? 'active' : ''} ${openDropdownCid === c.id ? 'dropdown-open' : ''}`}
-      onClick={(e) => {
-        e.stopPropagation()
-        if (editingChatId !== c.id) {
-          loadMessages(c.id)
-          setOpenDropdownCid(null)
-        }
-      }}
-    >
-      <div className="conversation-title-wrapper">
-        {/* Only mark pinned conversations with a bubble icon */}
-        {c.is_pinned && (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-        )}
+  const renderDropdownMenu = (c) => {
+    if (!c) return null; // Safety check in case the conversation isn't found
 
-        {editingChatId === c.id ? (
-          <input
-            className="chat-rename-input"
-            value={editTitleBuffer}
-            onChange={(e) => setEditTitleBuffer(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') saveRenamedTitle(c.id)
-              if (e.key === 'Escape') setEditingChatId(null)
-            }}
-            onClick={(e) => e.stopPropagation()}
-            autoFocus
-          />
-        ) : (
-          /* ✅ Feature 2: Removed native HTML title, replaced with custom handlers */
-          <span 
-            // key={`${c.id}-${c.id === cid ? 'active' : 'inactive'}`}
-            className="conversation-title-text" 
-            onMouseEnter={(e) => handleTitleMouseEnter(e, c.title || 'New Chat')}
-            onMouseLeave={handleTitleMouseLeave}
-          >
-            {c.title || 'New Chat'}
-          </span>
-        )}
-      </div>
-
-      {/* Context Controls: Pin on left, 3 horizontal dots on right */}
-      <div className="conversation-actions" onClick={(e) => e.stopPropagation()}>
-        <button 
-          className="action-btn"
-          onClick={(e) => togglePin(e, c.id, c.is_pinned)}
-          title={c.is_pinned ? "Unpin Chat" : "Pin Chat"}
-        >
-          {/* Tilted Pin, with vertical crossing line for "Unpin" state */}
+    return (
+      <>
+        <div className="dropdown-item" onClick={(e) => togglePin(e, c.id, c.is_pinned)}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg)' }}>
             <path d="M12 17v5" />
             <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76Z" />
             {c.is_pinned && <line x1="4" y1="12" x2="20" y2="12" />}
           </svg>
-        </button>
+          {c.is_pinned ? 'Unpin' : 'Pin'}
+        </div>
         
-        <button 
-          className="action-btn"
-          onClick={(e) => {
-            e.stopPropagation()
-            setOpenDropdownCid(openDropdownCid === c.id ? null : c.id)
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="5" cy="12" r="2"/>
-            <circle cx="12" cy="12" r="2"/>
-            <circle cx="19" cy="12" r="2"/>
+        <div className="dropdown-item" onClick={(e) => {
+          e.stopPropagation()
+          setEditingChatId(c.id)
+          setEditTitleBuffer(c.title || '')
+          setOpenDropdownCid(null)
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
           </svg>
-        </button>
+          Rename
+        </div>
 
-        {/* Droplist Popover Menu */}
-        {openDropdownCid === c.id && (
-          <div className="dropdown-menu">
-            <div className="dropdown-item" onClick={(e) => togglePin(e, c.id, c.is_pinned)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg)' }}>
-                <path d="M12 17v5" />
-                <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76Z" />
-                {c.is_pinned && <line x1="4" y1="12" x2="20" y2="12" />}
-              </svg>
-              {c.is_pinned ? 'Unpin' : 'Pin'}
-            </div>
-            
-            <div className="dropdown-item" onClick={(e) => {
-              e.stopPropagation()
-              setEditingChatId(c.id)
-              setEditTitleBuffer(c.title || '')
-              setOpenDropdownCid(null)
-            }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-              </svg>
-              Rename
-            </div>
+        {/* ✅ New Feature: Archive Button */}
+        <div className="dropdown-item" onClick={(e) => {
+          e.stopPropagation()
+          archiveConversation(c.id)
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="21 8 21 21 3 21 3 8" />
+            <rect x="1" y="3" width="22" height="5" />
+            <line x1="10" y1="12" x2="14" y2="12" />
+          </svg>
+          Archive
+        </div>
 
-            {/* ✅ New Feature: Archive Button */}
-            <div className="dropdown-item" onClick={(e) => {
-              e.stopPropagation()
-              archiveConversation(c.id)
-            }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="21 8 21 21 3 21 3 8" />
-                <rect x="1" y="3" width="22" height="5" />
-                <line x1="10" y1="12" x2="14" y2="12" />
-              </svg>
-              Archive
-            </div>
+        {/* ✅ New Feature: Delete Button */}
+        <div className="dropdown-item danger" onClick={(e) => {
+          e.stopPropagation()
+          deleteConversation(c.id)
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
+          </svg>
+          Delete
+        </div>
+      </>
+    )
+  }
 
-            {/* ✅ New Feature: Delete Button */}
-            <div className="dropdown-item danger" onClick={(e) => {
-              e.stopPropagation()
-              deleteConversation(c.id)
-            }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                <line x1="10" y1="11" x2="10" y2="17" />
-                <line x1="14" y1="11" x2="14" y2="17" />
-              </svg>
-              Delete
+  const renderChatItem = (c) => {
+    const isActive = c.id === cid;
+    const isMenuOpen = openDropdownCid === c.id;
+    const isEditingChatId = editingChatId === c.id;
+
+    return (
+      <div 
+        key={c.id} 
+        // ✅ Feature 1 Fix: Appends 'dropdown-open' class so CSS keeps the actions visible
+        className={`conversation-item ${isActive ? 'active' : ''} ${isMenuOpen ? 'dropdown-open' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (!isEditingChatId) {
+            loadMessages(c.id)
+            // CRITICAL: Strip browser focus to prevent CSS stickiness on click
+            if (e.currentTarget) e.currentTarget.blur();
+            setOpenDropdownCid(null)
+          }
+        }}
+      >
+        <div className="conversation-title-wrapper">
+          {/* Only mark pinned conversations with a bubble icon */}
+          {c.is_pinned && (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          )}
+
+          {isEditingChatId ? (
+            <input
+              className="chat-rename-input"
+              value={editTitleBuffer}
+              onChange={(e) => setEditTitleBuffer(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveRenamedTitle(c.id)
+                if (e.key === 'Escape') setEditingChatId(null)
+              }}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+            />
+          ) : (
+            /* ✅ Feature 2: Removed native HTML title, replaced with custom handlers */
+            <span 
+              // key={`${c.id}-${c.id === cid ? 'active' : 'inactive'}`}
+              className="conversation-title-text" 
+              onMouseEnter={(e) => handleTitleMouseEnter(e, c.title || 'New Chat')}
+              onMouseLeave={handleTitleMouseLeave}
+            >
+              {c.title || 'New Chat'}
+            </span>
+          )}
+        </div>
+
+        {/* Context Controls: Pin on left, 3 horizontal dots on right */}
+        <div className="conversation-actions" onClick={(e) => e.stopPropagation()}>
+          <button 
+            className="action-btn"
+            onClick={(e) => togglePin(e, c.id, c.is_pinned)}
+            title={c.is_pinned ? "Unpin Chat" : "Pin Chat"}
+          >
+            {/* Tilted Pin, with vertical crossing line for "Unpin" state */}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg)' }}>
+              <path d="M12 17v5" />
+              <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76Z" />
+              {c.is_pinned && <line x1="4" y1="12" x2="20" y2="12" />}
+            </svg>
+          </button>
+          
+          <button 
+            className="action-btn"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              
+              // 1. Save this specific button to the ref so the scroll listener can track it
+              activeMenuBtnRef.current = e.currentTarget;
+              
+              // 2. Get initial coordinates
+              const rect = e.currentTarget.getBoundingClientRect();
+              setDropdownPos({
+                top: rect.bottom + 4,
+                left: rect.left 
+              });
+              
+              // 3. Toggle menu
+              setOpenDropdownCid(isMenuOpen ? null : c.id);
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="5" cy="12" r="2"/>
+              <circle cx="12" cy="12" r="2"/>
+              <circle cx="19" cy="12" r="2"/>
+            </svg>
+          </button>
+
+          {/* Droplist Popover Menu */}
+          {isMenuOpen && (
+            <div 
+              className="dropdown-menu"
+              style={{ top: dropdownPos.top, left: dropdownPos.left }}>
+              {renderDropdownMenu(c)}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   // ✅ if not logged in → show login
   if (!token) return <Login setToken={setToken} />
