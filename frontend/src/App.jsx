@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Virtuoso } from 'react-virtuoso'
 import axios from 'axios'
 import Login from './Login'
@@ -93,7 +93,7 @@ export default function App() {
   }
 
   // The Smart Positioning Engine
-  const updateDropdownPosition = () => {
+  const updateDropdownPosition = useCallback(() => {
     if (!activeMenuBtnRef.current) return;
 
     const rect = activeMenuBtnRef.current.getBoundingClientRect();
@@ -132,7 +132,7 @@ export default function App() {
         maxHeight: `${computedMaxHeight}px`
       });
     }
-  };
+  }, []); // Empty array ensures this layout utility reference never fluctuates
 
   const togglePin = async (e, id, currentPinStatus) => {
     e.stopPropagation()
@@ -153,22 +153,27 @@ export default function App() {
     }
   }
 
-  const saveRenamedTitle = async (id) => {
-    if (!editTitleBuffer.trim()) {
+  const saveRenamedTitle = async (id, titleToSave) => {
+    // Fall back to state buffer if no explicit title was passed
+    const targetText = titleToSave !== undefined ? titleToSave : editTitleBuffer;
+
+    if (!targetText || !targetText.trim()) {
       setEditingChatId(null)
       return
     }
 
+    const trimmedTitle = targetText.trim()
+
     try {
       // Optimistic UI update
       setConversations(prev => prev.map(c => 
-        c.id === id ? { ...c, title: editTitleBuffer } : c
+        c.id === id ? { ...c, title: trimmedTitle } : c
       ))
       setEditingChatId(null)
 
       await axios.post(
         `${API}/api/chat/rename`, 
-        { conversation_id: id, title: editTitleBuffer }, 
+        { conversation_id: id, title: trimmedTitle }, 
         { headers: { Authorization: token } }
       )
     } catch (err) {
@@ -447,6 +452,28 @@ export default function App() {
       window.removeEventListener('resize', handleLayoutChange)
     }
   }, [openDropdownCid])
+
+  // ✅ Fix Bug #2: Handle saving/canceling rename when clicking outside the input box
+  useEffect(() => {
+    if (!editingChatId) return
+
+    const handleOutsideRenameClick = (e) => {
+      // If the user clicks anywhere outside the active rename input box
+      if (!e.target.closest('.chat-rename-input')) {
+        const trimmed = editTitleBuffer.trim()
+        if (!trimmed) {
+          setEditingChatId(null)          // Requirement 4: Cancel if empty when clicking outside
+        } else {
+          saveRenamedTitle(editingChatId, trimmed) // Requirement 1: Save if not empty when clicking outside
+        }
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideRenameClick)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideRenameClick)
+    }
+  }, [editingChatId, editTitleBuffer])
 
   useEffect(() => {
     if (!textareaRef.current) return
@@ -916,8 +943,19 @@ export default function App() {
               value={editTitleBuffer}
               onChange={(e) => setEditTitleBuffer(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') saveRenamedTitle(c.id)
-                if (e.key === 'Escape') setEditingChatId(null)
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  const trimmed = editTitleBuffer.trim()
+                  if (!trimmed) {
+                    setEditingChatId(null) // Requirement 4: Cancel if empty on Enter
+                  } else {
+                    saveRenamedTitle(c.id, trimmed) // Requirement 2: Save if not empty on Enter
+                  }
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  setEditingChatId(null) // Requirement 4: Cancel cleanly on ESC (original title remains)
+                }
               }}
               onClick={(e) => e.stopPropagation()}
               autoFocus
