@@ -4,6 +4,7 @@ import axios from 'axios'
 import Login from './Login'
 
 import ChatArea from './components/Chat/ChatArea'
+import ChatInput from './components/Chat/ChatInput'
 
 import './App.css'
 
@@ -1096,69 +1097,25 @@ export default function App() {
       </div>
 
       {/* Main Chat Area */}
-        <ChatArea
-          virtuosoRef={virtuosoRef}
-          chat={chat}
-          increaseViewportBy={800}
-          autoScroll={autoScroll}
-          handleAtBottomChange={handleAtBottomChange}
-          err={err}
-        >
+      <ChatArea
+        virtuosoRef={virtuosoRef}
+        chat={chat}
+        increaseViewportBy={800}
+        autoScroll={autoScroll}
+        handleAtBottomChange={handleAtBottomChange}
+        err={err}
+      >
 
         {/* Input Footer Area */}
-        <div className="input-area-footer">
-          <div className="input-box-wrapper">
-            <textarea
-              ref={textareaRef}
-              className="chat-textarea"
-              rows={1}
-              value={msg}
-              onChange={(e) => {
-                setMsg(e.target.value)
-                e.target.style.height = 'auto'
-                e.target.style.height = `${e.target.scrollHeight}px`
-              }}
-              placeholder="Message ChatGPT..."
-              disabled={isStreaming}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey) {
-                  e.preventDefault()
-                  if (!isStreaming && msg.trim()) send()
-                }
-              }}
-            />
-
-            {isStreaming ? (
-              <button 
-                onClick={() => {
-                  finishCurrentStreamingMessage()
-                  cleanupStream(true, true)
-                }}
-                style={{ 
-                  background: '#ececf1', color: '#000', border: 'none', borderRadius: '50%', width: '32px', height: '32px',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="4" y="4" width="16" height="16" rx="2" />
-                </svg>
-              </button>
-            ) : (
-              <button 
-                onClick={send}
-                disabled={!msg.trim()}
-                style={{ 
-                  background: msg.trim() ? '#ececf1' : '#494949', color: msg.trim() ? '#000' : '#212121', border: 'none', borderRadius: '50%', width: '32px', height: '32px',
-                  cursor: msg.trim() ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background-color 0.2s'
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 4l-8 8h6v8h4v-8h6z" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
+        <ChatInput
+          textareaRef={textareaRef}
+          msg={msg}
+          setMsg={setMsg}
+          isStreaming={isStreaming}
+          send={send}
+          finishCurrentStreamingMessage={finishCurrentStreamingMessage}
+          cleanupStream={cleanupStream}
+        />
       </ChatArea>
 
       {/* ✅ Feature 2: Tooltip Overlay */}
