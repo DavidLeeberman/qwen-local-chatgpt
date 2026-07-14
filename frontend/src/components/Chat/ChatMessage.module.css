@@ -1,0 +1,71 @@
+.streaming-cursor {
+  display: inline-block;
+  width: 0.6ch;
+  animation: blink 1s infinite;
+  font-weight: bold;
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  50.01%, 100% {
+    opacity: 0;
+  }
+}
+
+.message-pair {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.message-row {
+  display: flex;
+  width: 100%;
+  padding: 12px 24px;
+  box-sizing: border-box;
+}
+
+.message-row-inner {
+  max-width: 768px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+}
+
+/* Force Historical User Submissions flush Right */
+.user-row .message-row-inner {
+  justify-content: flex-end; 
+}
+
+/* Force Assistant responses flush Left */
+.assistant-row .message-row-inner {
+  justify-content: flex-start; 
+}
+
+/* Chat Area Content Container Blocks */
+.message-bubble {
+  font-size: 16px;
+  line-height: 1.6;
+  font-family: inherit;
+}
+
+/* User Bubbles: Pill bounding-box wrapping style */
+.user-row .message-bubble {
+  background-color: #2f2f2f;
+  color: #ececf1;
+  padding: 10px 20px;
+  border-radius: 24px;
+  max-width: 70%;
+  word-break: break-word;
+}
+
+/* Assistant responses layout flow */
+.assistant-row .message-bubble {
+  background-color: transparent;
+  color: #ececf1;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+}

@@ -1,5 +1,12 @@
 # Local ChatGPT-class System
 ```
+Version    : 0.57
+Model      : Qwen3.5-9B + vLLM + Ollama
+Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
+```
+Updates:
+- Frontend architecture scale up from monolithic to domain-driven modules
+```
 Version    : 0.56
 Model      : Qwen3.5-9B + vLLM + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
@@ -136,8 +143,42 @@ qwen-local-chatgpt/
 │   ├── vite.config.js
 │   ├── index.html
 │   └── src/
+|       ├── context/
+|       │   └── ChatContext.jsx                 # Global states (token, conversations, active cid)
+|       |
+|       ├── hooks/
+|       │   └── useChatStream.js                # Extracts all flush, buffer, and AbortController streaming logic
+|       |
+|       ├── components/
+|       │   ├── Layout/
+|       │   │   ├── AppContainer.jsx
+|       │   │   ├── MainChatLayout.jsx
+│       │   |   └── Layout.module.css           # 👈 Handles grid partitions (Sidebar + Chat boundaries)
+|       |   |
+|       │   ├── Sidebar/
+|       │   │   ├── Sidebar.jsx
+│       │   |   ├── Sidebar.module.css          # 👈 Main panel width, header items, scrollbar regions
+|       │   │   ├── SidebarGroup.jsx
+|       │   │   ├── ConversationItem.jsx        # Fully contains its own tooltips, rename triggers, and styles
+│       │   |   └── ConversationItem.module.css # 👈 Row selections, actions, rename inputs, icons
+|       |   |
+|       │   ├── Chat/
+|       │   │   ├── ChatArea.jsx
+│       │   |   ├── ChatArea.module.css         # 👈 Scrollable message list window viewport
+|       │   │   ├── ChatInput.jsx
+│       │   |   ├── ChatInput.module.css        # 👈 Textarea pill box, footer layouts, send/stop buttons
+|       │   │   ├── ChatMessage.jsx
+│       │   |   └── ChatMessage.module.css      # 👈 User/Assistant bubbles, code syntax frames, blink
+|       |   |
+|       │   └── UI/
+|       │       ├── DropdownMenu.jsx            # Smart positioning menu container
+│       |       ├── DropdownMenu.module.css     # 👈 Floating menu list positioning & choice layers
+|       │       ├── CustomTooltip.jsx
+│       |       └── CustomTooltip.module.css    # 👈 Fixed tooltip container & dynamic visibility tags
+|       |
+|       ├── App.jsx                             # Clear router orchestrator (Handles Auth/Login toggle only)
+|       ├── App.css                             # ⚠️ CRITICAL REDUCTION: Resets, theme tokens, root variables
 │       ├── main.jsx
-│       ├── App.jsx
 │       ├── Login.jsx
 │       └── MemoryPanel.jsx
 │

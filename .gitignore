@@ -15,3 +15,9 @@ pgdata/
 
 # Logs
 *.log
+
+# tests and tutorials
+components.gemini/
+context/
+hooks/
+*.rec.*

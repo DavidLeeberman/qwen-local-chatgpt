@@ -1,4 +1,5 @@
 import React from 'react'
+
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
@@ -11,6 +12,8 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 // import { atomDark } from ...
 // import { vscDarkPlus } from ...
 // import { materialDark } from ...
+
+import styles from './ChatMessage.module.css'
 
 const markdownComponents = {
   code({ className, children }) {
@@ -35,13 +38,13 @@ const markdownComponents = {
 function ChatMessage({ message, isLastStreaming }) {
   // Virtuoso requires a single root element per item, so we wrap the pair in a parent div
   return (
-    <div className="message-pair">
+    <div className={styles['message-pair']}>
       
       {/* 10. User Message Row (Rendered on the Right) */}
       {message.u && (
-        <div className="message-row user">
-          <div className="message-row-inner">
-            <div className="message-bubble">
+        <div className={`${styles['message-row']} ${styles['user-row']}`}>
+          <div className={styles['message-row-inner']}>
+            <div className={styles['message-bubble']}>
               {message.u}
             </div>
           </div>
@@ -50,9 +53,9 @@ function ChatMessage({ message, isLastStreaming }) {
 
       {/* 10. Assistant Message Row (Rendered on the Left) */}
       {(message.a || isLastStreaming) && (
-        <div className="message-row assistant">
-          <div className="message-row-inner">
-            <div className="message-bubble">
+        <div className={`${styles['message-row']} ${styles['assistant-row']}`}>
+          <div className={styles['message-row-inner']}>
+            <div className={styles['message-bubble']}>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkMath]}
                 rehypePlugins={[rehypeRaw, rehypeKatex]}
@@ -62,7 +65,7 @@ function ChatMessage({ message, isLastStreaming }) {
               </ReactMarkdown>
 
               {isLastStreaming && (
-                <span className="streaming-cursor">▋</span>
+                <span className={styles['streaming-cursor']}>▋</span>
               )}
             </div>
           </div>

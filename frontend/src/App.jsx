@@ -3,7 +3,7 @@ import { Virtuoso } from 'react-virtuoso'
 import axios from 'axios'
 import Login from './Login'
 
-import ChatMessage from './components/ChatMessage'
+import ChatArea from './components/Chat/ChatArea'
 
 import './App.css'
 
@@ -1096,29 +1096,14 @@ export default function App() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="main-chat-area">
-        <div style={{ flex: 1, minHeight: 0 }}>
-          <Virtuoso
-            ref={virtuosoRef}
-            data={chat}
-            increaseViewportBy={800}
-            followOutput={(isAtBottom) => autoScroll && isAtBottom ? 'smooth' : false }
-            atBottomStateChange={handleAtBottomChange}
-            computeItemKey={(index, item) => item.id}
-            itemContent={(index, item) => (
-              <ChatMessage
-                message={item}
-                isLastStreaming={!item.done && index === chat.length - 1}
-              />
-            )}
-          />
-        </div>
-
-        {err && (
-          <div style={{ color: '#ff4d4f', padding: '8px 12px', textAlign: 'center' }}>
-            {err}
-          </div>
-        )}
+        <ChatArea
+          virtuosoRef={virtuosoRef}
+          chat={chat}
+          increaseViewportBy={800}
+          autoScroll={autoScroll}
+          handleAtBottomChange={handleAtBottomChange}
+          err={err}
+        >
 
         {/* Input Footer Area */}
         <div className="input-area-footer">
@@ -1174,7 +1159,7 @@ export default function App() {
             )}
           </div>
         </div>
-      </div>
+      </ChatArea>
 
       {/* ✅ Feature 2: Tooltip Overlay */}
       {tooltip.visible && (
