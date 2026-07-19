@@ -1,0 +1,60 @@
+.sidebar {
+  width: 260px;
+  background-color: #171717; /* Sidebar Background Color */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  padding: 12px;
+}
+
+.new-chat-btn {
+  width: 100%;
+  padding: 10px;
+  background-color: transparent;
+  color: #ececf1;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: left;
+  transition: background-color 0.2s;
+}
+
+/* ⬇️ This completely replaces the onMouseOver/onMouseOut JS handlers ⬇️ */
+.new-chat-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.logout-btn {
+  width: 100%;
+  padding: 10px;
+  background-color: transparent;
+  color: #ececf1;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.2s;
+}
+
+/* ⬇️ This completely replaces the onMouseOver/onMouseOut JS handlers ⬇️ */
+.logout-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+}
+
+/* Optional custom scrollbar for the sidebar */
+/* Override the global scrollbar background */
+.sidebar-scroll-area::-webkit-scrollbar {
+  background-color: #171717; 
+}

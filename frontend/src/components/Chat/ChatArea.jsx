@@ -1,18 +1,21 @@
 import React from 'react'
 import { Virtuoso } from 'react-virtuoso'
 
+import { useChatStore } from '../../store/useChatStore'
 import ChatMessage from './ChatMessage'
+
 import styles from './ChatArea.module.css'
 
 export default function ChatArea({
   virtuosoRef,
-  chat,
   increaseViewportBy,
-  autoScroll,
-  handleAtBottomChange,
-  err,
   children
 }) {
+  const chat = useChatStore(state => state.chat)
+  const err = useChatStore(state => state.err)
+  const autoScroll = useChatStore(state => state.autoScroll)
+  const setAutoScroll = useChatStore(state => state.setAutoScroll)
+  
   return (
     <div className={styles['main-chat-area']}>
       <div className={styles['virtuoso-viewport']}>
@@ -23,7 +26,7 @@ export default function ChatArea({
           followOutput={(isAtBottom) =>
             autoScroll && isAtBottom ? 'smooth' : false
           }
-          atBottomStateChange={handleAtBottomChange}
+          atBottomStateChange={setAutoScroll}
           computeItemKey={(index, item) => item.id}
           itemContent={(index, item) => (
             <ChatMessage
