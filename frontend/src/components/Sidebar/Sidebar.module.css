@@ -12,7 +12,7 @@
   padding: 12px;
 }
 
-.new-chat-btn {
+.sidebar-btn {
   width: 100%;
   padding: 10px;
   background-color: transparent;
@@ -26,25 +26,14 @@
 }
 
 /* ⬇️ This completely replaces the onMouseOver/onMouseOut JS handlers ⬇️ */
-.new-chat-btn:hover {
+.sidebar-btn:hover {
   background-color: rgba(255, 255, 255, 0.05);
 }
 
-.logout-btn {
-  width: 100%;
-  padding: 10px;
-  background-color: transparent;
-  color: #ececf1;
+.log-out-btn {
   border: none;
   border-radius: 4px;
-  cursor: pointer;
-  text-align: left;
-  transition: background-color 0.2s;
-}
-
-/* ⬇️ This completely replaces the onMouseOver/onMouseOut JS handlers ⬇️ */
-.logout-btn:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+  font-size: none;
 }
 
 .sidebar-scroll-area {

@@ -14,7 +14,8 @@ export default function Sidebar({
   updateDropdownPosition,
   handleTitleMouseEnter,
   handleTitleMouseLeave,
-  activeMenuBtnRef
+  activeMenuBtnRef,
+  onNewChat= () => {} // Pass down your new chat function if you have one
 }) {
   const isStreaming = useChatStore(state => state.isStreaming)
   const logout = useChatStore(state => state.logout)
@@ -25,12 +26,13 @@ export default function Sidebar({
       {/* SIDEBAR HEADER / NEW CHAT BUTTON */}
       <div className={styles['sidebar-header']}>
         <button 
-          className={styles['new-chat-btn']}
+          className={styles['sidebar-btn']}
           onClick={() => {
             if (!isStreaming) {
               // Restored original behavior: Just clear UI, don't spam API
               useChatStore.setState({ cid: null, chat: [], err: '' }) 
             }
+            onNewChat
           }}
         >
           + New chat
@@ -62,7 +64,7 @@ export default function Sidebar({
 
       <div className={styles['sidebar-header']}>
         <button 
-          className={styles['logout-btn']}
+          className={`${styles['sidebar-btn']} ${styles['log-out-btn']}`}
           onClick={logout}
         >
           Log Out

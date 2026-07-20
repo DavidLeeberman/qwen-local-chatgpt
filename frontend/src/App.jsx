@@ -218,6 +218,10 @@ export default function App() {
         handleTitleMouseEnter={handleTitleMouseEnter}
         handleTitleMouseLeave={handleTitleMouseLeave}
         activeMenuBtnRef={activeMenuBtnRef}
+        onNewChat={() => {
+          // Trigger your Zustand createChat action here, e.g.:
+          // useChatStore.getState().createNewChat()
+        }}
       />
 
       {/* Main Chat Area */}
