@@ -4,9 +4,11 @@ import { API_URL } from './utils/constants'
 import { useChatStore, getActiveStreamingState } from './store/useChatStore'
 
 import Login from './Login'
+import AppContainer from './components/Layout/AppContainer'
+import MainChatLayout from './components/Layout/MainChatLayout'
+import Sidebar from './components/Sidebar/Sidebar'
 import ChatArea from './components/Chat/ChatArea'
 import ChatInput from './components/Chat/ChatInput'
-import Sidebar from './components/Sidebar/Sidebar'
 import Tooltip from './components/Tooltip/Tooltip'
 
 import './App.css'
@@ -208,32 +210,40 @@ export default function App() {
   const recentChats = conversations.filter(c => !c.is_pinned && !c.is_archived)
 
   return (
-    <div className="app-container">
-      
-      {/* Sidebar Framework */}
-      <Sidebar
-        pinnedChats={pinnedChats}
-        recentChats={recentChats}
-        dropdownPos={dropdownPos}
-        updateDropdownPosition={updateDropdownPosition}
-        handleTitleMouseEnter={handleTitleMouseEnter}
-        handleTitleMouseLeave={handleTitleMouseLeave}
-        activeMenuBtnRef={activeMenuBtnRef}
-        onNewChat={() => {
-          // Trigger your Zustand createChat action here, e.g.:
-          // useChatStore.getState().createNewChat()
-        }}
-      />
+    <AppContainer>
 
-      {/* Main Chat Area */}
-      <ChatArea
-        virtuosoRef={virtuosoRef}
-        increaseViewportBy={800} /* Restored Virtuoso prop */
+      {/* The Chat UI Flexbox Grid */}
+      <MainChatLayout
+        sidebar={
+          // Sidebar Framework
+          <Sidebar
+            pinnedChats={pinnedChats}
+            recentChats={recentChats}
+            dropdownPos={dropdownPos}
+            updateDropdownPosition={updateDropdownPosition}
+            handleTitleMouseEnter={handleTitleMouseEnter}
+            handleTitleMouseLeave={handleTitleMouseLeave}
+            activeMenuBtnRef={activeMenuBtnRef}
+            onNewChat={() => {
+              // Trigger your Zustand createChat action here, e.g.:
+              // useChatStore.getState().createNewChat()
+            }}
+          />
+        }
       >
-        {/* Updated: ChatInput now manages its own state and refs internally! */}
-        <ChatInput />
-      </ChatArea>
 
+        {/* Everything passed as 'children' goes into the right-hand chat column */}
+        {/* Main Chat Area */}
+        <ChatArea
+          virtuosoRef={virtuosoRef}
+          increaseViewportBy={800} /* Restored Virtuoso prop */
+        >
+          {/* Updated: ChatInput now manages its own state and refs internally! */}
+          <ChatInput />
+        </ChatArea>
+      </MainChatLayout>
+
+      {/* Floating Overlays sit outside the layout grid! */}
       {/* Tooltip Overlay */}
       <Tooltip 
         visible={tooltip.visible} 
@@ -242,6 +252,6 @@ export default function App() {
         text={tooltip.text} 
       />
 
-    </div>
+    </AppContainer>
   )
 }

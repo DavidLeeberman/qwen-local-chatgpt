@@ -1,0 +1,7 @@
+.app-container {
+  position: relative; /* Acts as an anchor for floating overlays like your tooltip */
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: #212121;
+}
