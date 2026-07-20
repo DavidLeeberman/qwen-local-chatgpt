@@ -7,6 +7,7 @@ import Login from './Login'
 import ChatArea from './components/Chat/ChatArea'
 import ChatInput from './components/Chat/ChatInput'
 import Sidebar from './components/Sidebar/Sidebar'
+import Tooltip from './components/Tooltip/Tooltip'
 
 import './App.css'
 
@@ -234,14 +235,12 @@ export default function App() {
       </ChatArea>
 
       {/* Tooltip Overlay */}
-      {tooltip.visible && (
-        <div 
-          className="custom-tooltip"
-          style={{ top: tooltip.y, left: tooltip.x }}
-        >
-          {tooltip.text}
-        </div>
-      )}
+      <Tooltip 
+        visible={tooltip.visible} 
+        x={tooltip.x} 
+        y={tooltip.y} 
+        text={tooltip.text} 
+      />
 
     </div>
   )
