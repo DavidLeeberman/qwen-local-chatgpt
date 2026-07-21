@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import axios from 'axios'
 
+import { API_URL } from './utils/constants'
+
 export default function Login({ setToken }) {
   const [u, setU] = useState('')
   const [p, setP] = useState('')
@@ -8,7 +10,7 @@ export default function Login({ setToken }) {
 
   const login = async () => {
     try {
-      const r = await axios.post(`${import.meta.env.VITE_API_URL}/api/login`, {
+      const r = await axios.post(`${API_URL}/api/login`, {
         username: u,
         password: p
       })

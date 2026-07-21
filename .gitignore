@@ -19,7 +19,6 @@ pgdata/
 # tests and tutorials
 *.gemini/
 context/
-hooks/
 *.rec.*
 *.tmp.*
 *.temp.*
