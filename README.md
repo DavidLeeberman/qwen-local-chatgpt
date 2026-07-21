@@ -186,8 +186,6 @@ qwen-local-chatgpt/
 │       |   |   └── Tooltip.module.css          # 👈 Fixed tooltip container & dynamic visibility tags
 |       |   |
 |       │   └── UI/
-|       │       ├── DropdownMenu.jsx            # Smart positioning menu container
-│       |       └── DropdownMenu.module.css     # 👈 Floating menu list positioning & choice layers
 |       |
 |       ├── App.jsx                             # Clear router orchestrator (Handles Auth/Login toggle only)
 |       ├── App.css                             # ⚠️ CRITICAL REDUCTION: Resets, theme tokens, root variables
