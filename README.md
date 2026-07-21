@@ -5,8 +5,9 @@ Model      : Qwen3.5-9B + vLLM + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
 ```
 Updates:
-- Added Zustand to store global dynamic states
-- Frontend architecture scale up from monolithic to domain-driven modules
+- Project refractored to domain-driven modular architecture
+- Backend Flask imported Blueprint for domain modularization
+- Frontend imported Zustand to store global dynamic states
 ```
 Version    : 0.56
 Model      : Qwen3.5-9B + vLLM + Ollama
