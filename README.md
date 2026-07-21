@@ -122,8 +122,10 @@ vllm/Ollama (Qwen model)
 ```
 qwen-local-chatgpt/
 │
+├── .evn
+├── .gitignore
 ├── docker-compose.yml
-├── .env
+├── README.md
 ├── setup.sh
 │
 ├── backend-flask/
@@ -143,6 +145,7 @@ qwen-local-chatgpt/
 │   ├── package.json
 │   ├── vite.config.js
 │   ├── index.html
+│   │
 │   └── src/
 |       ├── utils/
 |       │   └── constants.js                    # Global statics
@@ -150,24 +153,24 @@ qwen-local-chatgpt/
 |       ├── store/
 |       │   └── useChatStore.js                 # Global states (token, conversations, active cid) and logic
 |       |
-|       ├── context/
-|       │   └── ChatContext.jsx                 # Global states (token, conversations, active cid)
-|       |
 |       ├── hooks/
-|       │   └── useChatStream.js                # Extracts all flush, buffer, and AbortController streaming logic
+|       │   ├── useChatLifecycle.js             # Handles your global fetches and unmount safety protocols
+|       │   ├── useDropdown.js                  # Dismiss the dropdown and manages the DOM measurement logic
+|       │   └── useTooltip.js                   # Encapsulates the logic, state, and cleanup for your custom tooltip
 |       |
 |       ├── components/
 |       │   ├── Layout/
 |       │   │   ├── AppContainer.jsx
+|       │   │   ├── AppContainer.module.css     # 👈 Global shell, absolute root wrapper
 |       │   │   ├── MainChatLayout.jsx
-│       │   |   └── Layout.module.css           # 👈 Handles grid partitions (Sidebar + Chat boundaries)
+│       │   |   └── MainChatLayout.module.css   # 👈 Handles grid partitions (Sidebar + Chat boundaries)
 |       |   |
 |       │   ├── Sidebar/
 |       │   │   ├── Sidebar.jsx
 │       │   |   ├── Sidebar.module.css          # 👈 Main panel width, header items, scrollbar regions
 |       │   │   ├── SidebarGroup.jsx
 |       │   │   ├── SidebarGroup.module.css     # 👈 Header items
-|       │   │   ├── ConversationItem.jsx        # Fully contains its own tooltips, rename triggers, and styles
+|       │   │   ├── ConversationItem.jsx
 │       │   |   └── ConversationItem.module.css # 👈 Row selections, actions, rename inputs, icons
 |       |   |
 |       │   ├── Chat/
@@ -178,15 +181,18 @@ qwen-local-chatgpt/
 |       │   │   ├── ChatMessage.jsx
 │       │   |   └── ChatMessage.module.css      # 👈 User/Assistant bubbles, code syntax frames, blink
 |       |   |
+|       │   ├── Tooltip/
+|       │   │   ├── Tooltip.jsx
+│       |   |   └── Tooltip.module.css          # 👈 Fixed tooltip container & dynamic visibility tags
+|       |   |
 |       │   └── UI/
 |       │       ├── DropdownMenu.jsx            # Smart positioning menu container
-│       |       ├── DropdownMenu.module.css     # 👈 Floating menu list positioning & choice layers
-|       │       ├── CustomTooltip.jsx
-│       |       └── CustomTooltip.module.css    # 👈 Fixed tooltip container & dynamic visibility tags
+│       |       └── DropdownMenu.module.css     # 👈 Floating menu list positioning & choice layers
 |       |
 |       ├── App.jsx                             # Clear router orchestrator (Handles Auth/Login toggle only)
 |       ├── App.css                             # ⚠️ CRITICAL REDUCTION: Resets, theme tokens, root variables
 │       ├── main.jsx
+│       ├── index.css
 │       ├── Login.jsx
 │       └── MemoryPanel.jsx
 │

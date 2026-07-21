@@ -17,8 +17,9 @@ pgdata/
 *.log
 
 # tests and tutorials
-*.gemini/
-context/
+*.rec/
+*.temp/
+*.prev/
 *.rec.*
 *.tmp.*
 *.temp.*
