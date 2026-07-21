@@ -121,7 +121,6 @@ vllm/Ollama (Qwen model)
 ## Project Directory Structure
 ```
 qwen-local-chatgpt/
-│
 ├── .evn
 ├── .gitignore
 ├── docker-compose.yml
@@ -131,9 +130,21 @@ qwen-local-chatgpt/
 ├── backend-flask/
 │   ├── Dockerfile
 │   ├── requirements.txt
-│   ├── app.py
-│   ├── auth.py
-│   └── memory.py
+│   ├── auth.py                  # (Existing token generation logic)
+│   ├── memory.py                # (Existing memory module)
+│   │
+│   ├── config.py                # 👈 Global environment variables and constants
+│   ├── database.py              # 👈 Connection pool and context manager
+│   │
+│   ├── utils/
+│   │   └── security.py          # 👈 Password hashing and verification
+│   │
+│   ├── routes/
+│   │   ├── auth_routes.py       # 👈 /register, /login
+│   │   ├── conv_routes.py       # 👈 CRUD for conversations and messages
+│   │   └── chat_routes.py       # 👈 LLM streaming and stop logic
+│   │
+│   └── app.py                   # 👈 Clear orchestrator (Registers Blueprints only)
 │
 ├── backend-node/
 │   ├── Dockerfile
