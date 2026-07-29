@@ -1,0 +1,130 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  border-radius: inherit;
+}
+
+.modal {
+  background: #202123;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80%;
+  border-radius: 12px;
+  border: 1px solid #4d4d4f;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+.header {
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #4d4d4f;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: #8e8ea0;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.closeBtn:hover {
+  color: #ececf1;
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.tableHeader {
+  display: flex;
+  padding: 12px 24px;
+  gap: 24px; /* Task 1: Adds clean, uniform padding between columns */
+  background: #000000;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid #4d4d4f;
+}
+
+.row {
+  display: flex;
+  padding: 16px 24px;
+  gap: 24px; /* Task 1: Adds clean, uniform padding between columns */
+  border-bottom: 1px solid #343541;
+  align-items: center;
+}
+
+.row:hover {
+  background: #2a2b32;
+}
+
+.colName {
+  flex: 1; /* Task 2: Claims all remaining space to push siblings right */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #3b82f6; /* Blueish text per screenshot */
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0; /* CRITICAL: Allows flex child to shrink below content size, pushing truncation to the span */
+}
+
+.colDate {
+  flex: 0 0 auto; /* Task 2: Locks to minimum content width */
+  white-space: nowrap; /* Prevents the date text from wrapping to a new line */
+  font-size: 14px;
+  color: #ececf1;
+}
+
+.colActions {
+  flex: 0 0 80px; /* Task 2: Locks the action icons to exactly 80px */
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tableBody {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.empty {
+  padding: 24px;
+  text-align: center;
+  color: #8e8ea0;
+}
+
+.iconBtn {
+  background: transparent;
+  border: none;
+  color: #8e8ea0;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.iconBtn:hover {
+  color: #ececf1;
+  background: #4d4d4f;
+}

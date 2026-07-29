@@ -32,3 +32,63 @@
   border-style: solid;
   border-color: transparent #ececf1 transparent transparent;
 }
+
+/* Cursor-Anchored Tooltip (Portal) */
+.cursor-tooltip-wrapper {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+}
+
+.cursor-tooltip-box {
+  position: fixed;
+  z-index: 9999;
+  padding: 6px 10px;
+  background-color: #000000;
+  border: 1px solid rgba(75, 85, 99, 0.6);
+  color: #ececec;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  pointer-events: none;
+  max-width: 300px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Standard Action Tooltip (Relative/Absolute) */
+.action-tooltip-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* We use a sibling selector or a nested hover state to show the tooltip */
+.action-tooltip-container:hover .action-tooltip-box {
+  opacity: 1;
+}
+
+.action-tooltip-box {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  
+  /* Shared aesthetic with the cursor tooltip */
+  z-index: 9999;
+  padding: 6px 10px;
+  background-color: #000000;
+  border: 1px solid rgba(75, 85, 99, 0.6);
+  color: #ececec;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  pointer-events: none;
+  white-space: nowrap;
+}

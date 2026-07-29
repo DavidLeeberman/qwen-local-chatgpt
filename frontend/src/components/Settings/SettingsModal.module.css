@@ -1,0 +1,146 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #202123;
+  width: 800px;
+  height: 600px;
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 12px;
+  border: 1px solid #4d4d4f;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  color: #ececf1;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: transparent;
+  border: none;
+  color: #8e8ea0;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.closeBtn:hover {
+  color: #ececf1;
+}
+
+.container {
+  display: flex;
+  height: 100%;
+  margin-top: 50px;
+}
+
+.sidebar {
+  width: 240px;
+  border-right: 1px solid #4d4d4f;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.sidebarTitle {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  padding-left: 12px;
+  color: #8e8ea0;
+  text-transform: uppercase;
+}
+
+.tabBtn {
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #ececf1;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.tabBtn:hover {
+  background: #2a2b32;
+}
+
+.activeTab {
+  background: #343541;
+  font-weight: 600;
+}
+
+.content {
+  flex: 1;
+  padding: 24px 32px;
+  overflow-y: auto;
+}
+
+.contentHeader {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #4d4d4f;
+  padding-bottom: 16px;
+}
+
+.controlsList {
+  display: flex;
+  flex-direction: column;
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0;
+  border-bottom: 1px solid #4d4d4f;
+}
+
+.controlRow:last-child {
+  border-bottom: none;
+}
+
+.controlText {
+  font-size: 14px;
+}
+
+.actionBtn {
+  background: transparent;
+  color: #ececf1;
+  border: 1px solid #565869;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.actionBtn:hover {
+  background: #343541;
+}
+
+.dangerBtn {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.dangerBtn:hover {
+  background: rgba(239, 68, 68, 0.1);
+}

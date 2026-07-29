@@ -122,7 +122,7 @@ vllm/Ollama (Qwen model)
 ## Project Directory Structure
 ```
 qwen-local-chatgpt/
-├── .evn
+├── .env
 ├── .gitignore
 ├── docker-compose.yml
 ├── README.md
@@ -131,21 +131,21 @@ qwen-local-chatgpt/
 ├── backend-flask/
 │   ├── Dockerfile
 │   ├── requirements.txt
-│   ├── auth.py                  # (Existing token generation logic)
-│   ├── memory.py                # (Existing memory module)
+│   ├── auth.py                                   # (Existing token generation logic)
+│   ├── memory.py                                 # (Existing memory module)
 │   │
-│   ├── config.py                # 👈 Global environment variables and constants
-│   ├── database.py              # 👈 Connection pool and context manager
+│   ├── config.py                                 # 👈 Global environment variables and constants
+│   ├── database.py                               # 👈 Connection pool and context manager
 │   │
 │   ├── utils/
-│   │   └── security.py          # 👈 Password hashing and verification
+│   │   └── security.py                           # 👈 Password hashing and verification
 │   │
 │   ├── routes/
-│   │   ├── auth_routes.py       # 👈 /register, /login
-│   │   ├── conv_routes.py       # 👈 CRUD for conversations and messages
-│   │   └── chat_routes.py       # 👈 LLM streaming and stop logic
+│   │   ├── auth_routes.py                        # 👈 /register, /login
+│   │   ├── conv_routes.py                        # 👈 CRUD for conversations and messages
+│   │   └── chat_routes.py                        # 👈 LLM streaming and stop logic
 │   │
-│   └── app.py                   # 👈 Clear orchestrator (Registers Blueprints only)
+│   └── app.py                                    # 👈 Clear orchestrator (Registers Blueprints only)
 │
 ├── backend-node/
 │   ├── Dockerfile
@@ -160,47 +160,59 @@ qwen-local-chatgpt/
 │   │
 │   └── src/
 |       ├── utils/
-|       │   └── constants.js                    # Global statics
+|       │   ├── constants.js                      # Global statics
+|       │   └── UIUtils.jsx                       # Global handlers
 |       |
 |       ├── store/
-|       │   └── useChatStore.js                 # Global states (token, conversations, active cid) and logic
+|       │   └── useChatStore.js                   # Global states (token, conversations, active cid) and logic
 |       |
 |       ├── hooks/
-|       │   ├── useChatLifecycle.js             # Handles your global fetches and unmount safety protocols
-|       │   ├── useDropdown.js                  # Dismiss the dropdown and manages the DOM measurement logic
-|       │   └── useTooltip.js                   # Encapsulates the logic, state, and cleanup for your custom tooltip
+|       │   ├── useChatLifecycle.js               # Handles your global fetches and unmount safety protocols
+|       │   ├── useDropdown.js                    # Dismiss the dropdown and manages the DOM measurement logic
+|       │   └── useTooltip.js                     # Encapsulates the logic, state, and cleanup for your custom tooltip
 |       |
 |       ├── components/
 |       │   ├── Layout/
 |       │   │   ├── AppContainer.jsx
-|       │   │   ├── AppContainer.module.css     # 👈 Global shell, absolute root wrapper
+|       │   │   ├── AppContainer.module.css       # 👈 Global shell, absolute root wrapper
 |       │   │   ├── MainChatLayout.jsx
-│       │   |   └── MainChatLayout.module.css   # 👈 Handles grid partitions (Sidebar + Chat boundaries)
+│       │   |   └── MainChatLayout.module.css     # 👈 Handles grid partitions (Sidebar + Chat boundaries)
 |       |   |
 |       │   ├── Sidebar/
 |       │   │   ├── Sidebar.jsx
-│       │   |   ├── Sidebar.module.css          # 👈 Main panel width, header items, scrollbar regions
+│       │   |   ├── Sidebar.module.css            # 👈 Main panel width, header items, scrollbar regions
 |       │   │   ├── SidebarGroup.jsx
-|       │   │   ├── SidebarGroup.module.css     # 👈 Header items
+|       │   │   ├── SidebarGroup.module.css       # 👈 Header items
 |       │   │   ├── ConversationItem.jsx
-│       │   |   └── ConversationItem.module.css # 👈 Row selections, actions, rename inputs, icons
+|       │   │   ├── ConversationItem.module.css   # 👈 Row selections, actions, rename inputs, icons
+│       │   |   └── UserMenu.jsx
 |       |   |
 |       │   ├── Chat/
 |       │   │   ├── ChatArea.jsx
-│       │   |   ├── ChatArea.module.css         # 👈 Scrollable message list window viewport
+│       │   |   ├── ChatArea.module.css           # 👈 Scrollable message list window viewport
 |       │   │   ├── ChatInput.jsx
-│       │   |   ├── ChatInput.module.css        # 👈 Textarea pill box, footer layouts, send/stop buttons
+│       │   |   ├── ChatInput.module.css          # 👈 Textarea pill box, footer layouts, send/stop buttons
 |       │   │   ├── ChatMessage.jsx
-│       │   |   └── ChatMessage.module.css      # 👈 User/Assistant bubbles, code syntax frames, blink
+│       │   |   └── ChatMessage.module.css        # 👈 User/Assistant bubbles, code syntax frames, blink
+|       |   |
+|       │   ├── Settings/
+|       │   │   ├── ArchivedChatsModal.jsx
+│       │   |   ├── ArchivedChatsModal.module.css # 👈 Archived chats modal container
+|       │   │   ├── SettingsModal.jsx
+│       │   |   └── SettingsModal.module.css      # 👈 Settings modal container
 |       |   |
 |       │   ├── Tooltip/
 |       │   │   ├── Tooltip.jsx
-│       |   |   └── Tooltip.module.css          # 👈 Fixed tooltip container & dynamic visibility tags
+|       │   │   └── Tooltip.module.css            # 👈 Fixed tooltip container & dynamic visibility tags
 |       |   |
 |       │   └── UI/
+|       │       ├── ConfirmModal.jsx
+|       │       ├── ConfirmModal.module.css       # 👈 Fixed confirm modal container
+|       │       ├── TruncatedTitle.jsx
+│       |       └── TruncatedTitle.module.css     # 👈 Truncated line of text with ellipsis appended
 |       |
-|       ├── App.jsx                             # Clear router orchestrator (Handles Auth/Login toggle only)
-|       ├── App.css                             # ⚠️ CRITICAL REDUCTION: Resets, theme tokens, root variables
+|       ├── App.jsx                               # Clear router orchestrator (Handles Auth/Login toggle only)
+|       ├── App.css                               # ⚠️ CRITICAL REDUCTION: Resets, theme tokens, root variables
 │       ├── main.jsx
 │       ├── index.css
 │       ├── Login.jsx

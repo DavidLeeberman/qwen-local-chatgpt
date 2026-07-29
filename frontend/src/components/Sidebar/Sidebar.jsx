@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import { useChatStore } from '../../store/useChatStore';
+import { getInitials } from '../../utils/UIUtils';
 import SidebarGroup from './SidebarGroup';
+import UserMenu from './UserMenu';
+
+// Import hook and tooltips
+import { useAccountTooltip } from '../../hooks/useTooltip';
+import { AccountTooltip } from '../Tooltip/Tooltip';
 
 import styles from './Sidebar.module.css';
-
-
 
 export default function Sidebar({
   pinnedChats,
@@ -15,10 +19,24 @@ export default function Sidebar({
   handleTitleMouseEnter,
   handleTitleMouseLeave,
   activeMenuBtnRef,
-  onNewChat= () => {} // Pass down your new chat function if you have one
+  onNewChat = () => {} // Pass down your new chat function if you have one
 }) {
-  const isStreaming = useChatStore(state => state.isStreaming)
-  const logout = useChatStore(state => state.logout)
+  const isStreaming = useChatStore(state => state.isStreaming);
+  
+  // Retrieve the username from your store (Make sure to set this upon Login!)
+  // Using a fallback of 'test' just in case.
+  const username = useChatStore(state => state.username) || 'test'; 
+
+  // State to toggle the user popup menu
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  
+  // Hook usage matching your pattern
+  const { 
+    accountTooltip, 
+    handleAccountMouseEnter, 
+    handleAccountMouseLeave, 
+    hideAccountTooltip 
+  } = useAccountTooltip();
 
   return (
     <div className={styles.sidebar}>
@@ -30,9 +48,9 @@ export default function Sidebar({
           onClick={() => {
             if (!isStreaming) {
               // Restored original behavior: Just clear UI, don't spam API
-              useChatStore.setState({ cid: null, chat: [], err: '' }) 
+              useChatStore.setState({ cid: null, chat: [], err: '' });
             }
-            onNewChat
+            onNewChat();
           }}
         >
           + New chat
@@ -62,14 +80,43 @@ export default function Sidebar({
         />
       </div>
 
-      <div className={styles['sidebar-header']}>
+      {/* SIDEBAR FOOTER / USER MENU */}
+      <div className={styles['sidebar-footer']}>
+        
         <button 
-          className={`${styles['sidebar-btn']} ${styles['log-out-btn']}`}
-          onClick={logout}
+          onClick={() => {
+            setIsUserMenuOpen(!isUserMenuOpen);
+            hideAccountTooltip();
+          }}
+          onMouseEnter={(e) => {
+            if (!isUserMenuOpen) handleAccountMouseEnter(e, username);
+          }}
+          onMouseLeave={handleAccountMouseLeave}
+          className={styles['user-menu-btn']}
         >
-          Log Out
+          {/* Initials Avatar */}
+          <div className={styles['user-avatar']}>
+            {getInitials(username)}
+          </div>
+
+          {/* Truncated Name */}
+          <div className={styles['user-name-container']}>
+            <div className={styles['user-name-text']}>
+              {username}
+            </div>
+          </div>
         </button>
+
+        {/* Clean spread-prop rendering matching <Tooltip {...tooltip} /> */}
+        <AccountTooltip {...accountTooltip} />
+
+        {/* Pop-up Menu */}
+        {isUserMenuOpen && (
+          <UserMenu onClose={() => setIsUserMenuOpen(false)} />
+        )}
+
       </div>
+      
     </div>
   );
 }

@@ -15,6 +15,7 @@ const generateId = () => Date.now().toString(36) + Math.random().toString(36).sl
 
 export const useChatStore = create((set, get) => ({
   // State
+  username: localStorage.getItem('username') || null, // ✅ ADDED: Username state
   token: localStorage.getItem('token') || null,
   conversations: [],
   cid: null,
@@ -26,6 +27,11 @@ export const useChatStore = create((set, get) => ({
   editingChatId: null,
   editTitleBuffer: '',
   openDropdownCid: null,
+  
+  // Modal States
+  isSettingsOpen: false,
+  isArchivedChatsOpen: false, // ✅ ADDED: State for Archived Chats Modal
+  confirmModalState: { isOpen: false, title: '', message: '', onConfirm: null }, // ✅ ADDED: State for Confirmation Modal
 
   // Simple Setters
   setToken: (token) => {
@@ -33,6 +39,14 @@ export const useChatStore = create((set, get) => ({
     else localStorage.removeItem('token')
     set({ token })
   },
+  
+  // ✅ ADDED: Username setter (Call this in your Login component upon success)
+  setUsername: (username) => {
+    if (username) localStorage.setItem('username', username)
+    else localStorage.removeItem('username')
+    set({ username })
+  },
+  
   setCid: (cid) => set({ cid }),
   setChat: (chat) => set({ chat }),
   setAutoScroll: (autoScroll) => set({ autoScroll }),
@@ -40,6 +54,17 @@ export const useChatStore = create((set, get) => ({
   setEditingChatId: (id) => set({ editingChatId: id }),
   setEditTitleBuffer: (text) => set({ editTitleBuffer: text }),
   setOpenDropdownCid: (id) => set({ openDropdownCid: id }),
+  
+  // Modal Setters
+  setSettingsOpen: (isOpen) => set({ isSettingsOpen: isOpen }),
+  setArchivedChatsOpen: (isOpen) => set({ isArchivedChatsOpen: isOpen }), // ✅ ADDED: Setter for Archived Chats
+  setConfirmModalState: (modalState) => set((state) => ({ 
+    confirmModalState: { ...state.confirmModalState, ...modalState } 
+  })), // ✅ ADDED: Setter for Confirmation Modal
+
+  // Computed properties
+  getArchivedChats: () => get().conversations.filter(c => c.is_archived),
+  getVisibleChats: () => get().conversations.filter(c => !c.is_archived),
 
   // Actions
   fetchConversations: async (signal = null) => {
@@ -224,6 +249,59 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  unarchiveConversation: async (id) => {
+    const { token, fetchConversations, loadMessages } = get()
+    try {
+      await axios.post(
+        `${API_URL}/api/chat/unarchive`, 
+        { conversation_id: id }, 
+        { headers: { Authorization: token } }
+      )
+
+      set((state) => {
+        // 1. Unarchive and update timestamp
+        const updatedConvos = state.conversations.map(c => 
+          c.id === id ? { ...c, is_archived: false, updated_at: new Date().toISOString() } : c
+        );
+        
+        // 2. Sort to bring the unarchived chat to the top of Recents
+        updatedConvos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        
+        return { 
+          conversations: updatedConvos,
+          cid: id // 👈 Sets active conversation ID
+          // 'chat' is left untouched here, loadMessages(id) below populates it[cite: 3]
+        };
+      });
+
+      // 3. Fetches messages from server and updates state.chat correctly[cite: 3]
+      loadMessages(id)
+    } catch (error) {
+      console.error("Failed to unarchive:", error);
+      fetchConversations() // Revert on failure
+    }
+  },
+
+  archiveAllChats: async () => {
+    const { token, fetchConversations } = get()
+    try {
+      await axios.post(
+        `${API_URL}/api/chat/archive_all`, 
+        { headers: { Authorization: token } }
+      )
+
+      // Optimistically remove it from the local list
+      set(state => ({
+        conversations: [],
+        chat: [],
+        cid: null
+      }))
+    } catch (error) {
+      console.error("Failed to archive all:", error);
+      fetchConversations() // Revert on failure
+    }
+  },
+
   deleteConversation: async (id) => {
     const { token, cid, fetchConversations } = get()
     // Optimistically remove it from the local list
@@ -241,6 +319,25 @@ export const useChatStore = create((set, get) => ({
       )
     } catch (err) {
       console.error("Failed to delete", err)
+      fetchConversations() // Revert on failure
+    }
+  },
+
+  deleteAllChats: async () => {
+    const { token, fetchConversations } = get()
+    try {
+      await axios.post(
+        `${API_URL}/api/chat/delete_all`, 
+        { headers: { Authorization: token } }
+      )
+      // Optimistically remove it from the local list
+      set(state => ({
+        conversations: [],
+        chat: [],
+        cid: null
+      }))
+    } catch (err) {
+      console.error("Failed to delete all", err)
       fetchConversations() // Revert on failure
     }
   },
@@ -314,8 +411,12 @@ export const useChatStore = create((set, get) => ({
     get().cleanupStream(false, true)
     if (loadMessagesAbort) loadMessagesAbort.abort()
     
+    // ✅ ADDED: Clear username from local storage
     localStorage.removeItem('token')
-    set({ 
+    localStorage.removeItem('username') 
+    
+    set({  
+      username: null, // ✅ ADDED: Clear username state
       token: null, 
       chat: [], 
       cid: null, 

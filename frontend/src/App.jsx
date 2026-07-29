@@ -9,6 +9,10 @@ import ChatArea from './components/Chat/ChatArea'
 import ChatInput from './components/Chat/ChatInput'
 import Tooltip from './components/Tooltip/Tooltip'
 
+import SettingsModal from './components/Settings/SettingsModal'
+import ArchivedChatsModal from './components/Settings/ArchivedChatsModal'
+import ConfirmModal from './components/UI/ConfirmModal'
+
 // Import your shiny new custom hooks!
 import { useChatLifecycle } from './hooks/useChatLifecycle'
 import { useDropdown } from './hooks/useDropdown'
@@ -22,6 +26,10 @@ export default function App() {
   const conversations = useChatStore(state => state.conversations)
   const chat = useChatStore(state => state.chat)
   const listScrollTrigger = useChatStore(state => state.listScrollTrigger)
+
+  const isSettingsOpen = useChatStore(state => state.isSettingsOpen)
+  const isArchivedChatsOpen = useChatStore(state => state.isArchivedChatsOpen)
+  const confirmModalState = useChatStore(state => state.confirmModalState)
   
   const virtuosoRef = useRef(null)
 
@@ -84,6 +92,11 @@ export default function App() {
 
       {/* Floating Overlays sit outside the layout grid! */}
       <Tooltip {...tooltip} />
+
+      {/* 3. Render Modals conditionally based on Zustand state */}
+      {isSettingsOpen && <SettingsModal />}
+      {isArchivedChatsOpen && <ArchivedChatsModal />}
+      {confirmModalState?.isOpen && <ConfirmModal />}
     </AppContainer>
   )
 }

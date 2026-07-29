@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { useChatStore } from '../../store/useChatStore'
+import TruncatedTitle from '../UI/TruncatedTitle'
 import styles from './ConversationItem.module.css'
 
 // --- PURE UI: Render Pin Icon ---
@@ -110,15 +111,12 @@ export default function ConversationItem({
             autoFocus
           />
         ) : (
-          /* ✅ Feature 2: Removed native HTML title, replaced with custom handlers */
-          <span 
-            // key={`${c.id}-${c.id === cid ? 'active' : 'inactive'}`}
-            className={styles['conversation-title-text']} 
-            onMouseEnter={(e) => handleTitleMouseEnter(e, c.title || 'New Chat')}
-            onMouseLeave={handleTitleMouseLeave}
-          >
-            {c.title || 'New Chat'}
-          </span>
+          /* ✅ Replaced raw <span> with the shared UI primitive */
+          <TruncatedTitle
+            text={c.title || 'New Chat'}
+            handleTitleMouseEnter={handleTitleMouseEnter}
+            handleTitleMouseLeave={handleTitleMouseLeave}
+          />
         )}
       </div>
 

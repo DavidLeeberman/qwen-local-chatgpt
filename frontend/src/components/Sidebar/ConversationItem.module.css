@@ -24,15 +24,6 @@
   background-color: #2a2b32; /* Obvious, brighter highlight for active */
 }
 
-/* 1. Allow the title to stretch and handle its own ellipsis */
-.conversation-title {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0; /* CRITICAL: Allows the flex child to shrink below its content size */
-}
-
 .conversation-title-wrapper {
   display: flex;
   align-items: center;
@@ -43,11 +34,7 @@
   white-space: nowrap;
 }
 
-.conversation-title-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #ececf1;
-}
+/* Actions & Icons */
 
 /* 1. Base State: Always in the layout, but completely invisible */
 /* 2. Hide actions horizontally by default, but keep vertical height locked */

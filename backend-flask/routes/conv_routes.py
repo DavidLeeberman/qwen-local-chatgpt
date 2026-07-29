@@ -194,3 +194,64 @@ def delete_conversation():
             conn.commit()
             
     return jsonify({"status": "success"})
+
+@conv_bp.route('/chat/unarchive', methods=['POST'])
+def unarchive_conversation():
+    user = verify_token(request.headers.get("Authorization"))
+    if not user or 'user_id' not in user:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    data = request.get_json()
+    cid = data.get('conversation_id')
+
+    if not cid:
+        return jsonify({"error": "missing conversation_id"}), 400
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # We set is_archived to FALSE and update the timestamp 
+            # so the UI can automatically float it to the top of Recents
+            cur.execute("""
+                UPDATE conversations 
+                SET is_archived = FALSE, updated_at = NOW()
+                WHERE id = %s AND user_id = %s
+            """, (cid, user['user_id']))
+            conn.commit()
+            
+    return jsonify({"status": "success"})
+
+@conv_bp.route('/chat/archive_all', methods=['POST'])
+def archive_all_conversations():
+    user = verify_token(request.headers.get("Authorization"))
+    if not user or 'user_id' not in user:
+        return jsonify({"error": "unauthorized"}), 401
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Archives all chats belonging to the current user
+            cur.execute("""
+                UPDATE conversations 
+                SET is_archived = TRUE 
+                WHERE user_id = %s
+            """, (user['user_id'],))
+            conn.commit()
+            
+    return jsonify({"status": "success"})
+
+@conv_bp.route('/chat/delete_all', methods=['POST'])
+def delete_all_conversations():
+    user = verify_token(request.headers.get("Authorization"))
+    if not user or 'user_id' not in user:
+        return jsonify({"error": "unauthorized"}), 401
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Because 'messages' has ON DELETE CASCADE for conversation_id,
+            # deleting the conversations safely drops all associated messages too.
+            cur.execute("""
+                DELETE FROM conversations 
+                WHERE user_id = %s
+            """, (user['user_id'],))
+            conn.commit()
+            
+    return jsonify({"status": "success"})

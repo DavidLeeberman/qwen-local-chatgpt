@@ -59,3 +59,60 @@ export function useTooltip() {
 
   return { tooltip, handleTitleMouseEnter, handleTitleMouseLeave };
 }
+
+export function useAccountTooltip() {
+  const [accountTooltip, setAccountTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
+
+  const handleAccountMouseEnter = useCallback((e, text) => {
+    setAccountTooltip({
+      visible: true,
+      text: text,
+      x: e.clientX + 12,
+      y: e.clientY + 12
+    });
+  }, []);
+
+  const handleAccountMouseLeave = useCallback(() => {
+    setAccountTooltip(prev => ({ ...prev, visible: false }));
+  }, []);
+
+  const hideAccountTooltip = useCallback(() => {
+    setAccountTooltip(prev => ({ ...prev, visible: false }));
+  }, []);
+
+  return { 
+    accountTooltip, 
+    handleAccountMouseEnter, 
+    handleAccountMouseLeave, 
+    hideAccountTooltip 
+  };
+}
+
+export function useActionTooltip() {
+  const [actionTooltip, setActionTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
+
+  const handleActionMouseEnter = useCallback((e, text) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setActionTooltip({
+      visible: true,
+      text: text,
+      x: rect.left + rect.width / 2,
+      y: rect.top - 8
+    });
+  }, []);
+
+  const handleActionMouseLeave = useCallback(() => {
+    setActionTooltip(prev => ({ ...prev, visible: false }));
+  }, []);
+
+  const hideActionTooltip = useCallback(() => {
+    setActionTooltip(prev => ({ ...prev, visible: false }));
+  }, []);
+
+  return { 
+    actionTooltip, 
+    handleActionMouseEnter, 
+    handleActionMouseLeave, 
+    hideActionTooltip
+  };
+}
