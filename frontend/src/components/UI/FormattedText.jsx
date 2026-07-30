@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './TruncatedTitle.module.css';
+import styles from './FormattedText.module.css';
 
 export default function TruncatedTitle({ 
   text, 
@@ -9,7 +9,7 @@ export default function TruncatedTitle({
 }) {
   return (
     <span 
-      className={`${styles.titleText} ${className}`}
+      className={`${styles.truncatedTitle} ${className}`}
       onMouseEnter={(e) => handleTitleMouseEnter(e, text)}
       onMouseLeave={handleTitleMouseLeave}
     >

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { useChatStore } from '../../store/useChatStore'
-import TruncatedTitle from '../UI/TruncatedTitle'
+import TruncatedTitle from '../UI/FormattedText'
 import styles from './ConversationItem.module.css'
 
 // --- PURE UI: Render Pin Icon ---

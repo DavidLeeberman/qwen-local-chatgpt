@@ -92,7 +92,7 @@ export const useChatStore = create((set, get) => ({
         )
         set({ 
           cid: res.data.conversation_id, 
-          conversations: [{ id: res.data.conversation_id }] 
+          conversations: [{ id: res.data.conversation_id, is_archived: false }] 
         })
       }
     } catch (err) {
@@ -123,9 +123,7 @@ export const useChatStore = create((set, get) => ({
       const r = await axios.get(
         `${API_URL}/api/conversations/${id}/messages`,
         {
-          headers: {
-            Authorization: token
-          },
+          headers: { Authorization: token },
           signal: controller.signal
         }
       )
@@ -233,7 +231,9 @@ export const useChatStore = create((set, get) => ({
     // Optimistically remove it from the local list
     set(state => ({
       openDropdownCid: null,
-      conversations: state.conversations.filter(c => c.id !== id),
+      conversations: state.conversations.map(c => 
+        c.id === id ? { ...c, is_archived: true, updated_at: new Date().toISOString() } : c
+      ),
       chat: cid === id ? [] : state.chat,
       cid: cid === id ? null : state.cid
     }))
@@ -292,7 +292,7 @@ export const useChatStore = create((set, get) => ({
 
       // Optimistically remove it from the local list
       set(state => ({
-        conversations: [],
+        conversations: state.conversations.map(c => ({ ...c, is_archived: true })),
         chat: [],
         cid: null
       }))
@@ -438,7 +438,7 @@ export const useChatStore = create((set, get) => ({
       set(state => ({
         cid: r.data.conversation_id,
         chat: [],
-        conversations: [{ id: r.data.conversation_id, title: 'New Chat' }, ...state.conversations]
+        conversations: [{ id: r.data.conversation_id, title: 'New Chat', is_archived: false }, ...state.conversations]
       }))
     } catch {
       set({ err: 'Failed to create chat' })
@@ -531,7 +531,7 @@ export const useChatStore = create((set, get) => ({
               cid: newConversationId,
               conversations: state.conversations.some(c => c.id === newConversationId)
                 ? state.conversations
-                : [{ id: newConversationId, title: userMsg.slice(0, 50) }, ...state.conversations]
+                : [{ id: newConversationId, title: userMsg.slice(0, 50), is_archived: false }, ...state.conversations]
             }))
             continue
           }

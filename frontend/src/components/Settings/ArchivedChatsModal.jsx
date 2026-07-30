@@ -2,7 +2,7 @@ import React from 'react';
 
 import { useChatStore } from '../../store/useChatStore';
 import { useTooltip } from '../../hooks/useTooltip';
-import TruncatedTitle from '../UI/TruncatedTitle';
+import TruncatedTitle from '../UI/FormattedText';
 
 import { useAccountTooltip } from '../../hooks/useTooltip';
 import { useActionTooltip } from '../../hooks/useTooltip';
@@ -12,7 +12,7 @@ import { ActionTooltip } from '../Tooltip/Tooltip';
 import styles from './ArchivedChatsModal.module.css';
 
 export default function ArchivedChatsModal({ onClose  }) {
-  const { getArchivedChats, unarchiveConversation, deleteConversation, setSettingsOpen } = useChatStore();
+  const { unarchiveConversation, deleteConversation, setSettingsOpen } = useChatStore();
 
   const { 
     accountTooltip, 
@@ -27,7 +27,8 @@ export default function ArchivedChatsModal({ onClose  }) {
     hideActionTooltip 
   } = useActionTooltip();
   
-  const archived = getArchivedChats();
+  const conversations = useChatStore(state => state.conversations)
+  const archived = conversations.filter(c => c.is_archived);
 
   const handleUnarchive = async (id) => {
     await unarchiveConversation(id);
