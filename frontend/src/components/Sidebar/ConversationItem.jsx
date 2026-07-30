@@ -1,16 +1,9 @@
 import React, { useEffect, useRef } from 'react'
+
 import { useChatStore } from '../../store/useChatStore'
 import TruncatedTitle from '../UI/FormattedText'
+import { ChatBubbleIcon, PinIcon, MenuDotsIcon, RenameIcon, ArchiveIcon, DeleteIcon } from '../UI/Icons'
 import styles from './ConversationItem.module.css'
-
-// --- PURE UI: Render Pin Icon ---
-const renderPinIcon = (isPinned) => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg)' }}>
-    <path d="M12 17v5" />
-    <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76Z" />
-    {isPinned && <line x1="4" y1="12" x2="20" y2="12" />}
-  </svg>
-)
 
 export default function ConversationItem({
   c,
@@ -80,11 +73,7 @@ export default function ConversationItem({
       >
       <div className={styles['conversation-title-wrapper']}>
         {/* Only mark pinned conversations with a bubble icon */}
-        {c.is_pinned && (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-        )}
+        {c.is_pinned && <ChatBubbleIcon />}
 
         {isEditingChatId ? (
           <input
@@ -138,7 +127,7 @@ export default function ConversationItem({
           }}
           title={c.is_pinned ? "Unpin Chat" : "Pin Chat"}
         >
-          {renderPinIcon(c.is_pinned)}
+          <PinIcon isPinned={c.is_pinned} />
         </button>
         
         <button 
@@ -156,11 +145,7 @@ export default function ConversationItem({
             }
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="5" cy="12" r="2"/>
-            <circle cx="12" cy="12" r="2"/>
-            <circle cx="19" cy="12" r="2"/>
-          </svg>
+          <MenuDotsIcon />
         </button>
 
         {/* Droplist Popover Menu */}
@@ -190,7 +175,7 @@ export default function ConversationItem({
                 setOpenDropdownCid(null)
               }}
             >
-              {renderPinIcon(c.is_pinned)}
+              <PinIcon isPinned={c.is_pinned} />
               {c.is_pinned ? 'Unpin' : 'Pin'}
             </button>
             
@@ -200,9 +185,7 @@ export default function ConversationItem({
               setEditTitleBuffer(c.title || '')
               setOpenDropdownCid(null)
             }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-              </svg>
+              <RenameIcon />
               Rename
             </button>
 
@@ -210,11 +193,7 @@ export default function ConversationItem({
               e.stopPropagation()
               archiveConversation(c.id)
             }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="21 8 21 21 3 21 3 8" />
-                <rect x="1" y="3" width="22" height="5" />
-                <line x1="10" y1="12" x2="14" y2="12" />
-              </svg>
+              <ArchiveIcon />
               Archive
             </button>
 
@@ -222,12 +201,7 @@ export default function ConversationItem({
               e.stopPropagation()
               deleteConversation(c.id)
             }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                <line x1="10" y1="11" x2="10" y2="17" />
-                <line x1="14" y1="11" x2="14" y2="17" />
-              </svg>
+              <DeleteIcon />
               Delete
             </button>
           </div>

@@ -1,13 +1,10 @@
 import React from 'react';
 
 import { useChatStore } from '../../store/useChatStore';
-import { useTooltip } from '../../hooks/useTooltip';
+import { AccountTooltip, ActionTooltip } from '../Tooltip/Tooltip';
+import { useTooltip, useAccountTooltip, useActionTooltip } from '../../hooks/useTooltip';
 import TruncatedTitle from '../UI/FormattedText';
-
-import { useAccountTooltip } from '../../hooks/useTooltip';
-import { useActionTooltip } from '../../hooks/useTooltip';
-import { AccountTooltip } from '../Tooltip/Tooltip';
-import { ActionTooltip } from '../Tooltip/Tooltip';
+import { ChatBubbleIcon, UnarchiveIcon, DeleteIcon } from '../UI/Icons';
 
 import styles from './ArchivedChatsModal.module.css';
 
@@ -65,9 +62,7 @@ export default function ArchivedChatsModal({ onClose  }) {
               archived.map(chat => (
                 <div key={chat.id} className={styles.row}>
                   <div className={styles.colName}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
+                    <ChatBubbleIcon />
                     <TruncatedTitle 
                       text={chat.title || 'New Chat'} 
                       handleTitleMouseEnter={handleAccountMouseEnter}
@@ -84,11 +79,7 @@ export default function ArchivedChatsModal({ onClose  }) {
                       onMouseEnter={(e) => handleActionMouseEnter(e, 'Unarchive conversation')}
                       onMouseLeave={handleActionMouseLeave}
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="9 10 12 7 15 10"></polyline>
-                        <path d="M21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9"></path>
-                        <line x1="12" y1="7" x2="12" y2="17"></line>
-                      </svg>
+                      <UnarchiveIcon />
                     </button>
                     <button 
                       className={styles.iconBtn} 
@@ -96,10 +87,7 @@ export default function ArchivedChatsModal({ onClose  }) {
                       onMouseEnter={(e) => handleActionMouseEnter(e, 'Delete conversation')}
                       onMouseLeave={handleActionMouseLeave}
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      </svg>
+                      <DeleteIcon />
                     </button>
                   </div>
                 </div>

@@ -1,0 +1,9 @@
+/* Chevron animations for open/closed states */
+.chevron {
+  transition: transform 0.2s ease;
+  transform: rotate(-90deg); /* Points right when closed */
+}
+
+.chevron.open {
+  transform: rotate(0deg); /* Points down when open */
+}
