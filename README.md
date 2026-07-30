@@ -209,7 +209,9 @@ qwen-local-chatgpt/
 |       │       ├── ConfirmModal.jsx
 |       │       ├── ConfirmModal.module.css       # 👈 Fixed confirm modal container
 |       │       ├── FormattedText.jsx
-│       |       └── FormattedText.module.css      # 👈 Truncated line of text with ellipsis appended
+|       │       ├── FormattedText.module.css      # 👈 Truncated line of text with ellipsis appended
+|       │       ├── Icons.jsx
+│       |       └── Icons.module.css
 |       |
 |       ├── App.jsx                               # Clear router orchestrator (Handles Auth/Login toggle only)
 |       ├── App.css                               # ⚠️ CRITICAL REDUCTION: Resets, theme tokens, root variables
