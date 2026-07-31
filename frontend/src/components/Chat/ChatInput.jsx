@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
+
 import { useChatStore } from '../../store/useChatStore'
+import { StopButton, SendButton } from '../UI/Icons'
+
 import styles from './ChatInput.module.css'
 
 export default function ChatInput({ className = '', rows = 1 }) {
@@ -50,52 +53,17 @@ export default function ChatInput({ className = '', rows = 1 }) {
         />
 
         {isStreaming ? (
-          <button 
+          <StopButton 
             onClick={() => {
               finishCurrentStreamingMessage()
               cleanupStream(true, true) // Flush pending text, interrupt stream[cite: 4]
             }}
-            style={{ 
-              background: '#ececf1', 
-              color: '#000', 
-              border: 'none', 
-              borderRadius: '50%', 
-              width: '32px', 
-              height: '32px',
-              cursor: 'pointer', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              flexShrink: 0
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="4" y="4" width="16" height="16" rx="2" />
-            </svg>
-          </button>
+          />
         ) : (
-          <button 
-            onClick={handleSend}
+          <SendButton 
             disabled={!msg.trim()}
-            style={{ 
-              background: msg.trim() ? '#ececf1' : '#494949', 
-              color: msg.trim() ? '#000' : '#212121', 
-              border: 'none', 
-              borderRadius: '50%', 
-              width: '32px', 
-              height: '32px',
-              cursor: msg.trim() ? 'pointer' : 'default', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              flexShrink: 0, 
-              transition: 'background-color 0.2s, color 0.2s'
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 4l-8 8h6v8h4v-8h6z" />
-            </svg>
-          </button>
+            onClick={handleSend}
+          />
         )}
       </div>
     </div>

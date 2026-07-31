@@ -106,3 +106,28 @@ export const MenuDotsIcon = ({ className = '', style = {} }) => (
     <circle cx="19" cy="12" r="2"/>
   </svg>
 );
+
+export const SendButton = ({ disabled, onClick, className = '' }) => (
+  <button
+    disabled={disabled}
+    onClick={onClick}
+    className={`${styles['round-action-btn']} ${disabled ? styles['btn-disabled'] : styles['btn-active']} ${className}`.trim()}
+    aria-label="Send message"
+  >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 4l-8 8h6v8h4v-8h6z" />
+    </svg>
+  </button>
+);
+
+export const StopButton = ({ onClick, className = '' }) => (
+  <button
+    onClick={onClick}
+    className={`${styles['round-action-btn']} ${styles['btn-active']} ${className}`.trim()}
+    aria-label="Stop generating"
+  >
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+    </svg>
+  </button>
+);

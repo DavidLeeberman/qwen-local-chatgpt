@@ -7,3 +7,28 @@
 .chevron.open {
   transform: rotate(0deg); /* Points down when open */
 }
+
+/* Icons.module.css */
+.round-action-btn {
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-active {
+  background: #ececf1;
+  color: #000;
+  cursor: pointer;
+}
+
+.btn-disabled {
+  background: #494949;
+  color: #212121;
+  cursor: default;
+}
