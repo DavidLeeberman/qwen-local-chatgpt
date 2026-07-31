@@ -41,7 +41,7 @@ export default function ChatArea({
       </div>
 
       {err && (
-        <div style={{ color: '#ff4d4f', padding: '8px 12px', textAlign: 'center' }}>
+        <div className={styles['err-message']}>
           {err}
         </div>
       )}
