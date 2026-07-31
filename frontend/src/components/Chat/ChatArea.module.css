@@ -11,9 +11,3 @@
   flex: 1;
   min-height: 0;
 }
-
-.err-message {
-  color: #ff4d4f;
-  padding: 8px 12px;
-  text-align: center;
-}

@@ -3,6 +3,7 @@ import { Virtuoso } from 'react-virtuoso'
 
 import { useChatStore } from '../../store/useChatStore'
 import ChatMessage from './ChatMessage'
+import { ErrMessage } from '../UI/FormattedText'
 
 import styles from './ChatArea.module.css'
 
@@ -40,11 +41,7 @@ export default function ChatArea({
         />
       </div>
 
-      {err && (
-        <div className={styles['err-message']}>
-          {err}
-        </div>
-      )}
+      {err && <ErrMessage err={err} />}
 
       {children}
     </div>

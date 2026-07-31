@@ -3,7 +3,7 @@ import React from 'react';
 import { useChatStore } from '../../store/useChatStore';
 import { AccountTooltip, ActionTooltip } from '../Tooltip/Tooltip';
 import { useTooltip, useAccountTooltip, useActionTooltip } from '../../hooks/useTooltip';
-import TruncatedTitle from '../UI/FormattedText';
+import { TruncatedTitle } from '../UI/FormattedText';
 import { ChatBubbleIcon, UnarchiveIcon, DeleteIcon } from '../UI/Icons';
 
 import styles from './ArchivedChatsModal.module.css';

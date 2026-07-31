@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 
 import { useChatStore } from '../../store/useChatStore'
-import TruncatedTitle from '../UI/FormattedText'
+import { TruncatedTitle } from '../UI/FormattedText'
 import { ChatBubbleIcon, PinIcon, MenuDotsIcon, RenameIcon, ArchiveIcon, DeleteIcon } from '../UI/Icons'
 import styles from './ConversationItem.module.css'
 
