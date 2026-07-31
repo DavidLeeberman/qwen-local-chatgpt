@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
+
 import { useChatStore } from '../../store/useChatStore';
 import ArchivedChatsModal from './ArchivedChatsModal';
 import ConfirmModal from '../UI/ConfirmModal';
+import { SettingsIcon, DatabaseIcon } from '../UI/Icons'; // ✅ 1. Import the new icons
+
 import styles from './SettingsModal.module.css';
 
 export default function SettingsModal() {
@@ -13,8 +16,8 @@ export default function SettingsModal() {
   if (!isSettingsOpen) return null;
 
   const tabs = [
-    { id: 'General', icon: '⚙️' },
-    { id: 'Data controls', icon: '🗄️' }
+    { id: 'General', Icon: SettingsIcon },
+    { id: 'Data controls', Icon: DatabaseIcon }
   ];
 
   const handleConfirm = () => {
@@ -39,16 +42,22 @@ export default function SettingsModal() {
           {/* Left Panel */}
           <div className={styles.sidebar}>
             <div className={styles.sidebarTitle}>Settings</div>
-            {tabs.map(tab => (
+            {tabs.map(tab => {
+              const TabIcon = tab.Icon;
+              return (
               <button 
                 key={tab.id}
                 className={`${styles.tabBtn} ${activeTab === tab.id ? styles.activeTab : ''}`}
                 onClick={() => setActiveTab(tab.id)}
               >
-                <span className={styles.tabIcon}>{tab.icon}</span>
+                  {/* ✅ 3. Render the dynamic icon component */}
+                  <span className={styles.tabIcon}>
+                    <TabIcon />
+                  </span>
                 {tab.id}
               </button>
-            ))}
+              );
+            })}
           </div>
 
           {/* Right Panel */}

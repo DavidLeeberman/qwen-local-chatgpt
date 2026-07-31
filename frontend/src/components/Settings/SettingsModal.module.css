@@ -77,6 +77,12 @@
   margin-bottom: 4px;
 }
 
+.tabIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .tabBtn:hover {
   background: #2a2b32;
 }

@@ -1,11 +1,11 @@
 import React from 'react';
 
-import styles from './Icons.module.css'
+import styles from './Icons.module.css';
 
 export const ChatBubbleIcon = ({ className = '', style = {} }) => (
   <svg 
-    className={className}
-    style={{ flexShrink: 0, ...style }} 
+    className={`${styles['base-icon']} ${className}`.trim()}
+    style={style} 
     width="16" height="16" viewBox="0 0 24 24" 
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
   >
@@ -13,13 +13,12 @@ export const ChatBubbleIcon = ({ className = '', style = {} }) => (
   </svg>
 );
 
-export const PinIcon = ({isPinned, className = '', style = {} }) => (
+export const PinIcon = ({ isPinned, className = '', style = {} }) => (
   <svg 
-    className={className}
-    style={{ ...style }}
+    className={`${styles['base-icon']} ${styles['pin-rotated']} ${className}`.trim()}
+    style={style}
     width="14" height="14" viewBox="0 0 24 24" 
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" 
-    style={{ transform: 'rotate(45deg)' }}
   >
     <path d="M12 17v5" />
     <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76Z" />
@@ -27,18 +26,12 @@ export const PinIcon = ({isPinned, className = '', style = {} }) => (
   </svg>
 );
 
-export const DropdownChevron = ({isOpen, className = '', style = {} }) => (
+export const DropdownChevron = ({ isOpen, className = '', style = {} }) => (
   <svg 
-    className={`${styles.chevron} ${isOpen ? styles.open : ''} ${className}`} 
-    style={{ ...style }}
-    width="12" 
-    height="12" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round"
+    className={`${styles['base-icon']} ${styles.chevron} ${isOpen ? styles.open : ''} ${className}`.trim()} 
+    style={style}
+    width="12" height="12" viewBox="0 0 24 24" 
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
   >
     <polyline points="6 9 12 15 18 9"></polyline>
   </svg>
@@ -46,7 +39,7 @@ export const DropdownChevron = ({isOpen, className = '', style = {} }) => (
 
 export const RenameIcon = ({ className = '', style = {} }) => (
   <svg 
-    className={className}
+    className={`${styles['base-icon']} ${className}`.trim()}
     style={style}
     width="14" height="14" viewBox="0 0 24 24" 
     fill="none" stroke="currentColor" strokeWidth="2"
@@ -57,7 +50,7 @@ export const RenameIcon = ({ className = '', style = {} }) => (
 
 export const ArchiveIcon = ({ className = '', style = {} }) => (
   <svg 
-    className={className}
+    className={`${styles['base-icon']} ${className}`.trim()}
     style={style}
     width="14" height="14" viewBox="0 0 24 24" 
     fill="none" stroke="currentColor" strokeWidth="2"
@@ -70,20 +63,23 @@ export const ArchiveIcon = ({ className = '', style = {} }) => (
 
 export const UnarchiveIcon = ({ className = '', style = {} }) => (
   <svg 
-    className={className}
-    style={{ ...style }}
-    width="14" height="14" viewBox="0 0 24 24" 
-    fill="none" stroke="currentColor" strokeWidth="2"
+    className={`${styles['base-icon']} ${className}`.trim()}
+    style={style}
+    width="16" height="16" viewBox="0 0 24 24" 
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
   >
-    <polyline points="9 10 12 7 15 10"></polyline>
-    <path d="M21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9"></path>
-    <line x1="12" y1="7" x2="12" y2="17"></line>
+    {/* Tilted Open Lid */}
+    <path d="M3 8.5L18 4.5L21 8.5L6 12.5Z" />
+    {/* Archive Box Base */}
+    <path d="M5 11.5V18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6.5" />
+    {/* Front Handle/Slot */}
+    <line x1="10" y1="16" x2="14" y2="16" />
   </svg>
 );
 
 export const DeleteIcon = ({ className = '', style = {} }) => (
   <svg 
-    className={className}
+    className={`${styles['base-icon']} ${className}`.trim()}
     style={{ ...style }}
     width="14" height="14" viewBox="0 0 24 24" 
     fill="none" stroke="currentColor" strokeWidth="2"
@@ -97,7 +93,7 @@ export const DeleteIcon = ({ className = '', style = {} }) => (
 
 export const MenuDotsIcon = ({ className = '', style = {} }) => (
   <svg 
-    className={className}
+    className={`${styles['base-icon']} ${className}`.trim()}
     style={style}
     width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
   >
@@ -130,4 +126,42 @@ export const StopButton = ({ onClick, className = '' }) => (
       <rect x="4" y="4" width="16" height="16" rx="2" />
     </svg>
   </button>
+);
+
+export const SettingsIcon = ({ className = '', style = {} }) => (
+  <svg 
+    className={`${styles['base-icon']} ${className}`.trim()}
+    style={style} 
+    width="16" height="16" viewBox="0 0 24 24" 
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+  >
+    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+
+export const LogoutIcon = ({ className = '', style = {} }) => (
+  <svg 
+    className={`${styles['base-icon']} ${className}`.trim()}
+    style={style} 
+    width="16" height="16" viewBox="0 0 24 24" 
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+  >
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
+
+export const DatabaseIcon = ({ className = '', style = {} }) => (
+  <svg 
+    className={`${styles['base-icon']} ${className}`.trim()}
+    style={style} 
+    width="16" height="16" viewBox="0 0 24 24" 
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+  >
+    <ellipse cx="12" cy="5" rx="9" ry="3" />
+    <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+    <path d="M3 12A9 3 0 0 0 21 12" />
+  </svg>
 );

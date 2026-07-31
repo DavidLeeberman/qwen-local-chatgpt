@@ -29,8 +29,12 @@ export default function ArchivedChatsModal({ onClose  }) {
 
   const handleUnarchive = async (id) => {
     await unarchiveConversation(id);
-    onClose();
-    setSettingsOpen(false); // Close parent modal too
+    hideActionTooltip();
+  };
+
+  const handleDelete = async (id) => {
+    await deleteConversation(id);
+    hideActionTooltip();
   };
 
   return (
@@ -83,7 +87,7 @@ export default function ArchivedChatsModal({ onClose  }) {
                     </button>
                     <button 
                       className={styles.iconBtn} 
-                      onClick={() => deleteConversation(chat.id)}
+                      onClick={() => handleDelete(chat.id)}
                       onMouseEnter={(e) => handleActionMouseEnter(e, 'Delete conversation')}
                       onMouseLeave={handleActionMouseLeave}
                     >

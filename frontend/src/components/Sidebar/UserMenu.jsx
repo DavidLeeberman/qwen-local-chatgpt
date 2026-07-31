@@ -1,6 +1,10 @@
 import React, { useRef, useEffect } from 'react';
+
 import { useChatStore } from '../../store/useChatStore';
+import { SettingsIcon, LogoutIcon } from '../UI/Icons';
+
 import styles from './Sidebar.module.css';
+import userMenuStyles from './UserMenu.module.css'; // Import the new CSS module for UserMenu
 
 export default function UserMenu({ onClose }) {
   // Grab the necessary actions directly from Zustand
@@ -35,9 +39,10 @@ export default function UserMenu({ onClose }) {
           setSettingsOpen(true); // Triggers the modal in App.jsx
           onClose();             // Closes this popup menu
         }}
-        className={styles['user-dropdown-item']}
+        className={`${styles['user-dropdown-item']} ${userMenuStyles['menu-item']}`}
       >
-        Settings
+        <SettingsIcon />
+        <span>Settings</span>
       </button>
 
       {/* Divider */}
@@ -49,9 +54,10 @@ export default function UserMenu({ onClose }) {
           logout();  // Clears tokens/state and boots user to Login
           onClose(); 
         }}
-        className={styles['user-dropdown-item']}
+        className={`${styles['user-dropdown-item']} ${userMenuStyles['menu-item']}`}
       >
-        Log out
+        <LogoutIcon />
+        <span>Log out</span>
       </button>
       
     </div>

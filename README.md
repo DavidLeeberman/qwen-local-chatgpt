@@ -185,7 +185,8 @@ qwen-local-chatgpt/
 |       │   │   ├── SidebarGroup.module.css       # 👈 Header items
 |       │   │   ├── ConversationItem.jsx
 |       │   │   ├── ConversationItem.module.css   # 👈 Row selections, actions, rename inputs, icons
-│       │   |   └── UserMenu.jsx
+│       │   |   ├── UserMenu.jsx
+│       │   |   └── UserMenu.module.css           # 👈 User menu items, styles, icons
 |       |   |
 |       │   ├── Chat/
 |       │   │   ├── ChatArea.jsx

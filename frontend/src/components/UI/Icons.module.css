@@ -1,3 +1,13 @@
+/* Base class for all icons to prevent them from squishing in flex containers */
+.base-icon {
+  flex-shrink: 0;
+}
+
+/* Specific modifiers */
+.pin-rotated {
+  transform: rotate(45deg);
+}
+
 /* Chevron animations for open/closed states */
 .chevron {
   transition: transform 0.2s ease;

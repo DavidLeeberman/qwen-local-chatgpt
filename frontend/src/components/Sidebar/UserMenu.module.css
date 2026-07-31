@@ -1,0 +1,10 @@
+/* Inside UserMenu.module.css AND SettingsModal.module.css */
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* You can also add standard button resets, padding, and hover states here */
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
