@@ -1,5 +1,13 @@
 # Local ChatGPT-class System
 ```
+Version    : 0.58
+Model      : Qwen3.5-9B + vLLM + Ollama
+Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
+```
+Updates:
+- Account Button, User Menu and Archived Chats Management implemented
+- Further isolated UI rendering from logic implementation
+```
 Version    : 0.57
 Model      : Qwen3.5-9B + vLLM + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD

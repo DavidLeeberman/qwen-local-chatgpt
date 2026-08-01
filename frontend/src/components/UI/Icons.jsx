@@ -68,12 +68,18 @@ export const UnarchiveIcon = ({ className = '', style = {} }) => (
     width="16" height="16" viewBox="0 0 24 24" 
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
   >
-    {/* Tilted Open Lid */}
-    <path d="M3 8.5L18 4.5L21 8.5L6 12.5Z" />
-    {/* Archive Box Base */}
-    <path d="M5 11.5V18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6.5" />
-    {/* Front Handle/Slot */}
-    <line x1="10" y1="16" x2="14" y2="16" />
+    {/* 1. Tilted Lid: 16px wide. 
+           At -12 degrees, the right edge extends to exactly 20.15px, 
+           giving it a perfectly realistic 0.65px overhang over the right wall. */}
+    <rect x="3.5" y="7" width="16" height="4" rx="1.5" transform="rotate(-12 4.5 11)" />
+    
+    {/* 2. Box Base: Exactly 15px wide (X: 4.5 to 19.5). 
+           This restores the perfect square-ish aspect ratio. 
+           The right wall stops exactly at Y=12 to maintain the authentic gap. */}
+    <path d="M 4.5 11.5 V 18 A 2 2 0 0 0 6.5 20 H 17.5 A 2 2 0 0 0 19.5 18 V 12" />
+    
+    {/* 3. Center Slot: 5px wide, flawlessly centered inside the 15px box. */}
+    <line x1="10.5" y1="14" x2="13.5" y2="14" />
   </svg>
 );
 
