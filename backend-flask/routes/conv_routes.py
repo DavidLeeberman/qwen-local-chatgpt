@@ -179,13 +179,8 @@ def delete_conversation():
 
     with get_db() as conn:
         with conn.cursor() as cur:
-            # 1. Delete associated messages first to prevent foreign key errors (if CASCADE is not configured)
-            cur.execute("""
-                DELETE FROM messages 
-                WHERE conversation_id = %s
-            """, (cid,))
-            
-            # 2. Delete the conversation itself, enforcing ownership
+            # Delete the conversation itself, enforcing ownership
+            # PostgreSQL will automatically cascade this deletion to the 'messages' table.
             cur.execute("""
                 DELETE FROM conversations 
                 WHERE id = %s AND user_id = %s
