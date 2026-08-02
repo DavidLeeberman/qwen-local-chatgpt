@@ -287,6 +287,7 @@ export const useChatStore = create((set, get) => ({
     try {
       await axios.post(
         `${API_URL}/api/chat/archive_all`, 
+        {},
         { headers: { Authorization: token } }
       )
 
@@ -328,6 +329,7 @@ export const useChatStore = create((set, get) => ({
     try {
       await axios.post(
         `${API_URL}/api/chat/delete_all`, 
+        {},
         { headers: { Authorization: token } }
       )
       // Optimistically remove it from the local list
