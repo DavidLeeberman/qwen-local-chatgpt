@@ -62,22 +62,41 @@ export function useTooltip() {
 
 export function useAccountTooltip() {
   const [accountTooltip, setAccountTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
+  const tooltipTimeoutRef = useRef(null);
 
   const handleAccountMouseEnter = useCallback((e, text) => {
-    setAccountTooltip({
-      visible: true,
-      text: text,
-      x: e.clientX + 12,
-      y: e.clientY + 12
-    });
+    if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+    const targetEl = e.currentTarget;
+
+    tooltipTimeoutRef.current = setTimeout(() => {
+      // Check if the text is actually truncated (actual width > visible width)
+      if (targetEl.scrollWidth > targetEl.clientWidth) {
+        const rect = targetEl.getBoundingClientRect();
+        setAccountTooltip({
+          visible: true,
+          text: text,
+          x: rect.left, 
+          y: rect.top - 35 // Pop it up just above the username
+        });
+      }
+    }, 400); // 400ms delay to prevent flashing
   }, []);
 
   const handleAccountMouseLeave = useCallback(() => {
-    setAccountTooltip(prev => ({ ...prev, visible: false }));
+    if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+    setAccountTooltip({ visible: false, text: '', x: 0, y: 0 });
   }, []);
 
   const hideAccountTooltip = useCallback(() => {
-    setAccountTooltip(prev => ({ ...prev, visible: false }));
+    if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+    setAccountTooltip({ visible: false, text: '', x: 0, y: 0 });
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+    };
   }, []);
 
   return { 

@@ -75,4 +75,7 @@ def login():
                     print("LEGACY PASSWORD HASH UPGRADE FAILED:", e)
                     return jsonify({"error": "legacy password hash upgrade failed"}), 500
 
-    return jsonify({"token": generate_token(uid)})
+    return jsonify({
+        "token": generate_token(uid),
+        'username': d['username']
+    })

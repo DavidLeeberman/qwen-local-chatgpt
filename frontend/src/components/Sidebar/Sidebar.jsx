@@ -88,10 +88,6 @@ export default function Sidebar({
             setIsUserMenuOpen(!isUserMenuOpen);
             hideAccountTooltip();
           }}
-          onMouseEnter={(e) => {
-            if (!isUserMenuOpen) handleAccountMouseEnter(e, username);
-          }}
-          onMouseLeave={handleAccountMouseLeave}
           className={styles['user-menu-btn']}
         >
           {/* Initials Avatar */}
@@ -101,7 +97,13 @@ export default function Sidebar({
 
           {/* Truncated Name */}
           <div className={styles['user-name-container']}>
-            <div className={styles['user-name-text']}>
+            <div 
+              className={styles['user-name-text']}
+              onMouseEnter={(e) => {
+                if (!isUserMenuOpen) handleAccountMouseEnter(e, username);
+              }}
+              onMouseLeave={handleAccountMouseLeave}
+            >
               {username}
             </div>
           </div>

@@ -3,7 +3,7 @@ import axios from 'axios'
 
 import { API_URL } from './utils/constants'
 
-export default function Login({ setToken }) {
+export default function Login({ setToken, setUsername }) {
   const [u, setU] = useState('')
   const [p, setP] = useState('')
   const [err, setErr] = useState('')
@@ -17,6 +17,7 @@ export default function Login({ setToken }) {
 
       localStorage.setItem('token', r.data.token)   // ✅ persist
       setToken(r.data.token)
+      setUsername(r.data.username)
 
       setU('')
       setP('')

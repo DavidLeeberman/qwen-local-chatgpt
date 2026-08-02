@@ -23,6 +23,7 @@ import './App.css'
 export default function App() {
   const token = useChatStore(state => state.token)
   const setToken = useChatStore(state => state.setToken)
+  const setUsername = useChatStore(state => state.setUsername)
   const conversations = useChatStore(state => state.conversations)
   const chat = useChatStore(state => state.chat)
   const listScrollTrigger = useChatStore(state => state.listScrollTrigger)
@@ -51,7 +52,7 @@ export default function App() {
   }, [listScrollTrigger, chat.length]) // Only fires when loadMessages increments the trigger!
 
   // 3. Early Return for Auth
-  if (!token) return <Login setToken={setToken} />
+  if (!token) return <Login setToken={setToken} setUsername={setUsername} />
 
   // 4. Data Derivation
   const pinnedChats = conversations.filter(c => c.is_pinned && !c.is_archived)

@@ -96,12 +96,15 @@
 }
 
 .user-name-text {
+  display: block; /* 👈 Add this */
+  width: 100%;    /* 👈 Add this */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 0.875rem;
   color: #e5e7eb; /* gray-200 */
   font-weight: 500;
+  min-width: 0;
 }
 
 /* User Dropdown Menu */
