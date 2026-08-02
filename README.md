@@ -7,6 +7,7 @@ Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5
 Updates:
 - Implemented Conversation Search
 - Implemented Close/Open sidebar
+- Improved Archive/Unarchive chats
 ```
 Version    : 0.58
 Model      : Qwen3.5-9B + vLLM + Ollama
