@@ -7,7 +7,7 @@ import UserMenu from './UserMenu';
 
 // Import hook and tooltips
 import { useAccountTooltip } from '../../hooks/useTooltip';
-import { AccountTooltip } from '../Tooltip/Tooltip';
+import { CursorTooltip } from '../Tooltip/Tooltip';
 
 import styles from './Sidebar.module.css';
 
@@ -110,7 +110,7 @@ export default function Sidebar({
         </button>
 
         {/* Clean spread-prop rendering matching <Tooltip {...tooltip} /> */}
-        <AccountTooltip {...accountTooltip} />
+        <CursorTooltip {...accountTooltip} />
 
         {/* Pop-up Menu */}
         {isUserMenuOpen && (

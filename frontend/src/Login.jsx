@@ -17,7 +17,7 @@ export default function Login({ setToken, setUsername }) {
 
       localStorage.setItem('token', r.data.token)   // ✅ persist
       setToken(r.data.token)
-      setUsername(r.data.username)
+      setUsername(u)
 
       setU('')
       setP('')

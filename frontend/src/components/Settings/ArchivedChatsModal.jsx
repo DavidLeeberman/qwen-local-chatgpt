@@ -1,9 +1,9 @@
 import React from 'react';
 
 import { useChatStore } from '../../store/useChatStore';
-import { AccountTooltip, ActionTooltip } from '../Tooltip/Tooltip';
-import { useTooltip, useAccountTooltip, useActionTooltip } from '../../hooks/useTooltip';
-import { TruncatedTitle } from '../UI/FormattedText';
+import { CursorTooltip, ActionTooltip } from '../Tooltip/Tooltip';
+import { useArchivedChatTooltip, useActionTooltip } from '../../hooks/useTooltip';
+import { TruncatedText } from '../UI/FormattedText';
 import { ChatBubbleIcon, UnarchiveIcon, DeleteIcon } from '../UI/Icons';
 
 import styles from './ArchivedChatsModal.module.css';
@@ -12,11 +12,11 @@ export default function ArchivedChatsModal({ onClose  }) {
   const { unarchiveConversation, deleteConversation, setSettingsOpen } = useChatStore();
 
   const { 
-    accountTooltip, 
-    handleAccountMouseEnter, 
-    handleAccountMouseLeave, 
-    hideAccountTooltip 
-  } = useAccountTooltip();
+    archivedChatTooltip, 
+    handleArchivedChatMouseEnter, 
+    handleArchivedChatMouseLeave, 
+    hideArchivedChatTooltip 
+  } = useArchivedChatTooltip();
   const { 
     actionTooltip, 
     handleActionMouseEnter, 
@@ -67,10 +67,10 @@ export default function ArchivedChatsModal({ onClose  }) {
                 <div key={chat.id} className={styles.row}>
                   <div className={styles.colName}>
                     <ChatBubbleIcon />
-                    <TruncatedTitle 
+                    <TruncatedText 
                       text={chat.title || 'New Chat'} 
-                      handleTitleMouseEnter={handleAccountMouseEnter}
-                      handleTitleMouseLeave={handleAccountMouseLeave}
+                      handleMouseEnter={handleArchivedChatMouseEnter}
+                      handleMouseLeave={handleArchivedChatMouseLeave}
                     />
                   </div>
                   <div className={styles.colDate}>
@@ -100,7 +100,7 @@ export default function ArchivedChatsModal({ onClose  }) {
           </div>
         </div>
 
-        <AccountTooltip {...accountTooltip} />
+        <CursorTooltip {...archivedChatTooltip} />
         <ActionTooltip {...actionTooltip} />
       </div>
     </div>

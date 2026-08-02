@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 
 import { useChatStore } from '../../store/useChatStore'
-import { TruncatedTitle } from '../UI/FormattedText'
+import { TruncatedText } from '../UI/FormattedText'
 import { ChatBubbleIcon, PinIcon, MenuDotsIcon, RenameIcon, ArchiveIcon, DeleteIcon } from '../UI/Icons'
 import styles from './ConversationItem.module.css'
 
@@ -101,10 +101,10 @@ export default function ConversationItem({
           />
         ) : (
           /* ✅ Replaced raw <span> with the shared UI primitive */
-          <TruncatedTitle
+          <TruncatedText
             text={c.title || 'New Chat'}
-            handleTitleMouseEnter={handleTitleMouseEnter}
-            handleTitleMouseLeave={handleTitleMouseLeave}
+            handleMouseEnter={handleTitleMouseEnter}
+            handleMouseLeave={handleTitleMouseLeave}
           />
         )}
       </div>

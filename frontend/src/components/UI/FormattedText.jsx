@@ -1,16 +1,16 @@
 import React from 'react';
 import styles from './FormattedText.module.css';
 
-export const TruncatedTitle = ({ 
+export const TruncatedText = ({ 
   text, 
-  handleTitleMouseEnter, 
-  handleTitleMouseLeave,
+  handleMouseEnter, 
+  handleMouseLeave,
   className = '' 
 }) => (
   <span 
     className={`${styles.truncatedTitle} ${className}`}
-    onMouseEnter={(e) => handleTitleMouseEnter(e, text)}
-    onMouseLeave={handleTitleMouseLeave}
+    onMouseEnter={(e) => handleMouseEnter(e, text)}
+    onMouseLeave={handleMouseLeave}
   >
     {text}
   </span>

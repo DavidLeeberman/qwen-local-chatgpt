@@ -60,50 +60,69 @@ export function useTooltip() {
   return { tooltip, handleTitleMouseEnter, handleTitleMouseLeave };
 }
 
-export function useAccountTooltip() {
-  const [accountTooltip, setAccountTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
+// ✅ NEW: A reusable Base Hook to handle truncation math and delays
+function useTruncatedTooltipBase(offsetY, offsetX = 0, delay = 400) {
+  const [tooltipState, setTooltipState] = useState({ visible: false, text: '', x: 0, y: 0 });
   const tooltipTimeoutRef = useRef(null);
 
-  const handleAccountMouseEnter = useCallback((e, text) => {
+  const handleMouseEnter = useCallback((e, text) => {
     if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
     const targetEl = e.currentTarget;
 
     tooltipTimeoutRef.current = setTimeout(() => {
-      // Check if the text is actually truncated (actual width > visible width)
       if (targetEl.scrollWidth > targetEl.clientWidth) {
         const rect = targetEl.getBoundingClientRect();
-        setAccountTooltip({
+        setTooltipState({
           visible: true,
           text: text,
-          x: rect.left, 
-          y: rect.top - 35 // Pop it up just above the username
+          x: rect.left + offsetX, 
+          y: rect.top + offsetY   
         });
       }
-    }, 400); // 400ms delay to prevent flashing
-  }, []);
+    }, delay); 
+  }, [offsetX, offsetY, delay]); 
 
-  const handleAccountMouseLeave = useCallback(() => {
+  const handleMouseLeave = useCallback(() => {
     if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
-    setAccountTooltip({ visible: false, text: '', x: 0, y: 0 });
+    setTooltipState({ visible: false, text: '', x: 0, y: 0 });
   }, []);
 
-  const hideAccountTooltip = useCallback(() => {
+  const hideTooltip = useCallback(() => {
     if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
-    setAccountTooltip({ visible: false, text: '', x: 0, y: 0 });
+    setTooltipState({ visible: false, text: '', x: 0, y: 0 });
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
     };
   }, []);
 
+  return { tooltipState, handleMouseEnter, handleMouseLeave, hideTooltip };
+}
+
+
+// ✅ Wrap the Base Hook for the Account Menu
+export function useAccountTooltip() {
+  const { tooltipState, handleMouseEnter, handleMouseLeave, hideTooltip } = useTruncatedTooltipBase(-35);
+
   return { 
-    accountTooltip, 
-    handleAccountMouseEnter, 
-    handleAccountMouseLeave, 
-    hideAccountTooltip 
+    accountTooltip: tooltipState, 
+    handleAccountMouseEnter: handleMouseEnter, 
+    handleAccountMouseLeave: handleMouseLeave, 
+    hideAccountTooltip: hideTooltip 
+  };
+}
+
+// ✅ Wrap the Base Hook for the Archived Chats Modal
+export function useArchivedChatTooltip() {
+  const { tooltipState, handleMouseEnter, handleMouseLeave, hideTooltip } = useTruncatedTooltipBase(25);
+
+  return { 
+    archivedChatTooltip: tooltipState, 
+    handleArchivedChatMouseEnter: handleMouseEnter, 
+    handleArchivedChatMouseLeave: handleMouseLeave, 
+    hideArchivedChatTooltip: hideTooltip
   };
 }
 

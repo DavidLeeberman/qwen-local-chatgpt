@@ -18,7 +18,7 @@ export default function Tooltip({ visible, x, y, text }) {
 }
 
 // 2. Account Tooltip (for the sidebar user/account button)
-export function AccountTooltip({ visible, x, y, text }) {
+export function CursorTooltip({ visible, x, y, text }) {
   if (!visible) return null;
 
   return createPortal(
