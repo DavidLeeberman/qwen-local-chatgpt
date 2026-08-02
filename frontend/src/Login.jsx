@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import axios from 'axios'
 
+import { ErrMessage } from './components/UI/FormattedText'
+
 import { API_URL } from './utils/constants'
 
 export default function Login({ setToken, setUsername }) {
@@ -46,7 +48,7 @@ export default function Login({ setToken, setUsername }) {
 
       <button onClick={login}>Login</button>
 
-      {err && <div style={{ color: 'red' }}>{err}</div>}
+      {err && <ErrMessage err={err} />}
     </div>
   )
 }
