@@ -468,7 +468,13 @@ export const useChatStore = create((set, get) => ({
     activeStreamMessageId = tempId
 
     set(state => ({
-      chat: [...state.chat, { id: tempId, u: userMsg, a: '', done: false }],
+      chat: [...state.chat, { 
+        id: tempId, 
+        u: userMsg, 
+        a: '', 
+        done: false,
+        created_at: new Date().toISOString() // Add the timestamp here
+      }],
       autoScroll: true,
       isStreaming: true
     }))
