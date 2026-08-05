@@ -8,9 +8,15 @@ import { SettingsIcon, DatabaseIcon } from '../UI/Icons'; // ✅ 1. Import the n
 import styles from './SettingsModal.module.css';
 
 export default function SettingsModal() {
-  const { isSettingsOpen, setSettingsOpen, archiveAllChats, deleteAllChats } = useChatStore();
+  const { 
+    isSettingsOpen, 
+    setSettingsOpen,
+    isArchivedChatsOpen,
+    setArchivedChatsOpen, 
+    archiveAllChats, 
+    deleteAllChats 
+  } = useChatStore();
   const [activeTab, setActiveTab] = useState('Data controls');
-  const [showArchived, setShowArchived] = useState(false);
   const [confirmState, setConfirmState] = useState(null); // 'archive' | 'delete' | null
 
   if (!isSettingsOpen) return null;
@@ -68,7 +74,7 @@ export default function SettingsModal() {
               <div className={styles.controlsList}>
                 <div className={styles.controlRow}>
                   <div className={styles.controlText}>Archived chats</div>
-                  <button className={styles.actionBtn} onClick={() => setShowArchived(true)}>Manage</button>
+                  <button className={styles.actionBtn} onClick={() => setArchivedChatsOpen(true)}>Manage</button>
                 </div>
                 
                 <div className={styles.controlRow}>
@@ -90,7 +96,7 @@ export default function SettingsModal() {
         </div>
       </div>
 
-      {showArchived && <ArchivedChatsModal onClose={() => setShowArchived(false)} />}
+      {isArchivedChatsOpen && <ArchivedChatsModal onClose={() => setArchivedChatsOpen(false)} />}
       
       {confirmState && (
         <ConfirmModal 

@@ -96,8 +96,6 @@ export default function App() {
 
       {/* 3. Render Modals conditionally based on Zustand state */}
       {isSettingsOpen && <SettingsModal />}
-      {isArchivedChatsOpen && <ArchivedChatsModal />}
-      {confirmModalState?.isOpen && <ConfirmModal />}
     </AppContainer>
   )
 }
