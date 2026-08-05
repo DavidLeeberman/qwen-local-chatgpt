@@ -258,21 +258,11 @@ export const useChatStore = create((set, get) => ({
         { headers: { Authorization: token } }
       )
 
-      set((state) => {
-        // 1. Unarchive and update timestamp
-        const updatedConvos = state.conversations.map(c => 
-          c.id === id ? { ...c, is_archived: false, updated_at: new Date().toISOString() } : c
-        );
-        
-        // 2. Sort to bring the unarchived chat to the top of Recents
-        updatedConvos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-        
-        return { 
-          conversations: updatedConvos,
-          cid: id // 👈 Sets active conversation ID
-          // 'chat' is left untouched here, loadMessages(id) below populates it[cite: 3]
-        };
-      });
+      set((state) => ({
+        conversations: state.conversations.map(c => c.id === id ? { ...c, is_archived: false } : c),
+        cid: id // 👈 Sets active conversation ID
+        // 'chat' is left untouched here, loadMessages(id) below populates it[cite: 3]
+      }));
 
       // 3. Fetches messages from server and updates state.chat correctly[cite: 3]
       loadMessages(id)

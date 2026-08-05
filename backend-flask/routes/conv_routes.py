@@ -208,7 +208,7 @@ def unarchive_conversation():
             # so the UI can automatically float it to the top of Recents
             cur.execute("""
                 UPDATE conversations 
-                SET is_archived = FALSE, updated_at = NOW()
+                SET is_archived = FALSE
                 WHERE id = %s AND user_id = %s
             """, (cid, user['user_id']))
             conn.commit()
