@@ -9,7 +9,13 @@ import { ChatBubbleIcon, UnarchiveIcon, DeleteIcon } from '../UI/Icons';
 import styles from './ArchivedChatsModal.module.css';
 
 export default function ArchivedChatsModal({ onClose  }) {
-  const { unarchiveConversation, deleteConversation, setSettingsOpen } = useChatStore();
+  const { 
+    unarchiveConversation, 
+    deleteConversation, 
+    loadMessages,
+    setArchivedChatsOpen,
+    setSettingsOpen 
+  } = useChatStore();
 
   const { 
     archivedChatTooltip, 
@@ -26,6 +32,12 @@ export default function ArchivedChatsModal({ onClose  }) {
   
   const conversations = useChatStore(state => state.conversations)
   const archived = conversations.filter(c => c.is_archived);
+
+  const handleOpenArchivedChat = (id) => {
+    loadMessages(id);
+    setArchivedChatsOpen(false); // Close the archived list
+    setSettingsOpen(false);      // Close the parent settings modal
+  };
 
   const handleUnarchive = async (id) => {
     await unarchiveConversation(id);
@@ -64,7 +76,11 @@ export default function ArchivedChatsModal({ onClose  }) {
               <div className={styles.empty}>No archived chats found.</div>
             ) : (
               archived.map(chat => (
-                <div key={chat.id} className={styles.row}>
+                <div 
+                  key={chat.id} 
+                  className={styles.row}
+                  onClick={() => handleOpenArchivedChat(chat.id)}
+                >
                   <div className={styles.colName}>
                     <ChatBubbleIcon />
                     <TruncatedText 

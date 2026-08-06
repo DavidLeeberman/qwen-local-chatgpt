@@ -211,7 +211,9 @@ qwen-local-chatgpt/
 |       │   │   ├── ChatInput.jsx
 │       │   |   ├── ChatInput.module.css          # 👈 Textarea pill box, footer layouts, send/stop buttons
 |       │   │   ├── ChatMessage.jsx
-│       │   |   └── ChatMessage.module.css        # 👈 User/Assistant bubbles, code syntax frames, blink
+|       │   │   ├── ChatMessage.module.css        # 👈 User/Assistant bubbles, code syntax frames, blink
+│       │   |   ├── ArchivedFooter.jsx
+│       │   |   └── ArchivedFooter.module.css     # 👈 Archived chat footer, button, reminder
 |       |   |
 |       │   ├── Settings/
 |       │   │   ├── ArchivedChatsModal.jsx

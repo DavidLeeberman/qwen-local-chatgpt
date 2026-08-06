@@ -13,14 +13,59 @@
   min-height: 0;
 }
 
-/* --- New Exact OpenAI Layout Matching --- */
+/* ========================================================
+   NEW: Virtuoso Sticky Footer Flexbox Injection
+   Forces Virtuoso's internal elements to act as a flex column
+   so we can push the disclaimer to the bottom.
+======================================================== */
+.virtuoso-viewport :global([data-viewport-type="element"]) {
+  min-height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.virtuoso-viewport :global([data-testid="virtuoso-item-list"]) {
+  flex-shrink: 0 !important;
+}
+
+/* Target the wrapper Virtuoso builds for our ChatListFooter */
+.virtuoso-viewport :global([data-viewport-type="element"] > :last-child) {
+  /* FIX: Expand to fill remaining screen space, don't push the whole wrapper down */
+  flex-grow: 1 !important; 
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* ========================================================
+   Footer Container & Layout
+======================================================== */
+.chat-list-footer-container {
+  display: flex;
+  flex-direction: column;
+  /* FIX: Allow our internal container to stretch with Virtuoso's wrapper */
+  flex-grow: 1; 
+}
 
 .chat-footer {
-  padding-bottom: 8px;
+  /* This creates the strict minimum gap before the disclaimer */
+  padding-bottom: 24px; 
   display: flex;
   flex-direction: column;
 }
 
+/* Matching the small gray center disclaimer */
+.disclaimer-text {
+  /* Pushes the disclaimer to the very bottom of the flex container */
+  margin-top: auto; 
+  text-align: center;
+  font-size: 12px;
+  color: #b4b4b4;
+  padding: 12px 16px;
+}
+
+/* ========================================================
+   Action Menu & Floating Buttons
+======================================================== */
 .action-menu-container {
   position: relative;
   /* Shift slightly to offset button padding, aligning exactly with text */
@@ -60,15 +105,6 @@
   white-space: nowrap;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   z-index: 50;
-}
-
-/* Matching the small gray center disclaimer */
-.disclaimer-text {
-  text-align: center;
-  font-size: 12px;
-  color: #8e8ea0;
-  padding: 12px 16px;
-  margin-top: 4px;
 }
 
 /* Matching the translucent, bordered floating arrow button */

@@ -6,7 +6,6 @@ import AppContainer from './components/Layout/AppContainer'
 import MainChatLayout from './components/Layout/MainChatLayout'
 import Sidebar from './components/Sidebar/Sidebar'
 import ChatArea from './components/Chat/ChatArea'
-import ChatInput from './components/Chat/ChatInput'
 import Tooltip from './components/Tooltip/Tooltip'
 
 import SettingsModal from './components/Settings/SettingsModal'
@@ -85,10 +84,7 @@ export default function App() {
         <ChatArea 
           virtuosoRef={virtuosoRef} 
           increaseViewportBy={800} /* Restored Virtuoso prop */
-        >
-          {/* Updated: ChatInput now manages its own state and refs internally! */}
-          <ChatInput />
-        </ChatArea>
+        />
       </MainChatLayout>
 
       {/* Floating Overlays sit outside the layout grid! */}

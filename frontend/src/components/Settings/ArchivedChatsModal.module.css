@@ -71,6 +71,7 @@
   gap: 24px; /* Task 1: Adds clean, uniform padding between columns */
   border-bottom: 1px solid #343541;
   align-items: center;
+  cursor: pointer;
 }
 
 .row:hover {

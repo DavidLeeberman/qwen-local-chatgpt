@@ -463,7 +463,7 @@ export const useChatStore = create((set, get) => ({
         u: userMsg, 
         a: '', 
         done: false,
-        created_at: new Date().toISOString() // Add the timestamp here
+        createdAt: new Date().toISOString() // Add the timestamp here
       }],
       autoScroll: true,
       isStreaming: true
