@@ -90,21 +90,51 @@
   background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Matching the Action Menu Popup (Timestamp) */
+/* Matching the Action Menu Popup (Timestamp & Actions) */
 .action-menu-popup {
   position: absolute;
   bottom: 100%; /* Pops upwards */
   left: 0;
   margin-bottom: 8px;
   background-color: #2f2f2f; /* Distinct dark grey */
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: #b4b4b4; /* Softer text color */
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #b4b4b4;
   font-size: 13px;
   font-family: inherit;
   white-space: nowrap;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
   z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 180px;
+}
+
+.action-menu-timestamp {
+  font-size: 13px;
+  color: #b4b4b4;
+  font-weight: 400;
+}
+
+.action-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  color: #ececf1;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 4px 0;
+  width: 100%;
+  text-align: left;
+  transition: color 0.15s ease;
+}
+
+.action-menu-item:hover {
+  color: #ffffff;
 }
 
 /* Matching the translucent, bordered floating arrow button */

@@ -22,6 +22,7 @@ def chat():
 
     cid = data.get('conversation_id')
     msg = data.get('message', '').strip()
+    history = data.get('history', []) # ✅ 1. Extract history from the frontend payload
 
     if not msg:
         return jsonify({"error": "empty message"}), 400
@@ -29,13 +30,29 @@ def chat():
     with get_db() as conn:
         with conn.cursor() as cur:
 
-            # ✅ 1. Create conversation if not provided
+            # ✅ 2. Create conversation if not provided (Branching triggers this)
             if not cid:
                 cur.execute(
                     "INSERT INTO conversations (user_id) VALUES (%s) RETURNING id",
                     (uid,)
                 )
                 cid = cur.fetchone()[0]
+                
+                # ✅ 3. If history was passed (from a branched chat), save it to the DB first
+                if history:
+                    for h_msg in history:
+                        h_role = h_msg.get('role')
+                        h_content = h_msg.get('content')
+                        if h_role and h_content:
+                            cur.execute(
+                                """
+                                INSERT INTO messages
+                                (conversation_id, role, content)
+                                VALUES (%s,%s,%s)
+                                """,
+                                (cid, h_role, h_content)
+                            )
+                
                 conn.commit()
 
                 new_id = True
@@ -51,7 +68,7 @@ def chat():
                 
                 new_id = False
 
-            # ✅ 2. Store user message securely using parameterization
+            # ✅ 4. Store the NEW user message securely
             cur.execute(
                 """
                 INSERT INTO messages

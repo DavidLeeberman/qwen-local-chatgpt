@@ -22,6 +22,7 @@ export const useChatStore = create((set, get) => ({
   chat: [],
   listScrollTrigger: 0,
   isStreaming: false,
+  isBranched: false,  // Tracks if we are drafting a branched chat from an archived conversation
   autoScroll: true,
   err: '',
   editingChatId: null,
@@ -49,6 +50,7 @@ export const useChatStore = create((set, get) => ({
   
   setCid: (cid) => set({ cid }),
   setChat: (chat) => set({ chat }),
+  setBranched: (isBranched) => set({ isBranched }),
   setAutoScroll: (autoScroll) => set({ autoScroll }),
   setErr: (err) => set({ err }),
   setEditingChatId: (id) => set({ editingChatId: id }),
@@ -116,6 +118,7 @@ export const useChatStore = create((set, get) => ({
 
     set({ 
       cid: id, 
+      isBranched: false, // Reset branching flag when loading another chat
       err: '' 
     })
 
@@ -437,6 +440,10 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  branchChat: () => {
+    set({ isBranched: true, cid: null, err: '' })
+  },
+
   // ✅ send message
   send: async (msg, setMsg) => {
     const { 
@@ -445,7 +452,9 @@ export const useChatStore = create((set, get) => ({
       isStreaming, 
       flushPendingText, 
       cleanupStream, 
-      finishCurrentStreamingMessage 
+      finishCurrentStreamingMessage,
+      isBranched,
+      chat 
     } = get()
     
     if (isStreaming) return
@@ -465,21 +474,51 @@ export const useChatStore = create((set, get) => ({
     const tempId = generateId()
     activeStreamMessageId = tempId
 
-    set(state => ({
-      chat: [...state.chat, { 
-        id: tempId, 
-        u: userMsg, 
-        a: '', 
-        done: false,
-        createdAt: new Date().toISOString() // Add the timestamp here
-      }],
-      autoScroll: true,
-      isStreaming: true,
-      // 👈 FIX: Instantly bump the active conversation's timestamp for the UI sorter!
-      conversations: state.conversations.map(c => 
-        c.id === cid ? { ...c, updated_at: new Date().toISOString() } : c
-      )
-    }))
+    const wasBranched = isBranched
+    if (wasBranched) {
+      set({ isBranched: false })
+    }
+
+    // 🌟 FIX 1: Map the frontend '{u, a}' state back to the standard '{role, content}' 
+    // format so the backend can actually read and save the archived history.
+    const formattedHistory = wasBranched ? chat.flatMap(m => {
+      const msgs = []
+      if (m.u) msgs.push({ role: 'user', content: m.u })
+      if (m.a) msgs.push({ role: 'assistant', content: m.a })
+      return msgs
+    }) : undefined
+
+    set(state => {
+      // If branched, create a new conversation entry named with the newly-sent prompt
+      const updatedConversations = wasBranched
+        ? [
+            { 
+              id: tempId, // We optimistically use tempId here
+              title: userMsg, 
+              is_archived: false, 
+              updated_at: new Date().toISOString() 
+            },
+            ...state.conversations
+          ]
+        : state.conversations.map(c => 
+            // 👈 FIX: Instantly bump the active conversation's timestamp for the UI sorter!
+            c.id === cid ? { ...c, updated_at: new Date().toISOString() } : c
+          )
+
+      return {
+        chat: [...state.chat, { 
+          id: tempId, 
+          u: userMsg, 
+          a: '', 
+          done: false,
+          createdAt: new Date().toISOString() 
+        }],
+        autoScroll: true,
+        isStreaming: true,
+        cid: wasBranched ? tempId : cid,
+        conversations: updatedConversations
+      }
+    })
 
     try {
       const res = await fetch(
@@ -487,7 +526,12 @@ export const useChatStore = create((set, get) => ({
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: token },
-          body: JSON.stringify({ message: userMsg, conversation_id: cid }),
+          body: JSON.stringify({ 
+            message: userMsg, 
+            conversation_id: wasBranched ? null : cid,
+            // Send the properly formatted history
+            ...(wasBranched ? { history: formattedHistory, title: userMsg } : {})
+          }),
           signal: abortController.signal
         }
       )
@@ -537,17 +581,28 @@ export const useChatStore = create((set, get) => ({
 
           if (data[SSE_META]) {
             const newConversationId = data[SSE_META].conversation_id
-            set(state => ({
-              cid: newConversationId,
-              conversations: state.conversations.some(c => c.id === newConversationId)
-                ? state.conversations
-                : [{ 
+            set(state => {
+              // 🌟 FIX 2: Replace the optimistic tempId conversation with the real server ID.
+              // This completely prevents the duplicate conversation bug.
+              let updatedConversations = state.conversations.map(c => 
+                c.id === tempId ? { ...c, id: newConversationId } : c
+              )
+              
+              // Fallback: If it's a completely new chat (not branched) where tempId wasn't used in the list
+              if (!updatedConversations.some(c => c.id === newConversationId)) {
+                updatedConversations = [{ 
                     id: newConversationId, 
                     title: userMsg.slice(0, 50), 
                     is_archived: false, 
                     updated_at: new Date().toISOString()  // 👈 FIX: Catch the edge case for auto-created chats
-                  }, ...state.conversations]
-            }))
+                  }, ...updatedConversations]
+              }
+
+              return {
+                cid: newConversationId,
+                conversations: updatedConversations
+              }
+            })
             continue
           }
 

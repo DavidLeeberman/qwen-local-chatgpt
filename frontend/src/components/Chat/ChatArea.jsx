@@ -8,13 +8,13 @@ import ArchivedFooter from './ArchivedFooter'
 import { ErrMessage } from '../UI/FormattedText'
 import { ActionTooltip } from '../Tooltip/Tooltip'
 import { useActionTooltip } from '../../hooks/useTooltip'
-import { MenuDotsIcon, DownArrowIcon } from '../UI/Icons' // Updated icon imports
+import { MenuDotsIcon, DownArrowIcon, BranchIcon } from '../UI/Icons' // Updated icon imports
 
 import styles from './ChatArea.module.css'
 import chatMessageStyles from './ChatMessage.module.css' // Needed to perfectly align the action menu
 
 // --- Scrollable Footer ---
-const ChatFooter = ({ chat, isArchived }) => {
+const ChatFooter = ({ chat, isArchived, onBranch }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null); // 1. Create a ref for the menu container
   const lastMessage = chat[chat.length - 1];
@@ -55,6 +55,11 @@ const ChatFooter = ({ chat, isArchived }) => {
     });
   };
 
+  const handleBranchClick = () => {
+    setMenuOpen(false); // Closes popup menu
+    if (onBranch) onBranch();
+  };
+
   return (
     <div 
       className={styles['chat-list-footer-container']}
@@ -85,7 +90,19 @@ const ChatFooter = ({ chat, isArchived }) => {
                 
                 {menuOpen && (
                   <div className={styles['action-menu-popup']}>
-                    {lastMessage?.createdAt ? formatTime(lastMessage.createdAt) : 'Just now'}
+                    <div className={styles['action-menu-timestamp']}>
+                      {lastMessage?.createdAt ? formatTime(lastMessage.createdAt) : 'Just now'}
+                    </div>
+
+                    {isArchived && (
+                      <button 
+                        className={styles['action-menu-item']}
+                        onClick={handleBranchClick}
+                      >
+                        <BranchIcon />
+                        <span>Branch in new chat</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -112,12 +129,16 @@ export default function ChatArea({
 }) {
   const chat = useChatStore(state => state.chat)
   const err = useChatStore(state => state.err)
+  const isBranched = useChatStore(state => state.isBranched)
+  const branchChat = useChatStore(state => state.branchChat)
   
   // Determine if the currently viewed chat is archived
   const cid = useChatStore(state => state.cid);
   const conversations = useChatStore(state => state.conversations);
   const activeChat = conversations.find(c => c.id === cid);
-  const isArchived = activeChat?.is_archived;
+  
+  // When branching, isArchived evaluates to false to recover active layout
+  const isArchived = activeChat?.is_archived && !isBranched;
   
   // autoScroll inherently mirrors isAtBottom since Virtuoso sets it on atBottomStateChange
   const autoScroll = useChatStore(state => state.autoScroll)
@@ -156,7 +177,13 @@ export default function ChatArea({
           )}
           components={{
             // Injecting the footer so it scrolls cleanly at the bottom
-            Footer: () => <ChatFooter chat={chat} isArchived={isArchived} />
+            Footer: () => (
+              <ChatFooter 
+                chat={chat} 
+                isArchived={isArchived} 
+                onBranch={branchChat} 
+              />
+            )
           }}
         />
       </div>
@@ -172,7 +199,7 @@ export default function ChatArea({
 
       {err && <ErrMessage err={err} />}
 
-      {/* ChatInput loads here, remaining completely stationary */}
+      {/* Renders ChatInput when branched or in an active chat, and ArchivedFooter when viewing archived chat */}
       {isArchived ? (
         <ArchivedFooter />
       ) : (
