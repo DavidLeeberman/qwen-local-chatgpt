@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Virtuoso } from 'react-virtuoso'
 
 import { useChatStore } from '../../store/useChatStore'
@@ -14,7 +14,28 @@ import chatMessageStyles from './ChatMessage.module.css' // Needed to perfectly 
 // --- Scrollable Footer ---
 const ChatFooter = ({ chat, isArchived }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null); // 1. Create a ref for the menu container
   const lastMessage = chat[chat.length - 1];
+
+  // 2. Add an effect to listen for clicks outside the referenced element
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // If the menu is open, the ref exists, and the clicked target is OUTSIDE the ref
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    // Only attach the listener if the menu is actually open
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    // Cleanup listener on unmount or when menu closes
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuOpen]);
 
   const formatTime = (isoString) => {
     if (!isoString) return '';
@@ -37,8 +58,10 @@ const ChatFooter = ({ chat, isArchived }) => {
           {/* Reusing the exact layout wrapper from ChatMessage so it perfectly aligns flush-left */}
           <div className={chatMessageStyles['message-row']}>
             <div className={chatMessageStyles['message-row-inner']} style={{ justifyContent: 'flex-start' }}>              
+              
               {/* The ... action menu button perfectly aligned with the left edge of assistant text */}
-              <div className={styles['action-menu-container']}>
+              {/* 3. Attach the ref to the container holding both the button and the popup */}
+              <div className={styles['action-menu-container']} ref={menuRef}>
                 <button 
                   className={styles['action-menu-btn']}
                   onClick={() => setMenuOpen(!menuOpen)}
@@ -52,6 +75,7 @@ const ChatFooter = ({ chat, isArchived }) => {
                   </div>
                 )}
               </div>
+
             </div>
           </div>
         </div>

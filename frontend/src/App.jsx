@@ -9,8 +9,6 @@ import ChatArea from './components/Chat/ChatArea'
 import Tooltip from './components/Tooltip/Tooltip'
 
 import SettingsModal from './components/Settings/SettingsModal'
-import ArchivedChatsModal from './components/Settings/ArchivedChatsModal'
-import ConfirmModal from './components/UI/ConfirmModal'
 
 // Import your shiny new custom hooks!
 import { useChatLifecycle } from './hooks/useChatLifecycle'
@@ -28,8 +26,6 @@ export default function App() {
   const listScrollTrigger = useChatStore(state => state.listScrollTrigger)
 
   const isSettingsOpen = useChatStore(state => state.isSettingsOpen)
-  const isArchivedChatsOpen = useChatStore(state => state.isArchivedChatsOpen)
-  const confirmModalState = useChatStore(state => state.confirmModalState)
   
   const virtuosoRef = useRef(null)
 

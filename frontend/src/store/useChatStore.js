@@ -439,7 +439,15 @@ export const useChatStore = create((set, get) => ({
 
   // ✅ send message
   send: async (msg, setMsg) => {
-    const { isStreaming, token, cid, flushPendingText, cleanupStream, finishCurrentStreamingMessage } = get()
+    const { 
+      token, 
+      cid, 
+      isStreaming, 
+      flushPendingText, 
+      cleanupStream, 
+      finishCurrentStreamingMessage 
+    } = get()
+    
     if (isStreaming) return
 
     const userMsg = msg.trim()
@@ -466,7 +474,11 @@ export const useChatStore = create((set, get) => ({
         createdAt: new Date().toISOString() // Add the timestamp here
       }],
       autoScroll: true,
-      isStreaming: true
+      isStreaming: true,
+      // 👈 FIX: Instantly bump the active conversation's timestamp for the UI sorter!
+      conversations: state.conversations.map(c => 
+        c.id === cid ? { ...c, updated_at: new Date().toISOString() } : c
+      )
     }))
 
     try {
@@ -529,7 +541,12 @@ export const useChatStore = create((set, get) => ({
               cid: newConversationId,
               conversations: state.conversations.some(c => c.id === newConversationId)
                 ? state.conversations
-                : [{ id: newConversationId, title: userMsg.slice(0, 50), is_archived: false }, ...state.conversations]
+                : [{ 
+                    id: newConversationId, 
+                    title: userMsg.slice(0, 50), 
+                    is_archived: false, 
+                    updated_at: new Date().toISOString()  // 👈 FIX: Catch the edge case for auto-created chats
+                  }, ...state.conversations]
             }))
             continue
           }
