@@ -96,7 +96,7 @@ export default function ArchivedChatsModal({ onClose  }) {
                     <button 
                       className={styles.iconBtn} 
                       onClick={() => handleUnarchive(chat.id)}
-                      onMouseEnter={(e) => handleActionMouseEnter(e, 'Unarchive conversation')}
+                      onMouseEnter={(e) => handleActionMouseEnter(e, 'Unarchive conversation', { offsetY: -8 })}
                       onMouseLeave={handleActionMouseLeave}
                     >
                       <UnarchiveIcon />
@@ -104,7 +104,7 @@ export default function ArchivedChatsModal({ onClose  }) {
                     <button 
                       className={styles.iconBtn} 
                       onClick={() => handleDelete(chat.id)}
-                      onMouseEnter={(e) => handleActionMouseEnter(e, 'Delete conversation')}
+                      onMouseEnter={(e) => handleActionMouseEnter(e, 'Delete conversation', { offsetY: -8 })}
                       onMouseLeave={handleActionMouseLeave}
                     >
                       <DeleteIcon />

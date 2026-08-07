@@ -129,13 +129,16 @@ export function useArchivedChatTooltip() {
 export function useActionTooltip() {
   const [actionTooltip, setActionTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
 
-  const handleActionMouseEnter = useCallback((e, text) => {
+  const handleActionMouseEnter = useCallback((e, text, options = {}) => {
+    const { offsetX = null, offsetY = null } = options;
     const rect = e.currentTarget.getBoundingClientRect();
+
     setActionTooltip({
       visible: true,
       text: text,
-      x: rect.left + rect.width / 2,
-      y: rect.top - 8
+      // Uses nullish coalescing so explicit 0 values aren't overwritten
+      x: rect.left + (offsetX ?? rect.width / 2), // Default to center if no offsetX provided
+      y: rect.top + (offsetY ?? rect.height / 2) // Default to center if no offsetY provided
     });
   }, []);
 

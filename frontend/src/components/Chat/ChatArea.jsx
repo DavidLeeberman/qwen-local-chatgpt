@@ -6,6 +6,8 @@ import ChatMessage from './ChatMessage'
 import ChatInput from './ChatInput'
 import ArchivedFooter from './ArchivedFooter'
 import { ErrMessage } from '../UI/FormattedText'
+import { ActionTooltip } from '../Tooltip/Tooltip'
+import { useActionTooltip } from '../../hooks/useTooltip'
 import { MenuDotsIcon, DownArrowIcon } from '../UI/Icons' // Updated icon imports
 
 import styles from './ChatArea.module.css'
@@ -16,6 +18,13 @@ const ChatFooter = ({ chat, isArchived }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null); // 1. Create a ref for the menu container
   const lastMessage = chat[chat.length - 1];
+
+  const {
+    actionTooltip,
+    handleActionMouseEnter,
+    handleActionMouseLeave,
+    hideActionTooltip
+  } = useActionTooltip();
 
   // 2. Add an effect to listen for clicks outside the referenced element
   useEffect(() => {
@@ -64,7 +73,12 @@ const ChatFooter = ({ chat, isArchived }) => {
               <div className={styles['action-menu-container']} ref={menuRef}>
                 <button 
                   className={styles['action-menu-btn']}
-                  onClick={() => setMenuOpen(!menuOpen)}
+                  onClick={() => {
+                    hideActionTooltip(); // Hide any lingering tooltip when toggling the menu
+                    setMenuOpen(!menuOpen)
+                  }}
+                  onMouseEnter={(e) => handleActionMouseEnter(e, 'More actions', { offsetY: 60 })} // Tooltip appears below the button
+                  onMouseLeave={handleActionMouseLeave}
                 >
                   <MenuDotsIcon />
                 </button>
@@ -78,6 +92,8 @@ const ChatFooter = ({ chat, isArchived }) => {
 
             </div>
           </div>
+
+          <ActionTooltip {...actionTooltip} />
         </div>
       )}
       
