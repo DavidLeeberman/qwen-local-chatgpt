@@ -181,7 +181,8 @@ export default function ChatArea({
               <ChatFooter 
                 chat={chat} 
                 isArchived={isArchived} 
-                onBranch={branchChat} 
+                // 🔥 UPDATED: Dynamically pass the active chat's title down to the store
+                onBranch={() => branchChat(activeChat?.title)} 
               />
             )
           }}

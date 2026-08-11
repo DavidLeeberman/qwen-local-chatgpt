@@ -17,12 +17,5 @@ pgdata/
 *.log
 
 # tests and tutorials
-*.rec/
-*.temp/
-*.prev/
-*.rec.*
-*.tmp.*
-*.temp.*
-*.work.*
-*.prev.*
-*.next.*
+*.*.*/
+*.*.*

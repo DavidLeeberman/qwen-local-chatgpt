@@ -23,6 +23,7 @@ export const useChatStore = create((set, get) => ({
   listScrollTrigger: 0,
   isStreaming: false,
   isBranched: false,  // Tracks if we are drafting a branched chat from an archived conversation
+  branchedOriginalTitle: '', // 🔥 ADDED: State to hold the title of the chat being branched
   autoScroll: true,
   err: '',
   editingChatId: null,
@@ -119,6 +120,7 @@ export const useChatStore = create((set, get) => ({
     set({ 
       cid: id, 
       isBranched: false, // Reset branching flag when loading another chat
+      branchedOriginalTitle: '', // 🔥 ADDED: Reset when switching chats
       err: '' 
     })
 
@@ -416,7 +418,8 @@ export const useChatStore = create((set, get) => ({
       chat: [], 
       cid: null, 
       conversations: [], 
-      err: '' 
+      err: '',
+      branchedOriginalTitle: '' // 🔥 ADDED: Reset on logout
     })
   },
 
@@ -440,8 +443,14 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  branchChat: () => {
-    set({ isBranched: true, cid: null, err: '' })
+  // 🔥 UPDATED: Now accepts originalTitle from the UI
+  branchChat: (originalTitle) => {
+    set({ 
+      isBranched: true, 
+      cid: null, 
+      err: '',
+      branchedOriginalTitle: originalTitle || 'Archived Chat'
+    })
   },
 
   // ✅ send message
@@ -454,6 +463,7 @@ export const useChatStore = create((set, get) => ({
       cleanupStream, 
       finishCurrentStreamingMessage,
       isBranched,
+      branchedOriginalTitle, // 🔥 EXTACTED: Pull the title from state
       chat 
     } = get()
     
@@ -529,8 +539,8 @@ export const useChatStore = create((set, get) => ({
           body: JSON.stringify({ 
             message: userMsg, 
             conversation_id: wasBranched ? null : cid,
-            // Send the properly formatted history
-            ...(wasBranched ? { history: formattedHistory, title: userMsg } : {})
+            // 🔥 UPDATED: Pass the original_title to the backend along with the history
+            ...(wasBranched ? { history: formattedHistory, original_title: branchedOriginalTitle } : {})
           }),
           signal: abortController.signal
         }
@@ -581,18 +591,25 @@ export const useChatStore = create((set, get) => ({
 
           if (data[SSE_META]) {
             const newConversationId = data[SSE_META].conversation_id
+            
+            // Allow the backend to force a new title via SSE_META if it intercepted one inline
+            const forcedTitle = data[SSE_META].title 
+
             set(state => {
               // 🌟 FIX 2: Replace the optimistic tempId conversation with the real server ID.
               // This completely prevents the duplicate conversation bug.
               let updatedConversations = state.conversations.map(c => 
-                c.id === tempId ? { ...c, id: newConversationId } : c
+                c.id === tempId ? { 
+                  ...c, 
+                  id: newConversationId, 
+                  ...(forcedTitle ? { title: forcedTitle } : {}) // Inject the backend title if present
+                } : c
               )
               
-              // Fallback: If it's a completely new chat (not branched) where tempId wasn't used in the list
               if (!updatedConversations.some(c => c.id === newConversationId)) {
                 updatedConversations = [{ 
                     id: newConversationId, 
-                    title: userMsg.slice(0, 50), 
+                    title: forcedTitle || userMsg.slice(0, 50), 
                     is_archived: false, 
                     updated_at: new Date().toISOString()  // 👈 FIX: Catch the edge case for auto-created chats
                   }, ...updatedConversations]

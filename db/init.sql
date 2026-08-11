@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS conversations (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
-    title TEXT DEFAULT 'New Chat',
+    title TEXT,                -- DEFAULT 'New Chat',
     system_prompt TEXT DEFAULT 'You are a helpful assistant powered by a large language model running locally.',
     is_pinned BOOLEAN DEFAULT FALSE,
     is_archived BOOLEAN DEFAULT FALSE,

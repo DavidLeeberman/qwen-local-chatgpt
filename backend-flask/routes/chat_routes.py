@@ -17,20 +17,24 @@ def chat():
     if not user or 'user_id' not in user:
         return jsonify({"error": "unauthorized"}), 401
 
-    uid = user['user_id']
     data = request.get_json()
-
-    cid = data.get('conversation_id')
     msg = data.get('message', '').strip()
-    history = data.get('history', []) # ✅ 1. Extract history from the frontend payload
-
     if not msg:
         return jsonify({"error": "empty message"}), 400
+    
+    uid = user['user_id']
+    cid = data.get('conversation_id')
+    history = data.get('history', []) # ✅ 1. Extract history from the frontend payload
+    
+    # Extract original_title from the frontend payload (Option 1)
+    original_title = data.get('original_title', 'Branch')
+    branched_title = f"[Branched]: {original_title} -> {msg}" if original_title else f"[Branched]: {msg}"
+
 
     with get_db() as conn:
         with conn.cursor() as cur:
 
-            # ✅ 2. Create conversation if not provided (Branching triggers this)
+            # ✅ 2. Create conversation if not provided (Branching or New Chat triggers this)
             if not cid:
                 cur.execute(
                     "INSERT INTO conversations (user_id) VALUES (%s) RETURNING id",
@@ -111,7 +115,12 @@ def chat():
             # 6. Call LLM engine and generate streaming response with the agnostic Chat API schema
             def generate():
                 if new_id:
-                    meta_data = json.dumps({SSE_META: {"conversation_id": cid}})
+                    meta_data = json.dumps({
+                        SSE_META: {
+                            "conversation_id": cid,
+                            "title": branched_title
+                        }
+                    })
                     yield f"{SSE_PREFIX}{meta_data}{SSE_DELIMITER}"
 
                 llm_response = None
@@ -232,6 +241,7 @@ def chat():
                                         })
 
                                         yield f"{SSE_PREFIX}{ids_data}{SSE_DELIMITER}"
+
                             except Exception as db_err:
                                 save_conn.rollback()
                                 print("POST-STREAM DB SAVE CRITICAL FAILURE:", db_err)
@@ -247,7 +257,7 @@ def chat():
                 if row and not row[0]:
                     cur.execute(
                         "UPDATE conversations SET title=%s WHERE id=%s",
-                        (msg, cid)
+                        (branched_title, cid)
                     )
                     conn.commit()
             except Exception as e:
