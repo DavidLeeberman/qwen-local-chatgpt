@@ -24,7 +24,7 @@ export default function App() {
   const conversations = useChatStore(state => state.conversations)
   const chat = useChatStore(state => state.chat)
   const listScrollTrigger = useChatStore(state => state.listScrollTrigger)
-  const setBranched = useChatStore(state => state.setBranched)
+  const newChat = useChatStore(state => state.newChat)
 
   const isSettingsOpen = useChatStore(state => state.isSettingsOpen)
   
@@ -72,7 +72,7 @@ export default function App() {
             onNewChat={() => {
               // Trigger your Zustand createChat action here, e.g.:
               // useChatStore.getState().createNewChat()
-              setBranched(false); // Reset branched state when starting a new chat
+              newChat(); // Reset branched state when starting a new chat
             }}
           />
         }

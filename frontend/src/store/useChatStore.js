@@ -425,22 +425,9 @@ export const useChatStore = create((set, get) => ({
 
   // ✅ create new chat
   newChat: async () => {
-    const { token, cleanupStream } = get()
+    const { setBranched, cleanupStream } = get()
     cleanupStream(false, true)
-    try {
-      const r = await axios.post(
-        `${API_URL}/api/conversations`, 
-        {}, 
-        { headers: { Authorization: token } }
-      )
-      set(state => ({
-        cid: r.data.conversation_id,
-        chat: [],
-        conversations: [{ id: r.data.conversation_id, title: 'New Chat', is_archived: false }, ...state.conversations]
-      }))
-    } catch {
-      set({ err: 'Failed to create chat' })
-    }
+    setBranched(false)
   },
 
   // 🔥 UPDATED: Now accepts originalTitle from the UI
@@ -499,21 +486,38 @@ export const useChatStore = create((set, get) => ({
     }) : undefined
 
     set(state => {
-      // If branched, create a new conversation entry named with the newly-sent prompt
-      const updatedConversations = wasBranched
-        ? [
-            { 
-              id: tempId, // We optimistically use tempId here
-              title: userMsg, 
-              is_archived: false, 
-              updated_at: new Date().toISOString() 
-            },
-            ...state.conversations
-          ]
-        : state.conversations.map(c => 
-            // 👈 FIX: Instantly bump the active conversation's timestamp for the UI sorter!
-            c.id === cid ? { ...c, updated_at: new Date().toISOString() } : c
-          )
+      let updatedConversations;
+
+      // 1. Handle New Chat and Branched Chat (Insert at the top)
+      if (wasBranched || !cid) {
+        updatedConversations = [
+          { 
+            id: tempId, // Optimistic ID
+            title: userMsg.slice(0, 40) + '...', // Instant optimistic title
+            is_archived: false, 
+            updated_at: new Date().toISOString() 
+          },
+          ...state.conversations
+        ];
+      } 
+      // 2. Handle Existing Chat (Extract and move to the top)
+      else {
+        const activeChat = state.conversations.find(c => c.id === cid);
+        const otherChats = state.conversations.filter(c => c.id !== cid);
+
+        if (activeChat) {
+          const updatedChat = { 
+            ...activeChat, 
+            updated_at: new Date().toISOString(),
+            // Instantly overwrite 'New Chat' default titles
+            title: activeChat.title === 'New Chat' ? userMsg.slice(0, 40) + '...' : activeChat.title
+          };
+          // Array destructuring pushes the active chat to index 0
+          updatedConversations = [updatedChat, ...otherChats];
+        } else {
+          updatedConversations = state.conversations;
+        }
+      }
 
       return {
         chat: [...state.chat, { 

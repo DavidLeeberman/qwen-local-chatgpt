@@ -27,8 +27,8 @@ def chat():
     history = data.get('history', []) # ✅ 1. Extract history from the frontend payload
     
     # Extract original_title from the frontend payload (Option 1)
-    original_title = data.get('original_title', 'Branch')
-    branched_title = f"[Branched]: {original_title} -> {msg}" if original_title else f"[Branched]: {msg}"
+    original_title = data.get('original_title', None)
+    new_title = f"[Branched]: {original_title} -> {msg}" if original_title else msg
 
 
     with get_db() as conn:
@@ -118,7 +118,7 @@ def chat():
                     meta_data = json.dumps({
                         SSE_META: {
                             "conversation_id": cid,
-                            "title": branched_title
+                            "title": new_title
                         }
                     })
                     yield f"{SSE_PREFIX}{meta_data}{SSE_DELIMITER}"
@@ -257,7 +257,7 @@ def chat():
                 if row and not row[0]:
                     cur.execute(
                         "UPDATE conversations SET title=%s WHERE id=%s",
-                        (branched_title, cid)
+                        (new_title, cid)
                     )
                     conn.commit()
             except Exception as e:
