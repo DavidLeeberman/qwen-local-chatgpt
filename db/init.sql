@@ -30,3 +30,14 @@ CREATE TABLE IF NOT EXISTS memory (
   content TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Enable Trigram extension for fast searching
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Index the conversation titles
+CREATE INDEX IF NOT EXISTS conversations_title_trgm_idx 
+ON conversations USING GIN (title gin_trgm_ops);
+
+-- Index the message content
+CREATE INDEX IF NOT EXISTS messages_content_trgm_idx 
+ON messages USING GIN (content gin_trgm_ops);

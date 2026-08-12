@@ -250,3 +250,78 @@ def delete_all_conversations():
             conn.commit()
             
     return jsonify({"status": "success"})
+
+@conv_bp.route('/conversations/search', methods=['GET'])
+def search_conversations():
+    user = verify_token(request.headers.get("Authorization"))
+    if not user or 'user_id' not in user:
+        return jsonify({"error": "unauthorized"}), 401
+
+    query_str = request.args.get('q', '').strip()
+    if not query_str:
+        return jsonify([])
+
+    search_pattern = f"%{query_str}%"
+    user_id = user['user_id']
+
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # SQL Architecture: Scans titles and message content using GIN trigram indexes
+            cur.execute("""
+                SELECT 
+                    c.id AS conversation_id,
+                    c.title,
+                    c.updated_at,
+                    c.is_archived,
+                    m.id AS message_id,
+                    m.role,
+                    m.content,
+                    m.created_at AS message_created_at
+                FROM conversations c
+                LEFT JOIN messages m ON c.id = m.conversation_id
+                WHERE c.user_id = %s 
+                  AND (c.title ILIKE %s OR m.content ILIKE %s)
+                ORDER BY COALESCE(m.created_at, c.updated_at) DESC
+                LIMIT 100
+            """, (user_id, search_pattern, search_pattern))
+
+            rows = cur.fetchall()
+
+    # Deduplicate and format results for OpenAI-style UI display
+    results = []
+    seen_cids = set()
+
+    for r in rows:
+        cid, title, updated_at, is_archived, msg_id, role, content, msg_created_at = r
+
+        # Group by conversation_id so a single chat isn't listed multiple times
+        if cid in seen_cids:
+            continue
+        seen_cids.add(cid)
+
+        snippet = ""
+        match_type = "title"
+
+        if content:
+            # Find match position to generate a contextual snippet around the keyword
+            match_index = content.lower().find(query_str.lower())
+            if match_index != -1:
+                start = max(0, match_index - 40)
+                end = min(len(content), match_index + len(query_str) + 60)
+                snippet = ("..." if start > 0 else "") + content[start:end] + ("..." if end < len(content) else "")
+                match_type = "content"
+            else:
+                snippet = content[:100] + ("..." if len(content) > 100 else "")
+
+        results.append({
+            "conversation_id": cid,
+            "title": title or "New Chat",
+            "updated_at": str(updated_at),
+            "is_archived": bool(is_archived),
+            "matched_message_id": msg_id,
+            "matched_role": role,
+            "match_type": match_type,
+            "snippet": snippet
+        })
+
+    return jsonify(results)
