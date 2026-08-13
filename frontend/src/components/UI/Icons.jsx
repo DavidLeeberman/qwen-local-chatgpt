@@ -184,7 +184,7 @@ export const DownArrowIcon = ({ className = '', style = {} }) => (
   </svg>
 );
 
-// Add BranchIcon to Icons.jsx exports
+// Add Branch icon to Icons.jsx exports
 export const BranchIcon = ({ className = '', style = {} }) => (
   <svg 
     className={`${styles['base-icon']} ${className}`.trim()}
@@ -196,5 +196,18 @@ export const BranchIcon = ({ className = '', style = {} }) => (
     <polyline points="15 4 18 7 15 10" />
     <path d="M8 12c3 0 4 5 7 5h3" />
     <polyline points="15 14 18 17 15 20" />
+  </svg>
+);
+
+// Add Search icon export to Icons.jsx
+export const SearchIcon = ({ className = '', style = {} }) => (
+  <svg 
+    className={`${styles['base-icon']} ${className}`.trim()}
+    style={style} 
+    width="16" height="16" viewBox="0 0 24 24" 
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+  >
+    <circle cx="11" cy="11" r="8"></circle>
+    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
   </svg>
 );

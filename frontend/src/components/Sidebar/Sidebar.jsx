@@ -4,6 +4,7 @@ import { useChatStore } from '../../store/useChatStore';
 import { getInitials } from '../../utils/UIUtils';
 import SidebarGroup from './SidebarGroup';
 import UserMenu from './UserMenu';
+import { SearchIcon } from '../UI/Icons';
 
 // Import hook and tooltips
 import { useAccountTooltip } from '../../hooks/useTooltip';
@@ -43,6 +44,18 @@ export default function Sidebar({
       
       {/* SIDEBAR HEADER / NEW CHAT BUTTON */}
       <div className={styles['sidebar-header']}>
+        {/* NEW TOP ROW */}
+        <div className={styles['sidebar-top-row']}>
+          <h2 className={styles['sidebar-title']}>ChatGPT</h2>
+          <button 
+            className={styles['search-btn']}
+            onClick={() => useChatStore.getState().setSearchModalOpen(true)}
+            title="Search (Ctrl + K)" // Or hook this into your custom Tooltip system
+          >
+            <SearchIcon />
+          </button>
+        </div>
+
         <button 
           className={styles['sidebar-btn']}
           onClick={() => {

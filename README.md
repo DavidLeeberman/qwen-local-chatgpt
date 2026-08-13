@@ -215,6 +215,10 @@ qwen-local-chatgpt/
 │       │   |   ├── ArchivedFooter.jsx
 │       │   |   └── ArchivedFooter.module.css     # 👈 Archived chat footer, button, reminder
 |       |   |
+|       │   ├── Search/
+|       │   │   ├── SearchModal.jsx
+│       │   |   └── SearchModal.module.css        # 👈 Search chats modal container
+|       |   |
 |       │   ├── Settings/
 |       │   │   ├── ArchivedChatsModal.jsx
 │       │   |   ├── ArchivedChatsModal.module.css # 👈 Archived chats modal container

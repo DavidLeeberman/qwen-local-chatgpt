@@ -9,6 +9,7 @@ import ChatArea from './components/Chat/ChatArea'
 import Tooltip from './components/Tooltip/Tooltip'
 
 import SettingsModal from './components/Settings/SettingsModal'
+import SearchModal from './components/Search/SearchModal'
 
 // Import your shiny new custom hooks!
 import { useChatLifecycle } from './hooks/useChatLifecycle'
@@ -23,10 +24,15 @@ export default function App() {
   const setUsername = useChatStore(state => state.setUsername)
   const conversations = useChatStore(state => state.conversations)
   const chat = useChatStore(state => state.chat)
+  const targetMessageId = useChatStore(state => state.targetMessageId)
   const listScrollTrigger = useChatStore(state => state.listScrollTrigger)
   const newChat = useChatStore(state => state.newChat)
 
   const isSettingsOpen = useChatStore(state => state.isSettingsOpen)
+
+  // 2. Add the search modal state
+  const isSearchModalOpen = useChatStore(state => state.isSearchModalOpen)
+  const setSearchModalOpen = useChatStore(state => state.setSearchModalOpen)
   
   const virtuosoRef = useRef(null)
 
@@ -35,17 +41,46 @@ export default function App() {
   const { tooltip, handleTitleMouseEnter, handleTitleMouseLeave } = useTooltip()
   const { dropdownPos, updateDropdownPosition, activeMenuBtnRef } = useDropdown()
 
-  // 2. Virtuoso Auto-Scroll Logic (Stays here since it dictates ChatArea rendering)
+  // 2. Virtuoso Auto-Scroll Logic (Handles both target search scrolls and normal bottom scrolls in ChatArea rendering)
   useEffect(() => {
     if (listScrollTrigger > 0 && virtuosoRef.current) {
       requestAnimationFrame(() => {
+        // If a target message ID exists from search, scroll directly to center on it
+        if (targetMessageId) {
+          const targetIndex = chat.findIndex(
+            m => m.id === targetMessageId || m.userMessageId === targetMessageId || m.assistantMessageId === targetMessageId
+          )
+
+          if (targetIndex !== -1) {
+            virtuosoRef.current.scrollToIndex({
+              index: targetIndex,
+              align: 'center',
+              behavior: 'smooth'
+            })
+            return
+          }
+        }
+
+        // Default behavior: scroll to the bottom of the chat list
         virtuosoRef.current.scrollToIndex({ 
           index: Math.max(chat.length - 1, 0), 
           align: 'end' 
         })
       })
     }
-  }, [listScrollTrigger, chat.length]) // Only fires when loadMessages increments the trigger!
+  }, [listScrollTrigger, chat, targetMessageId])
+
+  // 3. Add the global Keyboard Shortcut listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchModalOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [setSearchModalOpen])
 
   // 3. Early Return for Auth
   if (!token) return <Login setToken={setToken} setUsername={setUsername} />
@@ -90,6 +125,7 @@ export default function App() {
 
       {/* 3. Render Modals conditionally based on Zustand state */}
       {isSettingsOpen && <SettingsModal />}
+      {isSearchModalOpen && <SearchModal />}
     </AppContainer>
   )
 }

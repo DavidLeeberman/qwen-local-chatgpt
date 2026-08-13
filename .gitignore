@@ -17,5 +17,5 @@ pgdata/
 *.log
 
 # tests and tutorials
-*.*.*/
-*.*.*
+*.tmp.*/
+*.tmp.*

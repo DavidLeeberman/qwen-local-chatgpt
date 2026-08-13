@@ -29,8 +29,14 @@ export const useChatStore = create((set, get) => ({
   editingChatId: null,
   editTitleBuffer: '',
   openDropdownCid: null,
+
+  // Search states
+  isSearching: false,
+  searchResults: [],
+  targetMessageId: null,
   
   // Modal States
+  isSearchModalOpen: false,
   isSettingsOpen: false,
   isArchivedChatsOpen: false, // ✅ ADDED: State for Archived Chats Modal
   confirmModalState: { isOpen: false, title: '', message: '', onConfirm: null }, // ✅ ADDED: State for Confirmation Modal
@@ -48,6 +54,12 @@ export const useChatStore = create((set, get) => ({
     else localStorage.removeItem('username')
     set({ username })
   },
+
+  setSearchModalOpen: (isOpen) => set({ 
+    isSearchModalOpen: isOpen, 
+    searchResults: [], 
+    isSearching: false 
+  }),
   
   setCid: (cid) => set({ cid }),
   setChat: (chat) => set({ chat }),
@@ -106,8 +118,8 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // ✅ load messages when switching conversation
-  loadMessages: async (id) => {
+  // Load messages when switching conversation (supports optional targetMessageId for search highlights)
+  loadMessages: async (id, targetMessageId = null) => {
     const { token, cleanupStream } = get()
     // Stop any active stream first
     cleanupStream(false, true)
@@ -119,6 +131,7 @@ export const useChatStore = create((set, get) => ({
 
     set({ 
       cid: id, 
+      targetMessageId, // Save target message ID for Virtuoso scrolling
       isBranched: false, // Reset branching flag when loading another chat
       branchedOriginalTitle: '', // 🔥 ADDED: Reset when switching chats
       err: '' 
@@ -172,7 +185,7 @@ export const useChatStore = create((set, get) => ({
       })
       if (current) formatted.push(current)
 
-      // 👈 2. Update the chat AND increment the trigger
+      // Update the chat AND increment listScrollTrigger
       set(state => ({ 
         chat: formatted,
         listScrollTrigger: state.listScrollTrigger + 1 
@@ -419,7 +432,8 @@ export const useChatStore = create((set, get) => ({
       cid: null, 
       conversations: [], 
       err: '',
-      branchedOriginalTitle: '' // 🔥 ADDED: Reset on logout
+      branchedOriginalTitle: '', // 🔥 ADDED: Reset on logout
+      targetMessageId: null
     })
   },
 
@@ -428,6 +442,7 @@ export const useChatStore = create((set, get) => ({
     const { setBranched, cleanupStream } = get()
     cleanupStream(false, true)
     setBranched(false)
+    set({ targetMessageId: null })
   },
 
   // 🔥 UPDATED: Now accepts originalTitle from the UI
@@ -435,9 +450,37 @@ export const useChatStore = create((set, get) => ({
     set({ 
       isBranched: true, 
       cid: null, 
+      targetMessageId: null,
       err: '',
       branchedOriginalTitle: originalTitle || 'Archived Chat'
     })
+  },
+
+  // Search conversations endpoint action
+  searchChats: async (query) => {
+    const { token } = get()
+    if (!query.trim()) {
+      set({ searchResults: [], isSearching: false })
+      return
+    }
+
+    set({ isSearching: true })
+    try {
+      // NOTE: You need to implement this endpoint on your backend
+      const r = await axios.get(
+        `${API_URL}/api/conversations/search?q=${encodeURIComponent(query)}`, 
+        {
+          headers: { Authorization: token }
+        }
+      )
+      
+      set({ searchResults: r.data })
+    } catch (err) {
+      console.error('Failed to search chats:', err)
+      set({ searchResults: [] })
+    } finally {
+      set({ isSearching: false })
+    }
   },
 
   // ✅ send message
@@ -465,7 +508,7 @@ export const useChatStore = create((set, get) => ({
     abortController = new AbortController()
 
     setMsg('')
-    set({ err: '' })
+    set({ err: '', targetMessageId: null })
 
     // add placeholder assistant message
     const tempId = generateId()
