@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+
 import { useChatStore } from '../../store/useChatStore';
+import { formatDate } from '../UI/FormattedText';
 import { ChatBubbleIcon, ArchiveIcon } from '../UI/Icons';
+
 import styles from './SearchModal.module.css';
 
 export default function SearchModal() {
@@ -54,10 +57,25 @@ export default function SearchModal() {
     loadMessages(cid, msgId);
   };
 
-  const formatDate = (isoString) => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
+  // NEW: Function to dynamically highlight the search term in snippets
+  const highlightMatch = (text, searchQuery) => {
+    if (!searchQuery.trim() || !text) return text;
+    
+    // Escape special characters in query to prevent regex crashes
+    const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parts = text.split(new RegExp(`(${escapedQuery})`, 'gi'));
+    
+    return (
+      <>
+        {parts.map((part, index) =>
+          part.toLowerCase() === searchQuery.toLowerCase() ? (
+            <span key={index} className={styles.highlight}>{part}</span>
+          ) : (
+            part
+          )
+        )}
+      </>
+    );
   };
 
   return (
@@ -102,9 +120,15 @@ export default function SearchModal() {
                 </div>
                 
                 <div className={styles.contentWrapper}>
-                  <div className={styles.title}>{result.title}</div>
+                  <div className={styles.title}>
+                    {highlightMatch(result.title, query)}
+                    {/* {result.title} */}
+                  </div>
                   {result.snippet && query.trim() && (
-                    <div className={styles.snippet}>{result.snippet}</div>
+                    <div className={styles.snippet}>
+                      {/* Execute highlight check dynamically */}
+                      {highlightMatch(result.snippet, query)}
+                    </div>
                   )}
                 </div>
 

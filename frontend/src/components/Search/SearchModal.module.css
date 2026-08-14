@@ -80,10 +80,10 @@
 }
 
 .sectionTitle {
-  font-size: 12px;
-  color: #8e8ea0;
+  font-size: 14px;
+  color: #b4b4c5; /* Brighter than the standard #8e8ea0, darker than #ececf1 */
   padding: 8px 12px;
-  font-weight: 500;
+  font-weight: 600; /* Slightly bolder to match ChatGPT's UI */
 }
 
 .resultItem {
@@ -134,6 +134,14 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* NEW: Highlight class for matched keywords */
+.highlight {
+  background-color: #ffff00; /* Solid yellow background */
+  color: #000000; /* Dark text for contrast against the yellow */
+  font-weight: 400; /* Resets to normal weight to match the screenshot */
+  border-radius: 2px; /* Optional: adds a slight softening to the edges */
 }
 
 .dateWrapper {

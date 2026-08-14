@@ -8,7 +8,8 @@ import ArchivedFooter from './ArchivedFooter'
 import { ErrMessage } from '../UI/FormattedText'
 import { ActionTooltip } from '../Tooltip/Tooltip'
 import { useActionTooltip } from '../../hooks/useTooltip'
-import { MenuDotsIcon, DownArrowIcon, BranchIcon } from '../UI/Icons' // Updated icon imports
+import { formatDate, formatTime } from '../UI/FormattedText'
+import { MenuDotsIcon, DownArrowIcon, BranchIcon } from '../UI/Icons'
 
 import styles from './ChatArea.module.css'
 import chatMessageStyles from './ChatMessage.module.css' // Needed to perfectly align the action menu
@@ -46,14 +47,7 @@ const ChatFooter = ({ chat, isArchived, onBranch }) => {
     };
   }, [menuOpen]);
 
-  const formatTime = (isoString) => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    return date.toLocaleString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
-      hour: 'numeric', minute: '2-digit', hour12: true
-    });
-  };
+  const formatDateTime = (isoString) => { return formatDate(isoString) + ', ' + formatTime(isoString); };
 
   const handleBranchClick = () => {
     setMenuOpen(false); // Closes popup menu
@@ -91,7 +85,7 @@ const ChatFooter = ({ chat, isArchived, onBranch }) => {
                 {menuOpen && (
                   <div className={styles['action-menu-popup']}>
                     <div className={styles['action-menu-timestamp']}>
-                      {lastMessage?.createdAt ? formatTime(lastMessage.createdAt) : 'Just now'}
+                      {lastMessage?.createdAt ? formatDateTime(lastMessage.createdAt) : 'Just now'}
                     </div>
 
                     {isArchived && (
