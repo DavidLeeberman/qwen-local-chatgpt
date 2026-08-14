@@ -3,8 +3,8 @@ import styles from './FormattedText.module.css';
 
 export const TruncatedText = ({ 
   text, 
-  handleMouseEnter, 
-  handleMouseLeave,
+  handleMouseEnter = () => {}, 
+  handleMouseLeave = () => {},
   className = '' 
 }) => (
   <span 
