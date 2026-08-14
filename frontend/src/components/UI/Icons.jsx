@@ -7,9 +7,14 @@ export const ChatBubbleIcon = ({ className = '', style = {} }) => (
     className={`${styles['base-icon']} ${className}`.trim()}
     style={style} 
     width="16" height="16" viewBox="0 0 24 24" 
-    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="1.5" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
   >
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    {/* Added transform to shift the shape 2 units down inside the viewBox */}
+    <path transform="translate(0, 2)" d="M7 17.5A10 9 0 1 0 3.5 14.5L2.5 20.5Z" />
   </svg>
 );
 
