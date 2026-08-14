@@ -10,13 +10,17 @@ import Tooltip from './components/Tooltip/Tooltip'
 
 import SettingsModal from './components/Settings/SettingsModal'
 import SearchModal from './components/Search/SearchModal'
+import ConfirmModal from './components/UI/ConfirmModal' // 👈 Import your modal
 
 // Import your shiny new custom hooks!
 import { useChatLifecycle } from './hooks/useChatLifecycle'
 import { useDropdown } from './hooks/useDropdown'
 import { useTooltip } from './hooks/useTooltip'
 
+import { TruncatedText } from './components/UI/FormattedText'
+
 import './App.css'
+import confirmModalStyles from './components/UI/ConfirmModal.module.css'
 
 export default function App() {
   const token = useChatStore(state => state.token)
@@ -33,6 +37,11 @@ export default function App() {
   // 2. Add the search modal state
   const isSearchModalOpen = useChatStore(state => state.isSearchModalOpen)
   const setSearchModalOpen = useChatStore(state => state.setSearchModalOpen)
+  
+  // 👈 NEW: Grab global delete state and actions
+  const chatToDelete = useChatStore(state => state.chatToDelete)
+  const setChatToDelete = useChatStore(state => state.setChatToDelete)
+  const deleteConversation = useChatStore(state => state.deleteConversation)
   
   const virtuosoRef = useRef(null)
 
@@ -126,6 +135,30 @@ export default function App() {
       {/* 3. Render Modals conditionally based on Zustand state */}
       {isSettingsOpen && <SettingsModal />}
       {isSearchModalOpen && <SearchModal />}
+
+      {/* 👈 NEW: Render the global ConfirmModal */}
+      {chatToDelete && (
+        <ConfirmModal
+          title="Delete chat?"
+          message={
+            <>
+              Are you sure you want to permanently delete conversation:<br />
+              '<TruncatedText 
+                text={chatToDelete.title || 'New Chat'}
+                className={confirmModalStyles.messageBox} 
+              />'?<br />
+              <strong>This action cannot be undone.</strong>
+            </>
+          }
+          confirmText="Delete"
+          isDanger={true}
+          onConfirm={() => {
+            deleteConversation(chatToDelete.id)
+            setChatToDelete(null) // Close modal after delete
+          }}
+          onCancel={() => setChatToDelete(null)} // Close modal on cancel
+        />
+      )}
     </AppContainer>
   )
 }

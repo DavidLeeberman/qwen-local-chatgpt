@@ -1,5 +1,5 @@
 .overlay {
-  position: absolute;
+  position: fixed; /* Changed from absolute */
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
   display: flex;
@@ -23,6 +23,16 @@
   font-size: 18px;
   font-weight: 600;
   color: #ececf1;
+}
+
+.messageBox {
+  display: inline-block;
+  vertical-align: bottom; /* Aligns the text cleanly with the surrounding quotes */
+  /* Forces the ellipsis to trigger before hitting the modal edges
+     Takes up % the full width of the parent container 
+     to leave room for the opening quote (') and closing quote/question mark ('?) 
+     so they don't get pushed to the next line. */
+  max-width: 95%;
 }
 
 .message {

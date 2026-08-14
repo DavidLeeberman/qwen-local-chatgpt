@@ -28,7 +28,7 @@ export default function ConversationItem({
   const togglePin = useChatStore(state => state.togglePin)
   const saveRenamedTitle = useChatStore(state => state.saveRenamedTitle)
   const archiveConversation = useChatStore(state => state.archiveConversation)
-  const deleteConversation = useChatStore(state => state.deleteConversation)
+  const setChatToDelete = useChatStore(state => state.setChatToDelete)
 
   // Handle saving/canceling rename when clicking outside the input box
   useEffect(() => {
@@ -199,7 +199,9 @@ export default function ConversationItem({
 
             <button className={styles['danger']} onClick={(e) => {
               e.stopPropagation()
-              deleteConversation(c.id)
+              // 👈 INSTEAD OF DELETING, SET GLOBAL STATE
+              setChatToDelete(c)
+              setOpenDropdownCid(null)
             }}>
               <DeleteIcon />
               Delete

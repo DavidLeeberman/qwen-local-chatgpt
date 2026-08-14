@@ -29,6 +29,7 @@ export const useChatStore = create((set, get) => ({
   editingChatId: null,
   editTitleBuffer: '',
   openDropdownCid: null,
+  chatToDelete: null,
 
   // Search states
   isSearching: false,
@@ -69,6 +70,8 @@ export const useChatStore = create((set, get) => ({
   setEditingChatId: (id) => set({ editingChatId: id }),
   setEditTitleBuffer: (text) => set({ editTitleBuffer: text }),
   setOpenDropdownCid: (id) => set({ openDropdownCid: id }),
+  setChatToDelete: (chat) => set({ chatToDelete: chat }),
+
   
   // Modal Setters
   setSettingsOpen: (isOpen) => set({ isSettingsOpen: isOpen }),
