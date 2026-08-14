@@ -4,6 +4,7 @@ import { useChatStore } from '../../store/useChatStore';
 import { getInitials } from '../../utils/UIUtils';
 import SidebarGroup from './SidebarGroup';
 import UserMenu from './UserMenu';
+import { TruncatedText } from '../UI/FormattedText';
 import { SearchIcon } from '../UI/Icons';
 
 // Import hook and tooltips
@@ -11,6 +12,7 @@ import { useAccountTooltip } from '../../hooks/useTooltip';
 import { CursorTooltip } from '../Tooltip/Tooltip';
 
 import styles from './Sidebar.module.css';
+import formattedTextStyles from '../UI/FormattedText.module.css';
 
 export default function Sidebar({
   pinnedChats,
@@ -110,15 +112,14 @@ export default function Sidebar({
 
           {/* Truncated Name */}
           <div className={styles['user-name-container']}>
-            <div 
-              className={styles['user-name-text']}
-              onMouseEnter={(e) => {
+            <TruncatedText
+              text={username}
+              handleMouseEnter={(e) => {
                 if (!isUserMenuOpen) handleAccountMouseEnter(e, username);
               }}
-              onMouseLeave={handleAccountMouseLeave}
-            >
-              {username}
-            </div>
+              handleMouseLeave={handleAccountMouseLeave}
+              className={styles['user-name-text']}
+            />
           </div>
         </button>
 
