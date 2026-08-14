@@ -123,22 +123,16 @@
 
 .title {
   font-size: 14px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .snippet {
   font-size: 13px;
   color: #8e8ea0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* NEW: Highlight class for matched keywords */
 .highlight {
-  background-color: #ffff00; /* Solid yellow background */
+  background-color: #ececf1; /* Solid light gray background */
   color: #000000; /* Dark text for contrast against the yellow */
   font-weight: 400; /* Resets to normal weight to match the screenshot */
   border-radius: 2px; /* Optional: adds a slight softening to the edges */

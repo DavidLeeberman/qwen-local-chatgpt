@@ -5,6 +5,7 @@ import { formatDate } from '../UI/FormattedText';
 import { ChatBubbleIcon, ArchiveIcon } from '../UI/Icons';
 
 import styles from './SearchModal.module.css';
+import formattedTextStyles from '../UI/FormattedText.module.css'; // Import the CSS module for FormattedText
 
 export default function SearchModal() {
   const [query, setQuery] = useState('');
@@ -120,12 +121,12 @@ export default function SearchModal() {
                 </div>
                 
                 <div className={styles.contentWrapper}>
-                  <div className={styles.title}>
+                  <div className={`${formattedTextStyles.truncatedTitle} ${styles.title}`}>
                     {highlightMatch(result.title, query)}
                     {/* {result.title} */}
                   </div>
                   {result.snippet && query.trim() && (
-                    <div className={styles.snippet}>
+                    <div className={`${formattedTextStyles.truncatedTitle} ${styles.snippet}`}>
                       {/* Execute highlight check dynamically */}
                       {highlightMatch(result.snippet, query)}
                     </div>
