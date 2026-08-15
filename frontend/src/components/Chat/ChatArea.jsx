@@ -8,7 +8,7 @@ import ArchivedFooter from './ArchivedFooter'
 import { ErrMessage } from '../UI/FormattedText'
 import { ActionTooltip } from '../Tooltip/Tooltip'
 import { useActionTooltip } from '../../hooks/useTooltip'
-import { formatDate, formatTime } from '../UI/FormattedText'
+import { formatDate, formatTime, formatTimestamp } from '../UI/FormattedText'
 import { MenuDotsIcon, DownArrowIcon, BranchIcon } from '../UI/Icons'
 
 import styles from './ChatArea.module.css'
@@ -155,20 +155,33 @@ export default function ChatArea({
           ref={virtuosoRef}
           data={chat}
           increaseViewportBy={increaseViewportBy}
-          followOutput={(isAtBottom) =>
-            autoScroll && isAtBottom ? 'smooth' : false
-          }
+          followOutput={(isAtBottom) => autoScroll && isAtBottom ? 'smooth' : false}
           atBottomStateChange={setAutoScroll}
           computeItemKey={(index, item) => item.id}
-          itemContent={(index, item) => (
+          itemContent={(index, item) => {
+            // 👈 NEW: Timestamp Gap Logic
+            const previousMsg = chat[index - 1];
+            const timeDiff = previousMsg 
+              ? new Date(item.createdAt) - new Date(previousMsg.createdAt) 
+              : 0;
+            
+            // Show timestamp if it's the first message OR the gap is > 1 hour (3,600,000 ms)
+            const showTimestamp = index === 0 || timeDiff > 3600000;
+
+            return (
+              <React.Fragment key={item.id}>
+                {showTimestamp && (
+                  <div className={styles['time-break']}>
+                    {formatTimestamp(item.createdAt)}
+                  </div>
+                )}
             <ChatMessage
               message={item}
-              isLastStreaming={
-                !item.done &&
-                index === chat.length - 1
-              }
+                  isLastStreaming={!item.done && index === chat.length - 1}
             />
-          )}
+              </React.Fragment>
+            );
+          }}
           components={{
             // Injecting the footer so it scrolls cleanly at the bottom
             Footer: () => (

@@ -57,3 +57,16 @@ export const formatTime = (isoString) => {
 
   return time;
 };
+
+export const formatFullDate = (isoString) => {
+  if (!isoString) return '';
+  
+  const date = new Date(isoString);  
+  const weekday = date.toLocaleString('en-US', { weekday: 'short' });
+
+  return `${weekday}, ${formatDate(isoString)}`;
+};
+
+export const formatTimestamp = (isoString) => {
+  return (!isoString) ? '' : `${formatFullDate(isoString)} at ${formatTime(isoString)}`;
+};

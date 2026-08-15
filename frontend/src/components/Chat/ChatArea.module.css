@@ -13,6 +13,15 @@
   min-height: 0;
 }
 
+.time-break {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: #b4b4b4; /* OpenAI subtle gray */
+  padding: 24px 0 12px 0; /* Creates breathing room above the next prompt */
+  margin: 0 auto;
+}
+
 /* ========================================================
    NEW: Virtuoso Sticky Footer Flexbox Injection
    Forces Virtuoso's internal elements to act as a flex column
