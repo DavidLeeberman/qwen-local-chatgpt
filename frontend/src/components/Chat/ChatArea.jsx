@@ -175,10 +175,10 @@ export default function ChatArea({
                     {formatTimestamp(item.createdAt)}
                   </div>
                 )}
-            <ChatMessage
-              message={item}
+                <ChatMessage
+                  message={item}
                   isLastStreaming={!item.done && index === chat.length - 1}
-            />
+                />
               </React.Fragment>
             );
           }}
