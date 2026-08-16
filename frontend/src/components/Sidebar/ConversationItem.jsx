@@ -1,17 +1,16 @@
 import React, { useEffect, useRef } from 'react'
 
 import { useChatStore } from '../../store/useChatStore'
+import { useDropdown } from '../../hooks/useDropdown'
 import { TruncatedText } from '../UI/FormattedText'
-import { ChatBubbleIcon, PinIcon, MenuDotsIcon, RenameIcon, ArchiveIcon, DeleteIcon } from '../UI/Icons'
+import { ChatBubbleIcon, PinIcon, MoreActionsIcon, RenameIcon, ArchiveIcon, DeleteIcon } from '../UI/Icons'
 import styles from './ConversationItem.module.css'
 
 export default function ConversationItem({
   c,
   dropdownPos,
-  updateDropdownPosition,
   handleTitleMouseEnter,
-  handleTitleMouseLeave,
-  activeMenuBtnRef
+  handleTitleMouseLeave
 }) {
   const inputRef = useRef(null)
 
@@ -21,14 +20,21 @@ export default function ConversationItem({
   const setEditingChatId = useChatStore(state => state.setEditingChatId)
   const editTitleBuffer = useChatStore(state => state.editTitleBuffer)
   const setEditTitleBuffer = useChatStore(state => state.setEditTitleBuffer)
-  const openDropdownCid = useChatStore(state => state.openDropdownCid)
-  const setOpenDropdownCid = useChatStore(state => state.setOpenDropdownCid)
   
   const loadMessages = useChatStore(state => state.loadMessages)
   const togglePin = useChatStore(state => state.togglePin)
   const saveRenamedTitle = useChatStore(state => state.saveRenamedTitle)
   const archiveConversation = useChatStore(state => state.archiveConversation)
   const setChatToDelete = useChatStore(state => state.setChatToDelete)
+
+  const openDropdownCid = useChatStore(state => state.openDropdownCid)
+  const setOpenDropdownCid = useChatStore(state => state.setOpenDropdownCid)
+  const isMenuOpen = openDropdownCid === c.id;
+  const { dropdownStyle, setMenuRef, activeMenuBtnRef, updateDropdownPosition } = useDropdown(
+    isMenuOpen,
+    () => setOpenDropdownCid(null),
+    { preferredDirection: 'down' }
+  );
 
   // Handle saving/canceling rename when clicking outside the input box
   useEffect(() => {
@@ -53,7 +59,6 @@ export default function ConversationItem({
   }, [editingChatId, editTitleBuffer, c.id, saveRenamedTitle, setEditingChatId])
   
   const isActive = c.id === cid;
-  const isMenuOpen = openDropdownCid === c.id;
   const isEditingChatId = editingChatId === c.id;
 
   return (
@@ -145,7 +150,7 @@ export default function ConversationItem({
             }
           }}
         >
-          <MenuDotsIcon />
+          <MoreActionsIcon />
         </button>
 
         {/* Droplist Popover Menu */}
@@ -157,15 +162,11 @@ export default function ConversationItem({
                trigger global outside-click listeners.
           */
           <div 
+            ref={setMenuRef} // <-- Attach the callback ref here
             className={styles['dropdown-menu']}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
-            style={{
-              top: dropdownPos?.top,
-              bottom: dropdownPos?.bottom,
-              left: dropdownPos?.left,
-              maxHeight: dropdownPos?.maxHeight
-            }}
+            style={dropdownStyle} // <-- Apply the style object directly
           >
             {/* Inlined Menu Buttons with global store actions */}
             <button 

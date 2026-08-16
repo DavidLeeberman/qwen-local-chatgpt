@@ -30,6 +30,7 @@ export const useChatStore = create((set, get) => ({
   editTitleBuffer: '',
   openDropdownCid: null,
   chatToDelete: null,
+  openArchivedChatId: null,
 
   // Search states
   isSearching: false,
@@ -71,6 +72,7 @@ export const useChatStore = create((set, get) => ({
   setEditTitleBuffer: (text) => set({ editTitleBuffer: text }),
   setOpenDropdownCid: (id) => set({ openDropdownCid: id }),
   setChatToDelete: (chat) => set({ chatToDelete: chat }),
+  setOpenArchivedChatId: (id) => set({ openArchivedChatId: id }),
 
   
   // Modal Setters
@@ -448,15 +450,28 @@ export const useChatStore = create((set, get) => ({
     set({ targetMessageId: null })
   },
 
-  // 🔥 UPDATED: Now accepts originalTitle from the UI
-  branchChat: (originalTitle) => {
-    set({ 
-      isBranched: true, 
-      cid: null, 
-      targetMessageId: null,
-      err: '',
-      branchedOriginalTitle: originalTitle || 'Archived Chat'
-    })
+  // 🔥 UPDATED: Now accepts originalTitle and the specific messageId to branch from
+  branchChat: (originalTitle, messageId) => {
+    set((state) => {
+      let branchHistory = state.chat;
+      
+      // If a specific message ID was passed, truncate the array to slice off future messages
+      if (messageId) {
+        const targetIndex = state.chat.findIndex(m => m.id === messageId);
+        if (targetIndex !== -1) {
+          branchHistory = state.chat.slice(0, targetIndex + 1);
+        }
+      }
+
+      return { 
+        isBranched: true, 
+        cid: null, 
+        targetMessageId: null,
+        err: '',
+        branchedOriginalTitle: originalTitle || 'Archived Chat',
+        chat: branchHistory // 👈 NEW: Overwrite the active UI view with the truncated history
+      };
+    });
   },
 
   // Search conversations endpoint action

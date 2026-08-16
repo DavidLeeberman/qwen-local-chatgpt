@@ -13,6 +13,7 @@ export default function ArchivedChatsModal({ onClose  }) {
     unarchiveConversation, 
     deleteConversation, 
     loadMessages,
+    setOpenArchivedChatId,
     setArchivedChatsOpen,
     setSettingsOpen 
   } = useChatStore();
@@ -35,6 +36,7 @@ export default function ArchivedChatsModal({ onClose  }) {
 
   const handleOpenArchivedChat = (id) => {
     loadMessages(id);
+    setOpenArchivedChatId(id);
     setArchivedChatsOpen(false); // Close the archived list
     setSettingsOpen(false);      // Close the parent settings modal
   };

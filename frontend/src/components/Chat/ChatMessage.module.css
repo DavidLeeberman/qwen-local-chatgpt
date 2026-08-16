@@ -69,3 +69,96 @@
   width: 100%;
   max-width: 100%;
 }
+
+/* Update this existing rule to reserve space at the bottom */
+.assistant-row .message-bubble {
+  background-color: transparent;
+  color: #ececf1;
+  padding: 0 0 32px 0; /* Creates 32px of extra room at the bottom during loading and completion */
+  width: 100%;
+  max-width: 100%;
+  position: relative; /* Allows absolute positioning for the toolbar */
+}
+
+/* ========================================================
+   NEW: Assistant Message Action Toolbar & Menu
+======================================================== */
+.message-action-toolbar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  margin-left: -4px; /* Shift slightly to offset button padding, aligning exactly with flush-left text */
+}
+
+.message-action-toolbar.visible {
+  opacity: 1;
+}
+
+.action-menu-container {
+  position: relative;
+}
+
+.action-menu-btn {
+  background: transparent;
+  border: none;
+  color: #8e8ea0;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.action-menu-btn:hover {
+  color: #ececf1;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.action-menu-popup {
+  position: fixed;
+  top: 100%; /* Pops downwards below the button */
+  left: 0;
+  margin-top: 8px;
+  background-color: #2f2f2f;
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #b4b4b4;
+  font-size: 13px;
+  font-family: inherit;
+  white-space: nowrap;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 180px;
+}
+
+.action-menu-timestamp {
+  font-size: 13px;
+  color: #b4b4b4;
+  font-weight: 400;
+}
+
+.action-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  color: #ececf1;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 4px 0;
+  width: 100%;
+  text-align: left;
+  transition: color 0.15s ease;
+}
+
+.action-menu-item:hover {
+  color: #ffffff;
+}

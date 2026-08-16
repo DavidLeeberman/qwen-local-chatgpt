@@ -9,13 +9,13 @@ import styles from './SettingsModal.module.css';
 
 export default function SettingsModal() {
   const { 
-    isSettingsOpen, 
     setSettingsOpen,
-    isArchivedChatsOpen,
     setArchivedChatsOpen, 
     archiveAllChats, 
     deleteAllChats 
   } = useChatStore();
+  const isSettingsOpen = useChatStore(state => state.isSettingsOpen);
+  const isArchivedChatsOpen = useChatStore(state => state.isArchivedChatsOpen);
   const [activeTab, setActiveTab] = useState('Data controls');
   const [confirmState, setConfirmState] = useState(null); // 'archive' | 'delete' | null
 

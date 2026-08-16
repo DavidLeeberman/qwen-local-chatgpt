@@ -15,9 +15,12 @@
     rgba(15, 15, 15, 0.7) 60%, 
     transparent 100%
   );  
+
+  pointer-events: none;
 }
 
 .input-box-wrapper {
+  pointer-events: auto;
   max-width: 768px;
   margin: 0 auto;
   background-color: #2f2f2f;

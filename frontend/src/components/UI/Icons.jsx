@@ -14,7 +14,7 @@ export const ChatBubbleIcon = ({ className = '', style = {} }) => (
     strokeLinejoin="round"
   >
     {/* Added transform to shift the shape 2 units down inside the viewBox */}
-    <path transform="translate(0, 2)" d="M7 17.5A10 9 0 1 0 3.5 14.5L2.5 20.5Z" />
+    <path transform="translate(0, 2)" d="M7.5 17.5A10.5 9.5 0 1 0 3.8 14.2L3.5 18.5Z" />
   </svg>
 );
 
@@ -102,7 +102,7 @@ export const DeleteIcon = ({ className = '', style = {} }) => (
   </svg>
 );
 
-export const MenuDotsIcon = ({ className = '', style = {} }) => (
+export const MoreActionsIcon = ({ className = '', style = {} }) => (
   <svg 
     className={`${styles['base-icon']} ${className}`.trim()}
     style={style}

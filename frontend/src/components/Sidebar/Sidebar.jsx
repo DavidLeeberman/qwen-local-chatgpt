@@ -18,10 +18,8 @@ export default function Sidebar({
   pinnedChats,
   recentChats,
   dropdownPos,
-  updateDropdownPosition,
   handleTitleMouseEnter,
   handleTitleMouseLeave,
-  activeMenuBtnRef,
   onNewChat = () => {} // Pass down your new chat function if you have one
 }) {
   const isStreaming = useChatStore(state => state.isStreaming);
@@ -78,20 +76,16 @@ export default function Sidebar({
           title="Pinned"
           chats={pinnedChats}
           dropdownPos={dropdownPos}
-          updateDropdownPosition={updateDropdownPosition}
           handleTitleMouseEnter={handleTitleMouseEnter}
           handleTitleMouseLeave={handleTitleMouseLeave}
-          activeMenuBtnRef={activeMenuBtnRef}
         />
 
         <SidebarGroup
           title="Recents"
           chats={recentChats}
           dropdownPos={dropdownPos}
-          updateDropdownPosition={updateDropdownPosition}
           handleTitleMouseEnter={handleTitleMouseEnter}
           handleTitleMouseLeave={handleTitleMouseLeave}
-          activeMenuBtnRef={activeMenuBtnRef}
         />
       </div>
 

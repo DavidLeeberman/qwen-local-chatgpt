@@ -20,12 +20,19 @@ export default function UserMenu({ onClose }) {
       }
     }
     
-    // Bind the event listener
+    // NEW: Handle clicks completely outside the browser
+    function handleWindowBlur() {
+      onClose();
+    }
+    
+    // Bind the event listeners
     document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('blur', handleWindowBlur); 
     
     return () => {
-      // Unbind the event listener on clean up
+      // Unbind the event listeners on clean up
       document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('blur', handleWindowBlur); 
     };
   }, [onClose]);
 

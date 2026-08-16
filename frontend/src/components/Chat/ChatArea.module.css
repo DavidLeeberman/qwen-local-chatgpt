@@ -73,78 +73,8 @@
 }
 
 /* ========================================================
-   Action Menu & Floating Buttons
+   Floating Buttons
 ======================================================== */
-.action-menu-container {
-  position: relative;
-  /* Shift slightly to offset button padding, aligning exactly with text */
-  margin-left: -4px; 
-}
-
-/* Matching the discrete, transparent action button */
-.action-menu-btn {
-  background: transparent;
-  border: none;
-  color: #8e8ea0; /* Standard OpenAI subtle gray */
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  transition: color 0.15s ease, background-color 0.15s ease;
-}
-
-.action-menu-btn:hover {
-  color: #ececf1;
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-/* Matching the Action Menu Popup (Timestamp & Actions) */
-.action-menu-popup {
-  position: absolute;
-  bottom: 100%; /* Pops upwards */
-  left: 0;
-  margin-bottom: 8px;
-  background-color: #2f2f2f; /* Distinct dark grey */
-  border-radius: 12px;
-  padding: 12px 14px;
-  color: #b4b4b4;
-  font-size: 13px;
-  font-family: inherit;
-  white-space: nowrap;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 180px;
-}
-
-.action-menu-timestamp {
-  font-size: 13px;
-  color: #b4b4b4;
-  font-weight: 400;
-}
-
-.action-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: transparent;
-  border: none;
-  color: #ececf1;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  padding: 4px 0;
-  width: 100%;
-  text-align: left;
-  transition: color 0.15s ease;
-}
-
-.action-menu-item:hover {
-  color: #ffffff;
-}
 
 /* Matching the translucent, bordered floating arrow button */
 .scroll-bottom-btn {

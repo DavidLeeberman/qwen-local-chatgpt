@@ -4,10 +4,21 @@ import { UnarchiveIcon } from '../UI/Icons';
 import styles from './ArchivedFooter.module.css';
 
 export default function ArchivedFooter() {
-  const cid = useChatStore(state => state.cid);
-  const unarchiveConversation = useChatStore(state => state.unarchiveConversation);
+  const openArchivedChatId = useChatStore(state => state.openArchivedChatId);
 
-  if (!cid) return null;
+  if (!openArchivedChatId) return null;
+
+  const {
+    setOpenArchivedChatId,
+    unarchiveConversation
+  } = useChatStore()
+
+  const handleUnarchive = async (e) => {
+    e.stopPropagation();
+    await unarchiveConversation(openArchivedChatId);
+    // Clear the archived target after unarchiving
+    setOpenArchivedChatId(null);
+  };
 
   return (
     <div className={styles['archived-footer-container']}>
@@ -16,7 +27,7 @@ export default function ArchivedFooter() {
       </div>
       <button 
         className={styles['unarchive-btn']}
-        onClick={() => unarchiveConversation(cid)}
+        onClick={handleUnarchive}
       >
         <UnarchiveIcon className={styles['unarchive-icon']} />
         Unarchive

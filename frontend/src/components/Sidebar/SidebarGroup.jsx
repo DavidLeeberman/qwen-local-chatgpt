@@ -9,10 +9,8 @@ export default function SidebarGroup({
   title, 
   chats, 
   dropdownPos, 
-  updateDropdownPosition, 
   handleTitleMouseEnter, 
-  handleTitleMouseLeave, 
-  activeMenuBtnRef 
+  handleTitleMouseLeave
 }) {
   const [isOpen, setIsOpen] = useState(true);
 
@@ -34,10 +32,8 @@ export default function SidebarGroup({
           key={c.id}
           c={c}
           dropdownPos={dropdownPos}
-          updateDropdownPosition={updateDropdownPosition}
           handleTitleMouseEnter={handleTitleMouseEnter}
           handleTitleMouseLeave={handleTitleMouseLeave}
-          activeMenuBtnRef={activeMenuBtnRef}
         />
       ))}
     </div>

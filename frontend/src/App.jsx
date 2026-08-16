@@ -48,7 +48,7 @@ export default function App() {
   // 1. Initialize Custom Hooks
   useChatLifecycle()
   const { tooltip, handleTitleMouseEnter, handleTitleMouseLeave } = useTooltip()
-  const { dropdownPos, updateDropdownPosition, activeMenuBtnRef } = useDropdown()
+  const { dropdownPos } = useDropdown()
 
   // 2. Virtuoso Auto-Scroll Logic (Handles both target search scrolls and normal bottom scrolls in ChatArea rendering)
   useEffect(() => {
@@ -109,10 +109,8 @@ export default function App() {
             pinnedChats={pinnedChats}
             recentChats={recentChats}
             dropdownPos={dropdownPos}
-            updateDropdownPosition={updateDropdownPosition}
             handleTitleMouseEnter={handleTitleMouseEnter}
             handleTitleMouseLeave={handleTitleMouseLeave}
-            activeMenuBtnRef={activeMenuBtnRef}
             onNewChat={() => {
               // Trigger your Zustand createChat action here, e.g.:
               // useChatStore.getState().createNewChat()
