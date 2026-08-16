@@ -29,7 +29,7 @@ export default function ConversationItem({
   const openDropdownCid = useChatStore(state => state.openDropdownCid)
   const setOpenDropdownCid = useChatStore(state => state.setOpenDropdownCid)
   const isMenuOpen = openDropdownCid === c.id;
-  const { dropdownStyle, setMenuRef, activeMenuBtnRef, updateDropdownPosition } = useDropdown(
+  const { dropdownStyle, setMenuRef, activeMenuBtnRef } = useDropdown(
     isMenuOpen,
     () => setOpenDropdownCid(null),
     { preferredDirection: 'down' }
@@ -144,7 +144,6 @@ export default function ConversationItem({
               setOpenDropdownCid(null);
             } else {
               activeMenuBtnRef.current = e.currentTarget; // Save button reference
-              updateDropdownPosition();                   // Compute position instantly
               setOpenDropdownCid(c.id);                   // Reveal menu
             }
           }}
