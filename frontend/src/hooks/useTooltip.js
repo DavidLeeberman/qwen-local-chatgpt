@@ -1,15 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
-let globalMouseX = 0;
-let globalMouseY = 0;
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('mousemove', (e) => {
-    globalMouseX = e.clientX;
-    globalMouseY = e.clientY;
-  }, { passive: true });
-}
-
 export function useTooltip() {
   const [tooltip, setTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
   const tooltipTimeoutRef = useRef(null);
@@ -139,30 +129,19 @@ export function useArchivedChatTooltip() {
 export function useActionTooltip() {
   const [actionTooltip, setActionTooltip] = useState({ visible: false, text: '', x: 0, y: 0 });
 
-  // NEW: Keep a reference to the element and data to resurrect it later
-  const targetRef = useRef(null);
-  const tooltipDataRef = useRef({ text: '', options: {} });
-
   const handleActionMouseEnter = useCallback((e, text, options = {}) => {
     const { offsetX = null, offsetY = null } = options;
-    
-    // Save these for hit-testing during scroll
-    targetRef.current = e.currentTarget;
-    tooltipDataRef.current = { text, options };
-
     const rect = e.currentTarget.getBoundingClientRect();
 
     setActionTooltip({
       visible: true,
       text: text,
-      // Uses nullish coalescing so explicit 0 values aren't overwritten
-      x: rect.left + (offsetX ?? rect.width / 2), // Default to center if no offsetX provided
-      y: rect.top + (offsetY ?? rect.height / 2) // Default to center if no offsetY provided
+      x: rect.left + (offsetX ?? rect.width / 2),
+      y: rect.top + (offsetY ?? rect.height / 2)
     });
   }, []);
 
   const handleActionMouseLeave = useCallback(() => {
-    targetRef.current = null; // Clear it when the mouse leaves via normal movement
     setActionTooltip(prev => ({ ...prev, visible: false }));
   }, []);
 
@@ -171,47 +150,17 @@ export function useActionTooltip() {
   }, []);
 
   useEffect(() => {
-    const handleInterrupt = () => {
-      // If we aren't tracking a button, just ensure the tooltip is hidden
-      if (!targetRef.current) {
-        setActionTooltip(prev => prev.visible ? { ...prev, visible: false } : prev);
-        return;
-      }
-
-      // Hit-test: check if the stationary mouse is physically over the moving button
-      const rect = targetRef.current.getBoundingClientRect();
-      const isStillHovering = 
-        globalMouseX >= rect.left && 
-        globalMouseX <= rect.right && 
-        globalMouseY >= rect.top && 
-        globalMouseY <= rect.bottom;
-
-      if (isStillHovering) {
-        // The button scrolled back under the cursor! Resurrect the tooltip.
-        const { text, options } = tooltipDataRef.current;
-        const { offsetX = null, offsetY = null } = options;
-        setActionTooltip({
-          visible: true,
-          text: text,
-          x: rect.left + (offsetX ?? rect.width / 2),
-          y: rect.top + (offsetY ?? rect.height / 2)
-        });
-      } else {
-        // The button scrolled away from the cursor. Hide the tooltip.
-        setActionTooltip(prev => prev.visible ? { ...prev, visible: false } : prev);
-      }
+    const dismiss = () => {
+      setActionTooltip(prev => (prev.visible ? { ...prev, visible: false } : prev));
     };
 
-    const handleBlur = () => {
-      setActionTooltip(prev => ({ ...prev, visible: false }));
-    };
-
-    window.addEventListener('scroll', handleInterrupt, true);
-    window.addEventListener('blur', handleBlur);
+    // Immediately dismiss on scroll or window blur (clean & performant)
+    window.addEventListener('scroll', dismiss, true);
+    window.addEventListener('blur', dismiss);
 
     return () => {
-      window.removeEventListener('scroll', handleInterrupt, true);
-      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('blur', dismiss);
     };
   }, []);
 
