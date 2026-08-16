@@ -8,7 +8,6 @@ import styles from './ConversationItem.module.css'
 
 export default function ConversationItem({
   c,
-  dropdownPos,
   handleTitleMouseEnter,
   handleTitleMouseLeave
 }) {

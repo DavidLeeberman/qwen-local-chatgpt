@@ -8,7 +8,6 @@ import styles from './SidebarGroup.module.css'; // 👈 Import the CSS module
 export default function SidebarGroup({ 
   title, 
   chats, 
-  dropdownPos, 
   handleTitleMouseEnter, 
   handleTitleMouseLeave
 }) {
@@ -31,7 +30,6 @@ export default function SidebarGroup({
         <ConversationItem
           key={c.id}
           c={c}
-          dropdownPos={dropdownPos}
           handleTitleMouseEnter={handleTitleMouseEnter}
           handleTitleMouseLeave={handleTitleMouseLeave}
         />

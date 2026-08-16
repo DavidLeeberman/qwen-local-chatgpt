@@ -17,7 +17,6 @@ import formattedTextStyles from '../UI/FormattedText.module.css';
 export default function Sidebar({
   pinnedChats,
   recentChats,
-  dropdownPos,
   handleTitleMouseEnter,
   handleTitleMouseLeave,
   onNewChat = () => {} // Pass down your new chat function if you have one
@@ -75,7 +74,6 @@ export default function Sidebar({
         <SidebarGroup
           title="Pinned"
           chats={pinnedChats}
-          dropdownPos={dropdownPos}
           handleTitleMouseEnter={handleTitleMouseEnter}
           handleTitleMouseLeave={handleTitleMouseLeave}
         />
@@ -83,7 +81,6 @@ export default function Sidebar({
         <SidebarGroup
           title="Recents"
           chats={recentChats}
-          dropdownPos={dropdownPos}
           handleTitleMouseEnter={handleTitleMouseEnter}
           handleTitleMouseLeave={handleTitleMouseLeave}
         />
