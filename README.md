@@ -6,7 +6,7 @@ Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5
 ```
 Updates:
 - Implemented Conversation Search
-- Implemented Close/Open sidebar
+- Implemented Conversation Branch
 - Improved Archive/Unarchive chats
 ```
 Version    : 0.58
@@ -263,6 +263,9 @@ qwen-local-chatgpt/
 - ✅ Chat history loading
 - ✅ System prompts
 - ✅ Streaming SSE responses
+- ✅ Conversation archive
+- ✅ Conversation branch
+- ✅ Conversation search
 
 ### Rendering
 
@@ -287,6 +290,8 @@ qwen-local-chatgpt/
 - ✅ Thread-safe connection pool
 - ✅ Cursor lifecycle management
 - ✅ Safe streaming database writes
+- ✅ Trigram extension for fast searching
+- ✅ Conversation and message index
 
 ### Infrastructure
 
@@ -946,7 +951,9 @@ Estimated Cost
 - [x] bcrypt Migration
 - [x] Real Message IDs
 - [x] Conversation Rename
-- [ ] Conversation Search
+- [x] Conversation Archive
+- [x] Conversation Branch
+- [x] Conversation Search
 - [ ] Edit Message
 - [ ] Regenerate Response
 

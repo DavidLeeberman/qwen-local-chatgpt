@@ -74,6 +74,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
+
+  /* NEW: Tell the 1em icon to scale to exactly 14px to match sidebar text */
+  font-size: 14px;
 }
 
 .action-btn:hover {

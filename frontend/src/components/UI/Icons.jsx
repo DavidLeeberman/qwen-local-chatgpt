@@ -102,11 +102,13 @@ export const DeleteIcon = ({ className = '', style = {} }) => (
   </svg>
 );
 
-export const MoreActionsIcon = ({ className = '', style = {} }) => (
+export const MoreActionsIcon = ({ className = '', style = {}, ...props }) => (
   <svg 
     className={`${styles['base-icon']} ${className}`.trim()}
-    style={style}
-    width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
+    style={{ width: '1em', height: '1em', ...style }}
+    viewBox="0 0 24 24" 
+    fill="currentColor"
+    {...props}
   >
     <circle cx="5" cy="12" r="2"/>
     <circle cx="12" cy="12" r="2"/>
@@ -184,8 +186,11 @@ export const DownArrowIcon = ({ className = '', style = {} }) => (
     width="16" height="16" viewBox="0 0 24 24" 
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
   >
-    <line x1="12" y1="5" x2="12" y2="19"></line>
-    <polyline points="19 12 12 19 5 12"></polyline>
+    {/* Extended the vertical line from y=3 to y=21 (originally 5 to 19) */}
+    <line x1="12" y1="1" x2="12" y2="23"></line>
+    
+    {/* Expanded the arrowhead horizontally to x=3 and x=21, and pushed the tip down to y=21 */}
+    <polyline points="21 14 12 23 3 14"></polyline>
   </svg>
 );
 

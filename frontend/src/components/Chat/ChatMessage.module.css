@@ -110,6 +110,9 @@
   display: flex;
   align-items: center;
   transition: color 0.15s ease, background-color 0.15s ease;
+
+  /* NEW: Tell the 1em icon to scale to 18px (OpenAI's approximate scale) */
+  font-size: 18px;
 }
 
 .action-menu-btn:hover {
