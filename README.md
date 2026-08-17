@@ -1,13 +1,16 @@
 # Local ChatGPT-class System
 ```
-Version    : 0.59
+Version    : 0.60
 Model      : Qwen3.5-9B + vLLM + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
 ```
 Updates:
-- Implemented Conversation Search
-- Implemented Conversation Branch
-- Improved Archive/Unarchive chats
+- Copy response in message toolbar
+- Show/Hide thinking process/steps in More actions pop-up menu in message toolbar
+- Regenerate response in toolbar below the end of last message
+- Close/open sidebar
+- Sidebar icons animation when sidebar hidden
+- Prompt toolbar fades in with Copy message and Edit message when hovered
 ```
 Version    : 0.58
 Model      : Qwen3.5-9B + vLLM + Ollama
