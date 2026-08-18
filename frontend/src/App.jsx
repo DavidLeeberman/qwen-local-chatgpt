@@ -51,32 +51,35 @@ export default function App() {
 
   // 2. Virtuoso Auto-Scroll Logic (Handles both target search scrolls and normal bottom scrolls in ChatArea rendering)
   useEffect(() => {
-    if (listScrollTrigger > 0 && virtuosoRef.current) {
-      requestAnimationFrame(() => {
-        // If a target message ID exists from search, scroll directly to center on it
-        if (targetMessageId) {
-          const targetIndex = chat.findIndex(
-            m => m.id === targetMessageId || m.userMessageId === targetMessageId || m.assistantMessageId === targetMessageId
-          )
+    if (listScrollTrigger <= 0 || !virtuosoRef.current) return
 
-          if (targetIndex !== -1) {
-            virtuosoRef.current.scrollToIndex({
-              index: targetIndex,
-              align: 'center',
-              behavior: 'smooth'
-            })
-            return
-          }
+    requestAnimationFrame(() => {
+      // If a target message ID exists from search, scroll directly to center on it
+      if (targetMessageId) {
+        const targetIndex = chat.findIndex(
+          m => 
+            m.id === targetMessageId || 
+            m.userMessageId === targetMessageId || 
+            m.assistantMessageId === targetMessageId
+        )
+
+        if (targetIndex !== -1) {
+          virtuosoRef.current.scrollToIndex({
+            index: targetIndex,
+            align: 'center',
+            behavior: 'smooth'
+          })
+          return
         }
+      }
 
-        // Default behavior: scroll to the bottom of the chat list
-        virtuosoRef.current.scrollToIndex({ 
-          index: Math.max(chat.length - 1, 0), 
-          align: 'end' 
-        })
+      // Default behavior: scroll to the bottom of the chat list
+      virtuosoRef.current.scrollToIndex({ 
+        index: Math.max(chat.length - 1, 0), 
+        align: 'end' 
       })
-    }
-  }, [listScrollTrigger, chat, targetMessageId])
+    })
+  }, [listScrollTrigger, targetMessageId])
 
   // 3. Add the global Keyboard Shortcut listener
   useEffect(() => {

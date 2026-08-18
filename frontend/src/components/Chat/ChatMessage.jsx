@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -15,7 +15,7 @@ import { useDropdown } from '../../hooks/useDropdown'
 import { ActionTooltip } from '../Tooltip/Tooltip'
 import { useActionTooltip } from '../../hooks/useTooltip'
 import { formatDate, formatTime } from '../UI/FormattedText'
-import { MoreActionsIcon, BranchIcon } from '../UI/Icons'
+import { MoreActionsIcon, BranchIcon, CopyIcon, RedoIcon, DoneIcon } from '../UI/Icons' 
 
 import styles from './ChatMessage.module.css'
 
@@ -39,12 +39,18 @@ const markdownComponents = {
   }
 }
 
-function ChatMessage({ message, isLastStreaming }) {
+function ChatMessage({ 
+  message, 
+  isLastMessage = false, 
+  onRegenerate 
+}) {
   // Action Menu State & Refs
   const [menuOpen, setMenuOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [hasCopied, setHasCopied] = useState(false);
 
   // Store actions & state
+  const isStreaming = useChatStore(state => state.isStreaming);
   const branchChat = useChatStore(state => state.branchChat);
   const cid = useChatStore(state => state.cid);
   const conversations = useChatStore(state => state.conversations);
@@ -77,6 +83,57 @@ function ChatMessage({ message, isLastStreaming }) {
     if (branchChat) branchChat(activeChat?.title, message.id);
   };
 
+  // NEW: Handler for copying raw markdown text to clipboard (with HTTP fallback)
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    hideActionTooltip();
+
+    const textToCopy = message.a;
+    
+    // Helper to trigger the UI change
+    const triggerSuccess = () => {
+      setHasCopied(true);
+      setTimeout(() => setHasCopied(false), 2000);
+    };
+
+    // 1. Try the modern Clipboard API first (Requires HTTPS or localhost)
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(textToCopy)
+        .then(triggerSuccess)
+        .catch(err => console.error("Failed to copy text: ", err));
+    } 
+    // 2. Fallback for older browsers or insecure network contexts (HTTP)
+    else {
+      const textArea = document.createElement("textarea");
+      textArea.value = textToCopy;
+      
+      // Move it completely off-screen to avoid visual glitches
+      textArea.style.position = "absolute";
+      textArea.style.left = "-999999px";
+      
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+
+      try {
+        document.execCommand('copy');
+        triggerSuccess();
+      } catch (err) {
+        console.error("Fallback copy failed: ", err);
+      } finally {
+        // Always clean up the temporary text area
+        textArea.remove();
+      }
+    }
+  };
+
+  // NEW: Handler to trigger the regeneration prop
+  const handleRegenerate = (e) => {
+    e.stopPropagation();
+    hideActionTooltip();
+    if (onRegenerate) onRegenerate(message.id);
+  };
+
   // Virtuoso requires a single root element per item, so we wrap the pair in a parent div
   return (
     <div className={styles['message-pair']}>
@@ -93,7 +150,7 @@ function ChatMessage({ message, isLastStreaming }) {
       )}
 
       {/* 10. Assistant Message Row (Rendered on the Left) */}
-      {(message.a || isLastStreaming) && (
+      {(message.a || (isLastMessage && !message.done)) && (
         <div 
           className={`${styles['message-row']} ${styles['assistant-row']}`}
           onMouseEnter={() => setIsHovered(true)}
@@ -110,16 +167,40 @@ function ChatMessage({ message, isLastStreaming }) {
                 {message.a}
               </ReactMarkdown>
 
-              {isLastStreaming && (
+              {isLastMessage && (
                 <span className={styles['streaming-cursor']}>▋</span>
               )}
 
               {/* Hover Action Toolbar */}
-              {/* Only render toolbar if there is an assistant response attached to avoid toolbar on empty loading states */}
-              {message.a && (
+              {/* Only mount the toolbar if we are NOT actively streaming */}
+              {/* and if there is an assistant response attached to avoid toolbar on empty loading states */}
+              {message.a && (!isLastMessage || !isStreaming) && (
                 <div className={`${styles['message-action-toolbar']} ${(isHovered || menuOpen) ? styles['visible'] : ''}`}>
                   <div className={styles['action-menu-container']}>
                     
+                    {/* NEW: Copy Button */}
+                    <button 
+                      className={styles['action-menu-btn']}
+                      onClick={handleCopy}
+                      onMouseEnter={(e) => handleActionMouseEnter(e, hasCopied ? 'Response copied' : 'Copy response', { offsetY: 60 })} 
+                      onMouseLeave={handleActionMouseLeave}
+                    >
+                      {hasCopied ? <DoneIcon /> : <CopyIcon />}
+                    </button>
+
+                    {/* NEW: Regenerate Button (Only shown if isLastMessage is true) */}
+                    {isLastMessage && (
+                      <button 
+                        className={styles['action-menu-btn']}
+                        onClick={handleRegenerate}
+                        onMouseEnter={(e) => handleActionMouseEnter(e, 'Regenerate response', { offsetY: 60 })} 
+                        onMouseLeave={handleActionMouseLeave}
+                      >
+                        <RedoIcon />
+                      </button>
+                    )}
+
+                    {/* EXISTING: More Actions Button */}
                     <button 
                       ref={activeMenuBtnRef} // <-- Attach button ref
                       className={styles['action-menu-btn']}

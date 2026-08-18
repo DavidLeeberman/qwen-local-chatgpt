@@ -474,6 +474,27 @@ export const useChatStore = create((set, get) => ({
     });
   },
 
+  // Add this alongside your other Actions (like send, branchChat, etc.)
+  regenerate: async () => {
+    const { chat, send, isStreaming } = get()
+    
+    if (isStreaming || chat.length === 0) return;
+
+    // 1. Get the last message pair
+    const lastMessage = chat[chat.length - 1];
+    if (!lastMessage || !lastMessage.u) return;
+
+    // 2. Remove the last message from the UI to prepare for the "redo"
+    set(state => ({ 
+      chat: state.chat.slice(0, -1),
+      err: ''
+    }));
+
+    // 3. Re-feed the exact user prompt back into the send function
+    // We pass a dummy function `() => {}` because `send` expects a `setMsg` callback to clear the input
+    await send(lastMessage.u, () => {});
+  },
+
   // Search conversations endpoint action
   searchChats: async (query) => {
     const { token } = get()

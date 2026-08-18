@@ -34,6 +34,7 @@ export default function ChatArea({
   const chat = useChatStore(state => state.chat)
   const err = useChatStore(state => state.err)
   const isBranched = useChatStore(state => state.isBranched)
+  const regenerate = useChatStore(state => state.regenerate);
   
   // Determine if the currently viewed chat is archived
   const cid = useChatStore(state => state.cid);
@@ -77,6 +78,9 @@ export default function ChatArea({
             // Show timestamp if it's the first message OR the gap is > 1 hour (3,600,000 ms)
             const showTimestamp = index === 0 || timeDiff > 3600000;
 
+            // Determine if this is the absolute last message in the array
+            const isLastMessage = index === chat.length - 1;
+
             return (
               <React.Fragment key={item.id}>
                 {showTimestamp && (
@@ -86,7 +90,8 @@ export default function ChatArea({
                 )}
                 <ChatMessage
                   message={item}
-                  isLastStreaming={!item.done && index === chat.length - 1}
+                  isLastMessage={isLastMessage}           // <-- Pass boolean
+                  onRegenerate={() => regenerate()}       // <-- Pass function
                 />
               </React.Fragment>
             );

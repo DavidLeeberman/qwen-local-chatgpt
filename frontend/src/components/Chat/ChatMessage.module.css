@@ -98,6 +98,9 @@
 
 .action-menu-container {
   position: relative;
+  display: flex;       /* Added to align icons horizontally */
+  align-items: center; /* Vertically center the row */
+  gap: 2px;            /* Provide slight spacing between action buttons */
 }
 
 .action-menu-btn {

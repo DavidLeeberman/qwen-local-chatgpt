@@ -5,12 +5,8 @@ Model      : Qwen3.5-9B + vLLM + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
 ```
 Updates:
-- Copy response in message toolbar
-- Show/Hide thinking process/steps in More actions pop-up menu in message toolbar
-- Regenerate response in toolbar below the end of last message
-- Close/open sidebar
-- Sidebar icons animation when sidebar hidden
-- Prompt toolbar fades in with Copy message and Edit message when hovered
+- Added Copy response in message toolbar
+- Added Regenerate response in message toolbar for last message
 ```
 Version    : 0.59
 Model      : Qwen3.5-9B + vLLM + Ollama

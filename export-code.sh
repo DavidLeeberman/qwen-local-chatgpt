@@ -1,18 +1,32 @@
 #!/usr/bin/env bash
 
+show_usage() {
+  echo "Usage: $0 [-h] [-d </path/to/root>] [-o <output_file>] [-x <excluded_pattern_1,pattern_2...>]"
+}
+
+# 1. CRITICAL FIX: Check if no arguments were provided
+if [ "$#" -eq 0 ]; then
+  show_usage
+  exit 1
+fi
+
 # Default values
 ROOT_DIR="."
 OUT_FILE="project-source-code.txt"
 USER_EXCLUDES=""
 
 # Parse command line arguments
-while getopts "d:o:x:" opt; do
+while getopts "hd:o:x:" opt; do
   case $opt in
+    h)
+      show_usage
+      exit 0
+      ;;
     d) ROOT_DIR="$OPTARG" ;;
     o) OUT_FILE="$OPTARG" ;;
     x) USER_EXCLUDES="$OPTARG" ;;
     *) 
-      echo "Usage: $0 [-d </path/to/root>] [-o <output_file>] [-x <excluded_pattern_1,pattern_2...>]"
+      show_usage
       exit 1
       ;;
   esac
