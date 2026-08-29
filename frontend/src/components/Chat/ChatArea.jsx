@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Virtuoso } from 'react-virtuoso'
 
 import { useChatStore } from '../../store/useChatStore'
@@ -34,7 +34,8 @@ export default function ChatArea({
   const chat = useChatStore(state => state.chat)
   const err = useChatStore(state => state.err)
   const isBranched = useChatStore(state => state.isBranched)
-  const regenerate = useChatStore(state => state.regenerate);
+  const regenerate = useChatStore(state => state.regenerate)
+  const listScrollTrigger = useChatStore(state => state.listScrollTrigger)
   
   // Determine if the currently viewed chat is archived
   const cid = useChatStore(state => state.cid);
@@ -46,63 +47,109 @@ export default function ChatArea({
 
   // 🌟 FIX 2: Local state to track Virtuoso's native scroll position
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const nativeScrollerRef = useRef(null)
 
   const scrollToBottom = () => {
-    if (virtuosoRef.current) {
-      virtuosoRef.current.scrollToIndex({
-        index: chat.length - 1,
-        align: 'end',
-        behavior: 'smooth'
-      })
-    }
+    const scroller = nativeScrollerRef.current
+
+    if (!scroller) return
+
+    scroller.scrollTo({
+      top: scroller.scrollHeight,
+      behavior: 'smooth'
+    })
   }
+
+  // 🌟 FIX: Reusable distance checker
+  const checkIsAtBottom = useCallback(() => {
+    const scroller = nativeScrollerRef.current
+    if (!scroller) return
+
+    const distanceFromBottom =
+      scroller.scrollHeight -
+      scroller.clientHeight -
+      scroller.scrollTop
+
+    const epsilon = 8
+
+    setIsAtBottom(distanceFromBottom <= epsilon)
+  }, [])
+
+  // 1. Check distance on load, chat switch, or branch
+  useEffect(() => {
+    const scroller = nativeScrollerRef.current;
+    if (!scroller) return;
+
+    // 50ms timeout guarantees React has flushed the new chat array to the DOM 
+    // and calculated the raw Markdown heights before we measure scrollHeight.
+    const timer = setTimeout(() => {
+      scroller.scrollTop = scroller.scrollHeight;
+      checkIsAtBottom();
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [listScrollTrigger, checkIsAtBottom]);
+
+  // 2. Check distance on manual scroll
+  useEffect(() => {
+    const scroller = nativeScrollerRef.current
+    if (!scroller) return
+
+    checkIsAtBottom()
+
+    scroller.addEventListener('scroll', checkIsAtBottom, {
+      passive: true
+    })
+
+    return () => {
+      scroller.removeEventListener('scroll', checkIsAtBottom)
+    }
+  }, [checkIsAtBottom])
+
+  // 3. 🌟 FIX: Check distance when content grows (Send, Regenerate, or Streaming)
+  useEffect(() => {
+    checkIsAtBottom()
+  }, [chat, checkIsAtBottom])
 
   return (
     <div className={styles['main-chat-area']}>
-      <div className={styles['virtuoso-viewport']}>
-        <Virtuoso
-          ref={virtuosoRef}
-          data={chat}
-          increaseViewportBy={increaseViewportBy}
-          followOutput={false}
-          // 🌟 FIX 3: Bind Virtuoso's internal scroll tracker directly to state
-          atBottomStateChange={(bottom) => setIsAtBottom(bottom)}
-          computeItemKey={(index, item) => item.id}
-          itemContent={(index, item) => {
-            // 👈 NEW: Timestamp Gap Logic
-            const previousMsg = chat[index - 1];
-            const timeDiff = previousMsg 
-              ? new Date(item.createdAt) - new Date(previousMsg.createdAt) 
-              : 0;
-            
-            // Show timestamp if it's the first message OR the gap is > 1 hour (3,600,000 ms)
-            const showTimestamp = index === 0 || timeDiff > 3600000;
+      <div
+        ref={nativeScrollerRef}
+        className={styles['native-chat-scroller']}
+      >
+        {chat.map((item, index) => {
+          const previousMsg = chat[index - 1]
 
-            // Determine if this is the absolute last message in the array
-            const isLastMessage = index === chat.length - 1;
+          const timeDiff = previousMsg
+            ? new Date(item.createdAt) -
+              new Date(previousMsg.createdAt)
+            : 0
 
-            return (
-              <React.Fragment key={item.id}>
-                {showTimestamp && (
-                  <div className={styles['time-break']}>
-                    {formatTimestamp(item.createdAt)}
-                  </div>
-                )}
-                <ChatMessage
-                  message={item}
-                  isLastMessage={isLastMessage}           // <-- Pass boolean
-                  onRegenerate={() => regenerate()}       // <-- Pass function
-                />
-              </React.Fragment>
-            );
-          }}
-          components={{
-            // Injecting the footer so it scrolls cleanly at the bottom
-            Footer: () => (
-              <ChatFooter isArchived={isArchived} />
-            )
-          }}
-        />
+          const showTimestamp =
+            index === 0 ||
+            timeDiff > 3600000
+
+          const isLastMessage =
+            index === chat.length - 1
+
+          return (
+            <React.Fragment key={item.id}>
+              {showTimestamp && (
+                <div className={styles['time-break']}>
+                  {formatTimestamp(item.createdAt)}
+                </div>
+              )}
+
+              <ChatMessage
+                message={item}
+                isLastMessage={isLastMessage}
+                onRegenerate={() => regenerate()}
+              />
+            </React.Fragment>
+          )
+        })}
+
+        <ChatFooter isArchived={isArchived} />
       </div>
 
       {/* Floating Scroll to Bottom Button */}

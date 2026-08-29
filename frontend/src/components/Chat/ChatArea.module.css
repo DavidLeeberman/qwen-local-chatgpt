@@ -22,6 +22,13 @@
   margin: 0 auto;
 }
 
+.native-chat-scroller {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-anchor: none;
+}
+
 /* ========================================================
    NEW: Virtuoso Sticky Footer Flexbox Injection
    Forces Virtuoso's internal elements to act as a flex column

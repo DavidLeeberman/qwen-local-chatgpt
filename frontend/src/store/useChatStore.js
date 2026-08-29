@@ -447,7 +447,10 @@ export const useChatStore = create((set, get) => ({
     const { setBranched, cleanupStream } = get()
     cleanupStream(false, true)
     setBranched(false)
-    set({ targetMessageId: null })
+    set(state => ({ 
+      targetMessageId: null,
+      listScrollTrigger: state.listScrollTrigger + 1 // 🌟 FIX: Reset scroll tracking for clean slates
+    }))
   },
 
   // 🔥 UPDATED: Now accepts originalTitle and the specific messageId to branch from
@@ -469,7 +472,8 @@ export const useChatStore = create((set, get) => ({
         targetMessageId: null,
         err: '',
         branchedOriginalTitle: originalTitle || 'Archived Chat',
-        chat: branchHistory // 👈 NEW: Overwrite the active UI view with the truncated history
+        chat: branchHistory,
+        listScrollTrigger: state.listScrollTrigger + 1 // 🌟 FIX: Force native view jump when branching
       };
     });
   },
