@@ -26,6 +26,10 @@ def chat():
     cid = data.get('conversation_id')
     history = data.get('history', []) # ✅ 1. Extract history from the frontend payload
     
+    # ✅ Extract regeneration flags from frontend
+    is_regenerate = data.get('is_regenerate', False)
+    req_user_msg_id = data.get('user_message_id')
+    
     # Extract original_title from the frontend payload (Option 1)
     original_title = data.get('original_title', None)
     new_title = f"[Branched]: {original_title} -> {msg}" if original_title else msg
@@ -72,19 +76,47 @@ def chat():
                 
                 new_id = False
 
-            # ✅ 4. Store the NEW user message securely
-            cur.execute(
-                """
-                INSERT INTO messages
-                (conversation_id, role, content)
-                VALUES (%s,%s,%s)
-                RETURNING id
-                """,
-                (cid, "user", msg)
-            )
+            # 🔥 THE FIX: Aggressive Regeneration Fallbacks
+            if is_regenerate:
+                if req_user_msg_id:
+                    user_message_id = req_user_msg_id
+                else:
+                    # Fallback: Frontend lost the ID (likely due to a stopped stream). 
+                    # Grab the LAST user message in this specific conversation.
+                    cur.execute(
+                        "SELECT id FROM messages WHERE conversation_id=%s AND role='user' ORDER BY id DESC LIMIT 1",
+                        (cid,)
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        user_message_id = row[0]
+                    else:
+                        cur.execute(
+                            "INSERT INTO messages (conversation_id, role, content) VALUES (%s,%s,%s) RETURNING id",
+                            (cid, "user", msg)
+                        )
+                        user_message_id = cur.fetchone()[0]
 
-            user_message_id = cur.fetchone()[0]
-            conn.commit()
+                # Aggressively delete ALL assistant messages that came AFTER this user prompt.
+                # This ensures partial/stopped responses are completely wiped from the DB and context window.
+                cur.execute(
+                    "DELETE FROM messages WHERE conversation_id=%s AND role='assistant' AND id > %s",
+                    (cid, user_message_id)
+                )
+                conn.commit()
+            else:
+                # Standard flow: Store the NEW user message securely
+                cur.execute(
+                    """
+                    INSERT INTO messages
+                    (conversation_id, role, content)
+                    VALUES (%s,%s,%s)
+                    RETURNING id
+                    """,
+                    (cid, "user", msg)
+                )
+                user_message_id = cur.fetchone()[0]
+                conn.commit()
 
             # 3. Pull System Instructions for this Conversation
             cur.execute("SELECT system_prompt FROM conversations WHERE id=%s", (cid,))

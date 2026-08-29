@@ -43,11 +43,10 @@ export default function ChatArea({
   
   // When branching, isArchived evaluates to false to recover active layout
   const isArchived = activeChat?.is_archived && !isBranched;
-  
-  // autoScroll inherently mirrors isAtBottom since Virtuoso sets it on atBottomStateChange
-  const autoScroll = useChatStore(state => state.autoScroll)
-  const setAutoScroll = useChatStore(state => state.setAutoScroll)
-  
+
+  // 🌟 FIX 2: Local state to track Virtuoso's native scroll position
+  const [isAtBottom, setIsAtBottom] = useState(true);
+
   const scrollToBottom = () => {
     if (virtuosoRef.current) {
       virtuosoRef.current.scrollToIndex({
@@ -65,8 +64,9 @@ export default function ChatArea({
           ref={virtuosoRef}
           data={chat}
           increaseViewportBy={increaseViewportBy}
-          followOutput={(isAtBottom) => autoScroll && isAtBottom ? 'smooth' : false}
-          atBottomStateChange={setAutoScroll}
+          followOutput={false}
+          // 🌟 FIX 3: Bind Virtuoso's internal scroll tracker directly to state
+          atBottomStateChange={(bottom) => setIsAtBottom(bottom)}
           computeItemKey={(index, item) => item.id}
           itemContent={(index, item) => {
             // 👈 NEW: Timestamp Gap Logic
@@ -108,7 +108,7 @@ export default function ChatArea({
       {/* Floating Scroll to Bottom Button */}
       <button
         onClick={scrollToBottom}
-        className={`${styles['scroll-bottom-btn']} ${autoScroll ? styles['hidden'] : ''}`}
+        className={`${styles['scroll-bottom-btn']} ${isAtBottom ? styles['hidden'] : ''}`}
         aria-label="Scroll to bottom"
       >
         <DownArrowIcon />

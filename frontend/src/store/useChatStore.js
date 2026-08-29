@@ -24,7 +24,7 @@ export const useChatStore = create((set, get) => ({
   isStreaming: false,
   isBranched: false,  // Tracks if we are drafting a branched chat from an archived conversation
   branchedOriginalTitle: '', // 🔥 ADDED: State to hold the title of the chat being branched
-  autoScroll: true,
+  autoScroll: false,
   err: '',
   editingChatId: null,
   editTitleBuffer: '',
@@ -490,9 +490,11 @@ export const useChatStore = create((set, get) => ({
       err: ''
     }));
 
-    // 3. Re-feed the exact user prompt back into the send function
-    // We pass a dummy function `() => {}` because `send` expects a `setMsg` callback to clear the input
-    await send(lastMessage.u, () => {});
+    // 3. Re-feed the prompt with explicitly attached regeneration options
+    await send(lastMessage.u, () => {}, {
+      isRegenerate: true,
+      userMessageId: lastMessage.userMessageId
+    });
   },
 
   // Search conversations endpoint action
@@ -523,7 +525,10 @@ export const useChatStore = create((set, get) => ({
   },
 
   // ✅ send message
-  send: async (msg, setMsg) => {
+  send: async (msg, setMsg, options = {}) => {
+    // Extract the new regeneration options
+    const { isRegenerate = false, userMessageId = null } = options;
+
     const { 
       token, 
       cid, 
@@ -609,7 +614,7 @@ export const useChatStore = create((set, get) => ({
           done: false,
           createdAt: new Date().toISOString() 
         }],
-        autoScroll: true,
+        autoScroll: false,
         isStreaming: true,
         cid: wasBranched ? tempId : cid,
         conversations: updatedConversations
@@ -625,6 +630,10 @@ export const useChatStore = create((set, get) => ({
           body: JSON.stringify({ 
             message: userMsg, 
             conversation_id: wasBranched ? null : cid,
+            
+            // NEW: Pass regeneration flags to the backend
+            is_regenerate: isRegenerate,
+            user_message_id: userMessageId,
             // 🔥 UPDATED: Pass the original_title to the backend along with the history
             ...(wasBranched ? { history: formattedHistory, original_title: branchedOriginalTitle } : {})
           }),
