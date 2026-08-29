@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Virtuoso } from 'react-virtuoso'
 
 import { useChatStore } from '../../store/useChatStore'
 import ChatMessage from './ChatMessage'
@@ -27,40 +26,49 @@ const ChatFooter = ({ isArchived }) => {
 };
 
 // --- Main Component ---
-export default function ChatArea({
-  virtuosoRef,
-  increaseViewportBy
-}) {
+export default function ChatArea() {
   const chat = useChatStore(state => state.chat)
   const err = useChatStore(state => state.err)
   const isBranched = useChatStore(state => state.isBranched)
+  const isStreaming = useChatStore(state => state.isStreaming)
   const regenerate = useChatStore(state => state.regenerate)
   const listScrollTrigger = useChatStore(state => state.listScrollTrigger)
+  const targetMessageId = useChatStore(state => state.targetMessageId)
   
-  // Determine if the currently viewed chat is archived
-  const cid = useChatStore(state => state.cid);
-  const conversations = useChatStore(state => state.conversations);
-  const activeChat = conversations.find(c => c.id === cid);
+  const cid = useChatStore(state => state.cid)
+  const conversations = useChatStore(state => state.conversations)
+  const activeChat = conversations.find(c => c.id === cid)
   
   // When branching, isArchived evaluates to false to recover active layout
-  const isArchived = activeChat?.is_archived && !isBranched;
+  const isArchived = activeChat?.is_archived && !isBranched
 
-  // 🌟 FIX 2: Local state to track Virtuoso's native scroll position
-  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [isAtBottom, setIsAtBottom] = useState(true)
   const nativeScrollerRef = useRef(null)
+  const lastMessageRef = useRef(null)
+  const prevStreamingRef = useRef(isStreaming)
 
+  // 🌟 FIX 2: Smart scrolling that respects the artificial spacer
   const scrollToBottom = () => {
     const scroller = nativeScrollerRef.current
-
     if (!scroller) return
 
-    scroller.scrollTo({
-      top: scroller.scrollHeight,
-      behavior: 'smooth'
-    })
+    // If streaming, scroll to the bottom of the actual generating text 
+    // rather than the absolute bottom (which contains the empty spacer)
+    if (isStreaming && lastMessageRef.current) {
+      const textBottom = lastMessageRef.current.offsetTop + lastMessageRef.current.offsetHeight
+      scroller.scrollTo({
+        top: Math.max(0, textBottom - scroller.clientHeight + 40), // 40px padding beneath text
+        behavior: 'smooth'
+      })
+    } else {
+      scroller.scrollTo({
+        top: scroller.scrollHeight,
+        behavior: 'smooth'
+      })
+    }
   }
 
-  // 🌟 FIX: Reusable distance checker
+  // 🌟 FIX 2: Check distance against the true text node boundaries
   const checkIsAtBottom = useCallback(() => {
     const scroller = nativeScrollerRef.current
     if (!scroller) return
@@ -71,42 +79,85 @@ export default function ChatArea({
       scroller.scrollTop
 
     const epsilon = 8
+    let atBottom = distanceFromBottom <= epsilon
 
-    setIsAtBottom(distanceFromBottom <= epsilon)
+    // If we aren't at the physical bottom, check if the real text is still fully visible
+    if (!atBottom && lastMessageRef.current) {
+      const textBottom = lastMessageRef.current.offsetTop + lastMessageRef.current.offsetHeight
+      const viewportBottom = scroller.scrollTop + scroller.clientHeight
+      
+      // If the bottom of the last message hasn't grown past the viewport yet, 
+      // the user hasn't missed anything. Hide the arrow.
+      if (textBottom <= viewportBottom + epsilon) {
+        atBottom = true
+      }
+    }
+
+    setIsAtBottom(atBottom)
   }, [])
 
-  // 1. Check distance on load, chat switch, or branch
+  // Initial positioning on chat load, switch, or branch (snaps to bottom)
   useEffect(() => {
     const scroller = nativeScrollerRef.current;
     if (!scroller) return;
 
-    // 50ms timeout guarantees React has flushed the new chat array to the DOM 
-    // and calculated the raw Markdown heights before we measure scrollHeight.
     const timer = setTimeout(() => {
-      scroller.scrollTop = scroller.scrollHeight;
+      // If a target message ID exists from search, natively scroll it into the center of the view
+      if (targetMessageId) {
+        const targetEl = document.getElementById(`msg-${targetMessageId}`);
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      } else {
+        // Default behavior: snap to the bottom
+        scroller.scrollTop = scroller.scrollHeight;
+      }
+      
       checkIsAtBottom();
     }, 50);
 
     return () => clearTimeout(timer);
-  }, [listScrollTrigger, checkIsAtBottom]);
+  }, [listScrollTrigger, targetMessageId, checkIsAtBottom]); // Add targetMessageId to dependencies
 
-  // 2. Check distance on manual scroll
+  // 🌟 FIX 1: One-time scroll positioning to 1/5th of the viewport height when Send / Regenerate starts
+  useEffect(() => {
+    // When stream transitions from false -> true
+    if (isStreaming && !prevStreamingRef.current) {
+      // Double RAF ensures React DOM commit and browser layout passes have completed
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const container = nativeScrollerRef.current
+          const lastEl = lastMessageRef.current
+
+          if (container && lastEl) {
+            const oneFifthOffset = container.clientHeight / 5;
+            const targetTop = Math.max(0, lastEl.offsetTop - oneFifthOffset)
+            
+            container.scrollTo({
+              top: targetTop,
+              behavior: 'smooth'
+            })
+          }
+        })
+      })
+    }
+    prevStreamingRef.current = isStreaming
+  }, [isStreaming])
+
+  // Track scroll state on manual scroll
   useEffect(() => {
     const scroller = nativeScrollerRef.current
     if (!scroller) return
 
     checkIsAtBottom()
-
-    scroller.addEventListener('scroll', checkIsAtBottom, {
-      passive: true
-    })
+    scroller.addEventListener('scroll', checkIsAtBottom, { passive: true })
 
     return () => {
       scroller.removeEventListener('scroll', checkIsAtBottom)
     }
   }, [checkIsAtBottom])
 
-  // 3. 🌟 FIX: Check distance when content grows (Send, Regenerate, or Streaming)
+  // Track scroll state as response streams and expands the DOM height
   useEffect(() => {
     checkIsAtBottom()
   }, [chat, checkIsAtBottom])
@@ -121,31 +172,36 @@ export default function ChatArea({
           const previousMsg = chat[index - 1]
 
           const timeDiff = previousMsg
-            ? new Date(item.createdAt) -
-              new Date(previousMsg.createdAt)
+            ? new Date(item.createdAt) - new Date(previousMsg.createdAt)
             : 0
 
-          const showTimestamp =
-            index === 0 ||
-            timeDiff > 3600000
-
-          const isLastMessage =
-            index === chat.length - 1
+          const showTimestamp = index === 0 || timeDiff > 3600000
+          const isLastMessage = index === chat.length - 1
 
           return (
-            <React.Fragment key={item.id}>
-              {showTimestamp && (
-                <div className={styles['time-break']}>
-                  {formatTimestamp(item.createdAt)}
-                </div>
-              )}
+            <div 
+              key={item.id}
+              id={`msg-${item.id}`} // 👈 Attach the targetable DOM ID here
+              style={{
+                // Applies the layout spacer so scrolling 1/5th up is mechanically possible
+                minHeight: isLastMessage && isStreaming ? 'calc(100vh - 40px)' : 'auto'
+              }}
+            >
+              {/* Inner wrapper allows us to measure actual text height independent of spacer */}
+              <div ref={isLastMessage ? lastMessageRef : null}>
+                {showTimestamp && (
+                  <div className={styles['time-break']}>
+                    {formatTimestamp(item.createdAt)}
+                  </div>
+                )}
 
-              <ChatMessage
-                message={item}
-                isLastMessage={isLastMessage}
-                onRegenerate={() => regenerate()}
-              />
-            </React.Fragment>
+                <ChatMessage
+                  message={item}
+                  isLastMessage={isLastMessage}
+                  onRegenerate={() => regenerate()}
+                />
+              </div>
+            </div>
           )
         })}
 

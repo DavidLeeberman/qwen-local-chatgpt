@@ -266,44 +266,52 @@ def search_conversations():
 
     with get_db() as conn:
         with conn.cursor() as cur:
-            # SQL Architecture: Scans titles and message content using GIN trigram indexes
+            # SQL Architecture: Use a CTE to isolate exactly ONE row per matched conversation
+            # before applying the LIMIT 100, preventing a single long chat from hoarding the limit.
             cur.execute("""
+                WITH RankedMatches AS (
+                    SELECT 
+                        c.id AS conversation_id,
+                        c.title,
+                        c.updated_at,
+                        c.is_archived,
+                        m.id AS message_id,
+                        m.role,
+                        m.content,
+                        m.created_at AS message_created_at,
+                        ROW_NUMBER() OVER(
+                            PARTITION BY c.id 
+                            ORDER BY 
+                                -- Prioritize rows where the message content actually matches so we get a useful snippet
+                                CASE WHEN m.content ILIKE %s THEN 0 ELSE 1 END,
+                                m.created_at DESC
+                        ) as rn
+                    FROM conversations c
+                    LEFT JOIN messages m ON c.id = m.conversation_id
+                    WHERE c.user_id = %s 
+                      AND (c.title ILIKE %s OR m.content ILIKE %s)
+                )
                 SELECT 
-                    c.id AS conversation_id,
-                    c.title,
-                    c.updated_at,
-                    c.is_archived,
-                    m.id AS message_id,
-                    m.role,
-                    m.content,
-                    m.created_at AS message_created_at
-                FROM conversations c
-                LEFT JOIN messages m ON c.id = m.conversation_id
-                WHERE c.user_id = %s 
-                  AND (c.title ILIKE %s OR m.content ILIKE %s)
-                ORDER BY COALESCE(m.created_at, c.updated_at) DESC
+                    conversation_id, title, updated_at, is_archived, 
+                    message_id, role, content, message_created_at
+                FROM RankedMatches
+                WHERE rn = 1
+                ORDER BY COALESCE(message_created_at, updated_at) DESC
                 LIMIT 100
-            """, (user_id, search_pattern, search_pattern))
+            """, (search_pattern, user_id, search_pattern, search_pattern))
 
             rows = cur.fetchall()
 
-    # Deduplicate and format results for OpenAI-style UI display
     results = []
-    seen_cids = set()
-
+    
+    # We no longer need 'seen_cids' because the SQL CTE guarantees 1 row per conversation
     for r in rows:
         cid, title, updated_at, is_archived, msg_id, role, content, msg_created_at = r
-
-        # Group by conversation_id so a single chat isn't listed multiple times
-        if cid in seen_cids:
-            continue
-        seen_cids.add(cid)
 
         snippet = ""
         match_type = "title"
 
         if content:
-            # Find match position to generate a contextual snippet around the keyword
             match_index = content.lower().find(query_str.lower())
             if match_index != -1:
                 start = max(0, match_index - 40)

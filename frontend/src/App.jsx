@@ -42,44 +42,10 @@ export default function App() {
   const chatToDelete = useChatStore(state => state.chatToDelete)
   const setChatToDelete = useChatStore(state => state.setChatToDelete)
   const deleteConversation = useChatStore(state => state.deleteConversation)
-  
-  const virtuosoRef = useRef(null)
 
   // 1. Initialize Custom Hooks
   useChatLifecycle()
   const { tooltip, handleTitleMouseEnter, handleTitleMouseLeave } = useTooltip()
-
-  // 2. Virtuoso Auto-Scroll Logic (Handles both target search scrolls and normal bottom scrolls in ChatArea rendering)
-  useEffect(() => {
-    if (listScrollTrigger <= 0 || !virtuosoRef.current) return
-
-    requestAnimationFrame(() => {
-      // If a target message ID exists from search, scroll directly to center on it
-      if (targetMessageId) {
-        const targetIndex = chat.findIndex(
-          m => 
-            m.id === targetMessageId || 
-            m.userMessageId === targetMessageId || 
-            m.assistantMessageId === targetMessageId
-        )
-
-        if (targetIndex !== -1) {
-          virtuosoRef.current.scrollToIndex({
-            index: targetIndex,
-            align: 'center',
-            behavior: 'smooth'
-          })
-          return
-        }
-      }
-
-      // Default behavior: scroll to the bottom of the chat list
-      virtuosoRef.current.scrollToIndex({ 
-        index: Math.max(chat.length - 1, 0), 
-        align: 'end' 
-      })
-    })
-  }, [listScrollTrigger, targetMessageId])
 
   // 3. Add the global Keyboard Shortcut listener
   useEffect(() => {
@@ -122,10 +88,7 @@ export default function App() {
       >
         {/* Everything passed as 'children' goes into the right-hand chat column */}
         {/* Main Chat Area */}
-        <ChatArea 
-          virtuosoRef={virtuosoRef} 
-          increaseViewportBy={800} /* Restored Virtuoso prop */
-        />
+        <ChatArea />
       </MainChatLayout>
 
       {/* Floating Overlays sit outside the layout grid! */}

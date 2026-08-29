@@ -1,4 +1,4 @@
-/* Keep your existing .main-chat-area and .virtuoso-viewport rules untouched */
+/* Keep your existing .main-chat-area rules untouched */
 .main-chat-area {
   flex: 1;
   display: flex;
@@ -6,11 +6,6 @@
   background-color: #212121;
   height: 100%;
   position: relative;
-}
-
-.virtuoso-viewport {
-  flex: 1;
-  min-height: 0;
 }
 
 .time-break {
@@ -27,29 +22,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-anchor: none;
-}
-
-/* ========================================================
-   NEW: Virtuoso Sticky Footer Flexbox Injection
-   Forces Virtuoso's internal elements to act as a flex column
-   so we can push the disclaimer to the bottom.
-======================================================== */
-.virtuoso-viewport :global([data-viewport-type="element"]) {
-  min-height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-.virtuoso-viewport :global([data-testid="virtuoso-item-list"]) {
-  flex-shrink: 0 !important;
-}
-
-/* Target the wrapper Virtuoso builds for our ChatListFooter */
-.virtuoso-viewport :global([data-viewport-type="element"] > :last-child) {
-  /* FIX: Expand to fill remaining screen space, don't push the whole wrapper down */
-  flex-grow: 1 !important; 
-  display: flex !important;
-  flex-direction: column !important;
+  position: relative; /* Ensures lastEl.offsetTop evaluates against this container */
 }
 
 /* ========================================================
