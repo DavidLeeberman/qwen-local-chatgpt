@@ -5,6 +5,7 @@ Model      : Qwen3.5-9B + vLLM + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
 ```
 Updates:
+- Migrated from Virtuoso to native DOM for better UI control and performance
 - Fixed trivial chat area positioning bugs
 ```
 Version    : 0.591
