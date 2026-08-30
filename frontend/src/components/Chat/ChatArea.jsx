@@ -96,28 +96,64 @@ export default function ChatArea() {
     setIsAtBottom(atBottom)
   }, [])
 
-  // Initial positioning on chat load, switch, or branch (snaps to bottom)
+  // Auto-Scroll Logic with ResizeObserver for Layout Shifts handles 
+  // both target search scrolls and initial positioning on chat load, switch, or branch (snaps to bottom)
   useEffect(() => {
     const scroller = nativeScrollerRef.current;
     if (!scroller) return;
 
-    const timer = setTimeout(() => {
-      // If a target message ID exists from search, natively scroll it into the center of the view
-      if (targetMessageId) {
-        const targetEl = document.getElementById(`msg-${targetMessageId}`);
-        if (targetEl) {
-          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      } else {
-        // Default behavior: snap to the bottom
-        scroller.scrollTop = scroller.scrollHeight;
-      }
-      
-      checkIsAtBottom();
-    }, 50);
+    // Helper to snap to bottom if there's no specific target
+    if (!targetMessageId) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            scroller.scrollTop = scroller.scrollHeight;
+            checkIsAtBottom();
+          }, 50);
+        });
+      });
+      return; // Exit early since we don't need to observe for centering
+    }
 
-    return () => clearTimeout(timer);
-  }, [listScrollTrigger, targetMessageId, checkIsAtBottom]); // Add targetMessageId to dependencies
+    // 1. Locate the specific target message
+    const targetEl = document.getElementById(`msg-${targetMessageId}`);
+    if (!targetEl) return;
+
+    // 2. Initial scroll to center
+    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // 3. Create a ResizeObserver to watch for late-loading images/code blocks
+    let timeoutId;
+    const resizeObserver = new ResizeObserver(() => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        targetEl.scrollIntoView({ behavior: 'auto', block: 'center' });
+      }, 50); // Wait 50ms for layout shifts to settle before scrolling
+    });
+
+    // Observe the entire scroll container to catch any layout shifts above the target
+    resizeObserver.observe(scroller);
+
+    // 4. Cleanup mechanisms
+    // Auto-disconnect after 3 seconds (assuming network assets have loaded) 
+    // to prevent locking the user's scroll indefinitely.
+    const safetyTimeout = setTimeout(() => {
+      resizeObserver.disconnect();
+    }, 3000);
+
+    // Cancel observer if the user manually attempts to scroll away
+    const handleUserInteraction = () => resizeObserver.disconnect();
+    scroller.addEventListener('wheel', handleUserInteraction, { once: true, passive: true });
+    scroller.addEventListener('touchstart', handleUserInteraction, { once: true, passive: true });
+
+    return () => {
+      resizeObserver.disconnect();
+      clearTimeout(safetyTimeout);
+      clearTimeout(timeoutId);
+      scroller.removeEventListener('wheel', handleUserInteraction);
+      scroller.removeEventListener('touchstart', handleUserInteraction);
+    };
+  }, [listScrollTrigger, targetMessageId, checkIsAtBottom]);
 
   // 🌟 FIX 1: One-time scroll positioning to 1/5th of the viewport height when Send / Regenerate starts
   useEffect(() => {
@@ -181,7 +217,7 @@ export default function ChatArea() {
           return (
             <div 
               key={item.id}
-              id={`msg-${item.id}`} // 👈 Attach the targetable DOM ID here
+              // The outer ID wrapper was removed here so the browser stops centering the entire combined text block[cite: 17]
               style={{
                 // Applies the layout spacer so scrolling 1/5th up is mechanically possible
                 minHeight: isLastMessage && isStreaming ? 'calc(100vh - 40px)' : 'auto'

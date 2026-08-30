@@ -138,18 +138,18 @@ function ChatMessage({
   return (
     <div className={styles['message-pair']}>
       
-      {/* 10. User Message Row (Rendered on the Right) */}
+      {/* 10. User Message Row (Rendered on the Right) Target the specific User ID onto this bubble */}
       {message.u && (
         <div className={`${styles['message-row']} ${styles['user-row']}`}>
           <div className={styles['message-row-inner']}>
-            <div className={styles['message-bubble']}>
+            <div id={`msg-${message.userMessageId}`} className={styles['message-bubble']}>
               {message.u}
             </div>
           </div>
         </div>
       )}
 
-      {/* 10. Assistant Message Row (Rendered on the Left) */}
+      {/* 10. Assistant Message Row (Rendered on the Left) Target the specific Assistant ID onto this bubble */}
       {(message.a || (isLastMessage && !message.done)) && (
         <div 
           className={`${styles['message-row']} ${styles['assistant-row']}`}
@@ -157,7 +157,7 @@ function ChatMessage({
           onMouseLeave={() => setIsHovered(false)}
         >
           <div className={styles['message-row-inner']}>
-            <div className={styles['message-bubble']}>
+            <div id={`msg-${message.assistantMessageId}`} className={styles['message-bubble']}>
               
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkMath]}
