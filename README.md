@@ -981,6 +981,20 @@ Estimated Cost
 
 ---
 
+## Native DOM Architecture
+
+- [x] Tail-First Progressive Pagination
+- [x] Isolated Markdown Rendering
+- [x] Callback Reference Stability
+- [x] Native Scroll Anchoring
+- [x] Non-Blocking UI Mechanics
+- [x] Stream Update Throttling
+- [ ] CSS Containment
+- [ ] Off-Screen Lazy Hydration
+- [ ] Bidirectional Sliding Window
+
+---
+
 ## Near-Term
 
 - [ ] Async Queue (Redis + Dramatiq)
