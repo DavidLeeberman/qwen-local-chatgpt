@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import { useChatStore } from '../../store/useChatStore';
 import { getInitials } from '../../utils/UIUtils';
@@ -22,6 +22,7 @@ export default function Sidebar({
   onNewChat = () => {} // Pass down your new chat function if you have one
 }) {
   const isStreaming = useChatStore(state => state.isStreaming);
+  const cid = useChatStore(state => state.cid); // NEW: Subscribe to active conversation ID
   
   // Retrieve the username from your store (Make sure to set this upon Login!)
   // Using a fallback of 'test' just in case.
@@ -37,6 +38,23 @@ export default function Sidebar({
     handleAccountMouseLeave, 
     hideAccountTooltip 
   } = useAccountTooltip();
+
+  // NEW: Scroll the active conversation into view when selected from search or externally
+  useEffect(() => {
+    if (!cid) return;
+
+    const timer = setTimeout(() => {
+      const activeChatItem = document.getElementById(`sidebar-chat-${cid}`);
+      if (activeChatItem) {
+        activeChatItem.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }
+    }, 50); // Small timeout allows sidebar/modal rendering to settle
+
+    return () => clearTimeout(timer);
+  }, [cid]);
 
   return (
     <div className={styles.sidebar}>

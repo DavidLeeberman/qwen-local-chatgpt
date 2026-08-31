@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState, useMemo, memo } from 'react'
 
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -16,6 +16,7 @@ import { ActionTooltip } from '../Tooltip/Tooltip'
 import { useActionTooltip } from '../../hooks/useTooltip'
 import { formatDate, formatTime } from '../UI/FormattedText'
 import { MoreActionsIcon, BranchIcon, CopyIcon, RedoIcon, DoneIcon } from '../UI/Icons' 
+import { highlightMarkdownKeywords } from '../../utils/searchUtils'
 
 import styles from './ChatMessage.module.css'
 
@@ -39,6 +40,17 @@ const markdownComponents = {
   }
 }
 
+// ISOLATED MARKDOWN COMPONENT: Prevents re-parsing on parent hover state changes
+const PureMarkdown = memo(({ content }) => (
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm, remarkMath]}
+    rehypePlugins={[rehypeRaw, rehypeKatex]}
+    components={markdownComponents}
+  >
+    {content}
+  </ReactMarkdown>
+));
+
 function ChatMessage({ 
   message, 
   isLastMessage = false, 
@@ -54,6 +66,9 @@ function ChatMessage({
   const branchChat = useChatStore(state => state.branchChat);
   const cid = useChatStore(state => state.cid);
   const conversations = useChatStore(state => state.conversations);
+  const targetMessageId = useChatStore(state => state.targetMessageId);
+  const searchQuery = useChatStore(state => state.searchQuery);
+
   const activeChat = conversations.find(c => c.id === cid);
 
   // Tooltip Hook
@@ -69,8 +84,6 @@ function ChatMessage({
     () => setMenuOpen(false),
     { preferredDirection: 'up' } // <-- Prefers popping UP
   );
-
-  // NOTE: Redundant `useEffect` for clicking outside was completely removed!
 
   const formatDateTime = (isoString) => { 
     if (!isoString) return 'Just now';
@@ -134,7 +147,18 @@ function ChatMessage({
     if (onRegenerate) onRegenerate(message.id);
   };
 
-  // Virtuoso requires a single root element per item, so we wrap the pair in a parent div
+  // 🌟 INJECT HIGHLIGHT MARKERS INTO MARKDOWN IF THIS IS THE SEARCH TARGET
+  const processedAssistantContent = useMemo(() => {
+    if (!message.a) return '';
+    const isTarget = String(message.assistantMessageId) === String(targetMessageId) ||
+                     String(message.id) === String(targetMessageId);
+
+    if (isTarget && searchQuery) {
+      return highlightMarkdownKeywords(message.a, searchQuery);
+    }
+    return message.a;
+  }, [message.a, message.assistantMessageId, message.id, targetMessageId, searchQuery]);
+
   return (
     <div className={styles['message-pair']}>
       
@@ -159,17 +183,9 @@ function ChatMessage({
           <div className={styles['message-row-inner']}>
             <div id={`msg-${message.assistantMessageId}`} className={styles['message-bubble']}>
               
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkMath]}
-                rehypePlugins={[rehypeRaw, rehypeKatex]}
-                components={markdownComponents}
-              >
-                {message.a}
-              </ReactMarkdown>
+              <PureMarkdown content={processedAssistantContent} />
 
-              {isLastMessage && (
-                <span className={styles['streaming-cursor']}>▋</span>
-              )}
+              {isLastMessage && <span className={styles['streaming-cursor']}>▋</span>}
 
               {/* Hover Action Toolbar */}
               {/* Only mount the toolbar if we are NOT actively streaming */}
@@ -253,4 +269,15 @@ function ChatMessage({
   )
 }
 
-export default React.memo(ChatMessage)
+// STRICT EQUALITY: Ignores function references and checks specific primitive changes
+const areEqual = (prevProps, nextProps) => {
+  return (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.a === nextProps.message.a &&
+    prevProps.message.u === nextProps.message.u &&
+    prevProps.message.done === nextProps.message.done &&
+    prevProps.isLastMessage === nextProps.isLastMessage
+  );
+};
+
+export default memo(ChatMessage, areEqual)

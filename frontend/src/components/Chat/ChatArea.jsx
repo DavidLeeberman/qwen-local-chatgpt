@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 import { useChatStore } from '../../store/useChatStore'
 import ChatMessage from './ChatMessage'
@@ -43,9 +43,63 @@ export default function ChatArea() {
   const isArchived = activeChat?.is_archived && !isBranched
 
   const [isAtBottom, setIsAtBottom] = useState(true)
+  const [visibleCount, setVisibleCount] = useState(30) // NEW: Chunk size for lazy loading
+  
   const nativeScrollerRef = useRef(null)
   const lastMessageRef = useRef(null)
+  const topSentinelRef = useRef(null) // NEW: Observer target to load older messages
   const prevStreamingRef = useRef(isStreaming)
+
+  // STABILIZED CALLBACK: Prevents breaking React.memo on ChatMessage
+  const handleRegenerate = useCallback(() => {
+    regenerate();
+  }, [regenerate]);
+
+  // NEW: Reset visible messages to just the latest 30 whenever you switch to a new chat
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [cid]);
+
+  // NEW: Ensure the search target message is always rendered, even if it's 200 messages deep
+  useEffect(() => {
+    if (targetMessageId && chat.length > 0) {
+      const targetIdx = chat.findIndex(m => 
+        String(m.id) === String(targetMessageId) || 
+        String(m.assistantMessageId) === String(targetMessageId) ||
+        String(m.userMessageId) === String(targetMessageId)
+      );
+      if (targetIdx !== -1) {
+        const needed = chat.length - targetIdx;
+        if (needed > visibleCount) {
+          setVisibleCount(needed + 20); // Expand render window with a 20-message buffer
+        }
+      }
+    }
+  }, [targetMessageId, chat, visibleCount]);
+
+  // CALCULATE DISPLAYED SLICE
+  const startIndex = Math.max(0, chat.length - visibleCount);
+  const displayedChat = chat.slice(startIndex);
+  const hasMore = startIndex > 0;
+
+  // NEW: Background Observer to seamlessly load older messages when you scroll near the top
+  useEffect(() => {
+    const sentinel = topSentinelRef.current;
+    if (!sentinel || !hasMore) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        // Load the next 30 older messages
+        setVisibleCount(prev => Math.min(prev + 30, chat.length));
+      }
+    }, {
+      root: nativeScrollerRef.current,
+      rootMargin: '600px 0px 0px 0px' // Pre-load 600px before the user actually hits the top
+    });
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, chat.length]);
 
   // 🌟 FIX 2: Smart scrolling that respects the artificial spacer
   const scrollToBottom = () => {
@@ -73,11 +127,7 @@ export default function ChatArea() {
     const scroller = nativeScrollerRef.current
     if (!scroller) return
 
-    const distanceFromBottom =
-      scroller.scrollHeight -
-      scroller.clientHeight -
-      scroller.scrollTop
-
+    const distanceFromBottom = scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop
     const epsilon = 8
     let atBottom = distanceFromBottom <= epsilon
 
@@ -96,8 +146,9 @@ export default function ChatArea() {
     setIsAtBottom(atBottom)
   }, [])
 
-  // Auto-Scroll Logic with ResizeObserver for Layout Shifts handles 
-  // both target search scrolls and initial positioning on chat load, switch, or branch (snaps to bottom)
+  // Auto-Scroll Logic handles initial positioning on chat load, switch, or branch (snaps to bottom)
+  // 🌟 LIGHTWEIGHT NON-BLOCKING SCROLL ENGINE
+  // Uses staggered timeouts instead of heavy continuous observers to keep the main thread 100% free
   useEffect(() => {
     const scroller = nativeScrollerRef.current;
     if (!scroller) return;
@@ -105,53 +156,65 @@ export default function ChatArea() {
     // Helper to snap to bottom if there's no specific target
     if (!targetMessageId) {
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            scroller.scrollTop = scroller.scrollHeight;
-            checkIsAtBottom();
-          }, 50);
-        });
+        scroller.scrollTop = scroller.scrollHeight;
+        checkIsAtBottom();
       });
-      return; // Exit early since we don't need to observe for centering
+      return;
     }
 
-    // 1. Locate the specific target message
-    const targetEl = document.getElementById(`msg-${targetMessageId}`);
-    if (!targetEl) return;
+    const executeScroll = () => {
+      const targetEl = document.getElementById(`msg-${targetMessageId}`);
+      if (!targetEl) return;
 
-    // 2. Initial scroll to center
-    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const highlightNode = targetEl.querySelector('.highlight, mark');
+      
+      // 1. Traverse and horizontally scroll nested Markdown containers
+      if (highlightNode) {
+        let currentParent = highlightNode.parentElement;
+        while (currentParent && currentParent !== scroller && scroller.contains(currentParent)) {
+          if (currentParent.scrollWidth > currentParent.clientWidth) {
+            const pRect = currentParent.getBoundingClientRect();
+            const nRect = highlightNode.getBoundingClientRect();
+            
+            const absoluteLeft = (nRect.left - pRect.left) + currentParent.scrollLeft;
+            const targetLeft = absoluteLeft + (nRect.width / 2) - (currentParent.clientWidth / 2);
+            
+            currentParent.scrollTo({ left: Math.max(0, targetLeft), behavior: 'auto' });
+          }
+          currentParent = currentParent.parentElement;
+        }
+      }
 
-    // 3. Create a ResizeObserver to watch for late-loading images/code blocks
-    let timeoutId;
-    const resizeObserver = new ResizeObserver(() => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        targetEl.scrollIntoView({ behavior: 'auto', block: 'center' });
-      }, 50); // Wait 50ms for layout shifts to settle before scrolling
-    });
+      // 2. Compute Vertical Target Position
+      const scrollerRect = scroller.getBoundingClientRect();
+      const activeNode = highlightNode || targetEl;
+      const nodeRect = activeNode.getBoundingClientRect();
 
-    // Observe the entire scroll container to catch any layout shifts above the target
-    resizeObserver.observe(scroller);
+      if (nodeRect.height === 0) return; // Prevent NaN errors during unmounts
 
-    // 4. Cleanup mechanisms
-    // Auto-disconnect after 3 seconds (assuming network assets have loaded) 
-    // to prevent locking the user's scroll indefinitely.
-    const safetyTimeout = setTimeout(() => {
-      resizeObserver.disconnect();
-    }, 3000);
+      const absoluteNodeTop = (nodeRect.top - scrollerRect.top) + scroller.scrollTop;
+      
+      // 🌟 CRITICAL FIX:
+      // If a specific .highlight span exists, center it in the viewport.
+      // If NO highlight exists, align to the TOP of the message container (+40px buffer) 
+      // instead of centering the message midpoint (which causes the 4-page over-scroll on long messages).
+      let desiredScrollTop = highlightNode
+        ? absoluteNodeTop + (nodeRect.height / 2) - (scroller.clientHeight / 2)
+        : absoluteNodeTop - 40;
 
-    // Cancel observer if the user manually attempts to scroll away
-    const handleUserInteraction = () => resizeObserver.disconnect();
-    scroller.addEventListener('wheel', handleUserInteraction, { once: true, passive: true });
-    scroller.addEventListener('touchstart', handleUserInteraction, { once: true, passive: true });
+      scroller.scrollTo({
+        top: Math.max(0, desiredScrollTop),
+        behavior: 'auto'
+      });
+    };
+
+    // Stagger checks to catch initial mount and post-highlighting layout completion without CPU drain
+    const timer1 = setTimeout(executeScroll, 50);
+    const timer2 = setTimeout(executeScroll, 200);
 
     return () => {
-      resizeObserver.disconnect();
-      clearTimeout(safetyTimeout);
-      clearTimeout(timeoutId);
-      scroller.removeEventListener('wheel', handleUserInteraction);
-      scroller.removeEventListener('touchstart', handleUserInteraction);
+      clearTimeout(timer1);
+      clearTimeout(timer2);
     };
   }, [listScrollTrigger, targetMessageId, checkIsAtBottom]);
 
@@ -200,28 +263,26 @@ export default function ChatArea() {
 
   return (
     <div className={styles['main-chat-area']}>
-      <div
-        ref={nativeScrollerRef}
-        className={styles['native-chat-scroller']}
+      <div 
+        ref={nativeScrollerRef} 
+        className={styles['native-chat-scroller']} 
       >
-        {chat.map((item, index) => {
-          const previousMsg = chat[index - 1]
+        {/* Invisible Sentinel to trigger older message loading */}
+        {hasMore && <div ref={topSentinelRef} style={{ height: '1px' }} />}
 
-          const timeDiff = previousMsg
-            ? new Date(item.createdAt) - new Date(previousMsg.createdAt)
-            : 0
-
-          const showTimestamp = index === 0 || timeDiff > 3600000
-          const isLastMessage = index === chat.length - 1
+        {displayedChat.map((item, localIndex) => {
+          const absoluteIndex = startIndex + localIndex;
+          const previousMsg = chat[absoluteIndex - 1]
+          const timeDiff = previousMsg ? new Date(item.createdAt) - new Date(previousMsg.createdAt) : 0
+          const showTimestamp = absoluteIndex === 0 || timeDiff > 3600000
+          const isLastMessage = absoluteIndex === chat.length - 1
 
           return (
             <div 
               key={item.id}
               // The outer ID wrapper was removed here so the browser stops centering the entire combined text block[cite: 17]
-              style={{
-                // Applies the layout spacer so scrolling 1/5th up is mechanically possible
-                minHeight: isLastMessage && isStreaming ? 'calc(100vh - 40px)' : 'auto'
-              }}
+              // Applies the layout spacer so scrolling 1/5th up is mechanically possible
+              style={{ minHeight: isLastMessage && isStreaming ? 'calc(100vh - 40px)' : 'auto' }}
             >
               {/* Inner wrapper allows us to measure actual text height independent of spacer */}
               <div ref={isLastMessage ? lastMessageRef : null}>
@@ -234,7 +295,7 @@ export default function ChatArea() {
                 <ChatMessage
                   message={item}
                   isLastMessage={isLastMessage}
-                  onRegenerate={() => regenerate()}
+                  onRegenerate={handleRegenerate}
                 />
               </div>
             </div>
@@ -254,13 +315,9 @@ export default function ChatArea() {
       </button>
 
       {err && <ErrMessage err={err} />}
-
+      
       {/* Renders ChatInput when branched or in an active chat, and ArchivedFooter when viewing archived chat */}
-      {isArchived ? (
-        <ArchivedFooter />
-      ) : (
-        <ChatInput /> // ChatInput now manages its own state and refs internally!
-      )}
+      {isArchived ? <ArchivedFooter /> : <ChatInput />}
     </div>
   )
 }

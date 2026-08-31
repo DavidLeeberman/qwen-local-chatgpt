@@ -63,6 +63,7 @@ export default function ConversationItem({
   return (
       <div 
         key={c.id} 
+        id={`sidebar-chat-${c.id}`} // NEW: Attach targetable ID for sidebar scrolling
         // ✅ Feature 1 Fix: Appends 'dropdown-open' class so CSS keeps the actions visible
         className={`${styles['conversation-item']} ${isActive ? styles['active'] : ''} ${isMenuOpen ? styles['dropdown-open'] : ''}`}
         onClick={(e) => {

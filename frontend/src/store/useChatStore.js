@@ -34,6 +34,7 @@ export const useChatStore = create((set, get) => ({
 
   // Search states
   isSearching: false,
+  searchQuery: '',
   searchResults: [],
   targetMessageId: null,
   
@@ -124,7 +125,7 @@ export const useChatStore = create((set, get) => ({
   },
 
   // Load messages when switching conversation (supports optional targetMessageId for search highlights)
-  loadMessages: async (id, targetMessageId = null) => {
+  loadMessages: async (id, targetMessageId = null, query = '') => {
     const { token, cleanupStream } = get()
     // Stop any active stream first
     cleanupStream(false, true)
@@ -137,6 +138,7 @@ export const useChatStore = create((set, get) => ({
     set({ 
       cid: id, 
       targetMessageId, // Save target message ID for Virtuoso scrolling
+      searchQuery: query,
       isBranched: false, // Reset branching flag when loading another chat
       branchedOriginalTitle: '', // 🔥 ADDED: Reset when switching chats
       err: '' 
@@ -527,6 +529,9 @@ export const useChatStore = create((set, get) => ({
       set({ isSearching: false })
     }
   },
+
+  // Clear search target when switching chats or resetting
+  clearTargetMessage: () => set({ targetMessageId: null, searchQuery: '' }),
 
   // ✅ send message
   send: async (msg, setMsg, options = {}) => {

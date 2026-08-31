@@ -1,13 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useDeferredValue } from 'react';
 
 import { useChatStore } from '../../store/useChatStore';
 import { TruncatedText, formatDate } from '../UI/FormattedText';
 import { ChatBubbleIcon, ArchiveIcon } from '../UI/Icons';
+import { stripMarkdown } from '../../utils/searchUtils';
 
 import styles from './SearchModal.module.css';
 
 export default function SearchModal() {
   const [query, setQuery] = useState('');
+  // DEFERRED UPDATE: Allows typing to remain instant while heavy regex happens in background
+  const deferredQuery = useDeferredValue(query);
+  
   const inputRef = useRef(null);
   
   const setSearchModalOpen = useChatStore(state => state.setSearchModalOpen);
@@ -22,10 +26,13 @@ export default function SearchModal() {
     inputRef.current?.focus();
   }, []);
 
-  // Debounce search API calls
+  // Debounce search API calls using clean query text
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (query.trim()) searchChats(query);
+      const cleanQuery = stripMarkdown(query);
+      if (cleanQuery.trim()) {
+        searchChats(cleanQuery);
+      }
     }, 300);
     return () => clearTimeout(timer);
   }, [query, searchChats]);
@@ -45,7 +52,7 @@ export default function SearchModal() {
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
     .slice(0, 10);
 
-  const displayResults = query.trim() ? searchResults : defaultChats;
+  const displayResults = deferredQuery.trim() ? searchResults : defaultChats;
 
   const handleResultClick = (result) => {
     setSearchModalOpen(false);
@@ -54,21 +61,27 @@ export default function SearchModal() {
     const cid = result.conversation_id || result.id;
     const msgId = result.matched_message_id || null;
     
-    loadMessages(cid, msgId);
+    loadMessages(cid, msgId, query);
   };
 
   // NEW: Function to dynamically highlight the search term in snippets
   const highlightMatch = (text, searchQuery) => {
-    if (!searchQuery.trim() || !text) return text;
+    if (!text) return '';
     
-    // Escape special characters in query to prevent regex crashes
-    const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const parts = text.split(new RegExp(`(${escapedQuery})`, 'gi'));
+    // Convert raw Markdown and invisible formatting characters to clean text
+    const cleanText = stripMarkdown(text);
+    const cleanQuery = stripMarkdown(searchQuery);
+
+    if (!cleanQuery.trim()) return cleanText;
+    
+    // Escape special Regex characters to prevent crashes
+    const escapedQuery = cleanQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parts = cleanText.split(new RegExp(`(${escapedQuery})`, 'gi'));
     
     return (
       <>
         {parts.map((part, index) =>
-          part.toLowerCase() === searchQuery.toLowerCase() ? (
+          part.toLowerCase() === cleanQuery.toLowerCase() ? (
             <span key={index} className={styles.highlight}>{part}</span>
           ) : (
             part
@@ -121,12 +134,12 @@ export default function SearchModal() {
                 
                 <div className={styles.contentWrapper}>
                   <TruncatedText
-                    text={highlightMatch(result.title, query)}
+                    text={highlightMatch(result.title, deferredQuery)}
                     className={styles.title}
                   />
-                  {result.snippet && query.trim() && (
+                  {result.snippet && deferredQuery.trim() && (
                     <TruncatedText
-                      text={highlightMatch(result.snippet, query)}
+                      text={highlightMatch(result.snippet, deferredQuery)}
                       className={styles.snippet}
                     />
                   )}
@@ -139,8 +152,8 @@ export default function SearchModal() {
             ))
           )}
 
-          {query.trim() && !isSearching && displayResults.length === 0 && (
-            <div className={styles.noResults}>No results found for "{query}"</div>
+          {deferredQuery.trim() && !isSearching && displayResults.length === 0 && (
+            <div className={styles.noResults}>No results found for "{deferredQuery}"</div>
           )}
         </div>
       </div>

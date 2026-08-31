@@ -5,7 +5,9 @@ Model      : Qwen3.5-9B + vLLM + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
 ```
 Updates:
-- Initial one-time new-message-pair positioning and locking for user to read steadily
+- Improved UI fluency on switching and opening chats by Reverse Windowing (Lazy Loading), Isolating Markdown compilations, and executing highlightMatch Regex logic and DOM rendering in the background to unblock main UI thread
+- Improved Search result and keyword snippet positioning with browser's scrollIntoView() and pure developer's math
+- Implemented initial one-time positioning with "Sticky Bottom" Scroll Intent Hook and CSS Scroll Anchoring for instant and steady new-message-pair reading experience
 - Migrated from Virtuoso to native DOM for better UI control and performance
 - Fixed trivial chat area positioning bugs
 ```
