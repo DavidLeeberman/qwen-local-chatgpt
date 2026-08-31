@@ -198,6 +198,7 @@ qwen-local-chatgpt/
 │   └── src/
 |       ├── utils/
 |       │   ├── constants.js                      # Global statics
+|       │   ├── searchUtils.js                    # Search handlers
 |       │   └── UIUtils.jsx                       # Global handlers
 |       |
 |       ├── store/
