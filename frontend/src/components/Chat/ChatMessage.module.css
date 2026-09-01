@@ -133,9 +133,14 @@
 
 .action-menu-popup {
   position: fixed;
-  top: 100%; /* Pops downwards below the button */
-  left: 0;
-  margin-top: 8px;
+  /* ==============================================================
+     Wrapped the menu component in ReactDOM.createPortal().
+     By portaling the menu's DOM node directly to document.body,
+     the element is no longer a child of the toolbar.
+     It's position will be calculated freely against the viewport
+     without being trapped by the message container.
+     REMOVED: top: 100%; left: 0; margin-top: 8px;
+  ============================================================== */
   background-color: #2f2f2f;
   border-radius: 12px;
   padding: 12px 14px;

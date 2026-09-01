@@ -1,4 +1,5 @@
-import { useState, useMemo, memo } from 'react'
+import { useState, useMemo, memo, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -20,18 +21,62 @@ import { highlightMarkdownKeywords } from '../../utils/searchUtils'
 
 import styles from './ChatMessage.module.css'
 
+/* ===============================================================================================
+   Off-Screen Lazy Hydration for Heavy Nodes
+   Implementation: Wrap heavy syntax blocks in a lightweight IntersectionObserver trigger that 
+   swaps <SyntaxHighlighter> for a plain <pre> code block when a message scrolls out of the 
+   viewport, re-hydrating the highlighter only when it returns.
+=============================================================================================== */
+
+// NEW: Intercepts code blocks and only mounts Prism when on-screen
+const LazyCodeBlock = ({ language, children }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Toggles between heavy Prism nodes and raw text
+        setIsVisible(entry.isIntersecting);
+      },
+      { rootMargin: '400px 0px' } // Pre-hydrates 400px before scrolling into the viewport
+    );
+
+    if (containerRef.current) observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef}>
+      {isVisible ? (
+        <SyntaxHighlighter
+          style={oneDark}
+          language={language}
+          PreTag="div"
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      ) : (
+        // Lightweight placeholder mimicking the dark theme wrapper to prevent scrollbar jumping
+        <pre style={{ margin: '1em 0', padding: '1em', backgroundColor: '#282c34', borderRadius: '0.3em', overflow: 'hidden' }}>
+          <code style={{ color: '#abb2bf', whiteSpace: 'pre-wrap' }}>
+            {String(children).replace(/\n$/, '')}
+          </code>
+        </pre>
+      )}
+    </div>
+  );
+};
+
+// UPDATED: Replace your current markdownComponents with this
 const markdownComponents = {
   code({ className, children }) {
     const match = /language-(\w+)/.exec(className || '')
 
     return match ? (
-      <SyntaxHighlighter
-        style={oneDark}
-        language={match[1]}
-        PreTag="div"
-      >
-        {String(children).replace(/\n$/, '')}
-      </SyntaxHighlighter>
+      <LazyCodeBlock language={match[1]}>
+        {children}
+      </LazyCodeBlock>
     ) : (
       <code className={className}>
         {children}
@@ -40,11 +85,11 @@ const markdownComponents = {
   }
 }
 
-  /* ===============================================================================================
-     Isolated Markdown Rendering: Extracted <PureMarkdown> into its own React.memo instance and 
-     attached a strict areEqual comparison function to ChatMessage. Hovering, copy actions, and 
-     toolbar popups no longer force React to re-parse raw Markdown or math equations.
-  =============================================================================================== */
+/* ===============================================================================================
+   Isolated Markdown Rendering: Extracted <PureMarkdown> into its own React.memo instance and 
+   attached a strict areEqual comparison function to ChatMessage. Hovering, copy actions, and 
+   toolbar popups no longer force React to re-parse raw Markdown or math equations.
+=============================================================================================== */
 
 // ISOLATED MARKDOWN COMPONENT: Prevents re-parsing on parent hover state changes
 const PureMarkdown = memo(({ content }) => (
@@ -237,18 +282,18 @@ function ChatMessage({
                       <MoreActionsIcon />
                     </button>
                     
-                    {menuOpen && (
+                    {/* UPDATED: Portaled Menu */}
+                    {menuOpen && createPortal(
                       <div
-                        ref={setMenuRef} // <-- Attach menu callback ref 
+                        ref={setMenuRef} 
                         className={styles['action-menu-popup']}
-                        style={dropdownStyle} // <-- Apply the style object directly
+                        style={dropdownStyle} 
                         onMouseDown={(e) => e.stopPropagation()}
                       >
                         <div className={styles['action-menu-timestamp']}>
                           {formatDateTime(message.createdAt)}
                         </div>
 
-                        {/* Always available for the historical message, regardless of archive state */}
                         <button 
                           className={styles['action-menu-item']}
                           onClick={handleBranchClick}
@@ -256,7 +301,8 @@ function ChatMessage({
                           <BranchIcon />
                           <span>Branch in new chat</span>
                         </button>
-                      </div>
+                      </div>,
+                      document.body // <-- Mounts the node outside of the contain: layout wrapper
                     )}
 
                   </div>
