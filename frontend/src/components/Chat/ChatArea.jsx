@@ -50,10 +50,22 @@ export default function ChatArea() {
   const topSentinelRef = useRef(null) // NEW: Observer target to load older messages
   const prevStreamingRef = useRef(isStreaming)
 
+  /* ===============================================================================================
+     Callback Reference Stability: Wrapped handlers like handleRegenerate in useCallback within 
+     ChatArea.jsx to prevent parent state updates from invalidating child memoization.
+  =============================================================================================== */
+
   // STABILIZED CALLBACK: Prevents breaking React.memo on ChatMessage
   const handleRegenerate = useCallback(() => {
     regenerate();
   }, [regenerate]);
+
+  /* ===============================================================================================
+     Tail-First Progressive Pagination: 
+     Implemented visibleCount chunking (rendering only the last 30 messages on mount) 
+     with an IntersectionObserver top sentinel to prepending older messages as you scroll up. 
+     Included automatic window expansion when jumping to deep search targets via targetMessageId. 
+  =============================================================================================== */
 
   // NEW: Reset visible messages to just the latest 30 whenever you switch to a new chat
   useEffect(() => {

@@ -751,6 +751,12 @@ export const useChatStore = create((set, get) => ({
           // 🔥 live update last message
           pendingText += data[SSE_CHUNK]
 
+          /* ===================================================================================================
+             Stream Update Throttling (Implemented via Timeout):A flushTimer that batches incoming SSE chunks 
+             into a pendingText buffer and updates React state every 50ms. A 50ms setTimeout achieves the 
+             exact same goal as using requestAnimationFrame: preventing React from re-rendering the UI on 
+             every single token, which saves massive amounts of CPU overhead.  
+          =================================================================================================== */
           if (!flushTimer) {
             flushTimer = setTimeout(() => {
               flushPendingText()

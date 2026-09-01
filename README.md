@@ -989,7 +989,7 @@ Estimated Cost
 - [x] Native Scroll Anchoring
 - [x] Non-Blocking UI Mechanics
 - [x] Stream Update Throttling
-- [ ] CSS Containment
+- [x] CSS Containment
 - [ ] Off-Screen Lazy Hydration
 - [ ] Bidirectional Sliding Window
 

@@ -9,6 +9,11 @@ import styles from './SearchModal.module.css';
 
 export default function SearchModal() {
   const [query, setQuery] = useState('');
+
+  /* ===============================================================================================
+     Non-Blocking UI Mechanics: Integrated useDeferredValue in SearchModal.jsx to isolate heavy 
+     regex text processing from user keystrokes.
+  =============================================================================================== */
   // DEFERRED UPDATE: Allows typing to remain instant while heavy regex happens in background
   const deferredQuery = useDeferredValue(query);
   

@@ -40,6 +40,12 @@ const markdownComponents = {
   }
 }
 
+  /* ===============================================================================================
+     Isolated Markdown Rendering: Extracted <PureMarkdown> into its own React.memo instance and 
+     attached a strict areEqual comparison function to ChatMessage. Hovering, copy actions, and 
+     toolbar popups no longer force React to re-parse raw Markdown or math equations.
+  =============================================================================================== */
+
 // ISOLATED MARKDOWN COMPONENT: Prevents re-parsing on parent hover state changes
 const PureMarkdown = memo(({ content }) => (
   <ReactMarkdown

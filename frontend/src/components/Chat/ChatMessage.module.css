@@ -18,6 +18,14 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+
+  /* ==============================================================
+     CSS Containment: Prevent the browser from climbing up the
+     DOM tree and recalculating the entire page layout for every
+     proceeding message just in case they were pushed out of
+     place every time a new word streams into the final bubble.
+  ============================================================== */
+  contain: layout; /* Isolates layout recalculations during streaming */
 }
 
 .message-row {
