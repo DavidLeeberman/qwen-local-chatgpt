@@ -23,6 +23,7 @@ export default function Sidebar({
 }) {
   const isStreaming = useChatStore(state => state.isStreaming);
   const cid = useChatStore(state => state.cid); // NEW: Subscribe to active conversation ID
+  const sidebarScrollTrigger = useChatStore(state => state.sidebarScrollTrigger); // 👈 Subscribe to scroll trigger
   
   // Retrieve the username from your store (Make sure to set this upon Login!)
   // Using a fallback of 'test' just in case.
@@ -54,7 +55,7 @@ export default function Sidebar({
     }, 50); // Small timeout allows sidebar/modal rendering to settle
 
     return () => clearTimeout(timer);
-  }, [cid]);
+  }, [sidebarScrollTrigger]);
 
   return (
     <div className={styles.sidebar}>

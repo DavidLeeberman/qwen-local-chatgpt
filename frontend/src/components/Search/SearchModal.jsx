@@ -66,7 +66,14 @@ export default function SearchModal() {
     const cid = result.conversation_id || result.id;
     const msgId = result.matched_message_id || null;
     
-    loadMessages(cid, msgId, query);
+    loadMessages(
+      cid, 
+      {
+        targetMessageId: msgId, 
+        query: query,
+        shouldScrollSidebar: true
+      }
+    );
   };
 
   // NEW: Function to dynamically highlight the search term in snippets

@@ -21,6 +21,7 @@ export const useChatStore = create((set, get) => ({
   cid: null,
   chat: [],
   listScrollTrigger: 0,
+  sidebarScrollTrigger: 0, // 👈 Added: Track sidebar auto-scroll triggers
   isStreaming: false,
   isBranched: false,  // Tracks if we are drafting a branched chat from an archived conversation
   branchedOriginalTitle: '', // 🔥 ADDED: State to hold the title of the chat being branched
@@ -125,7 +126,13 @@ export const useChatStore = create((set, get) => ({
   },
 
   // Load messages when switching conversation (supports optional targetMessageId for search highlights)
-  loadMessages: async (id, targetMessageId = null, query = '') => {
+  loadMessages: async (id, options = {}) => {
+    const {
+      targetMessageId = null,
+      query = '',
+      shouldScrollSidebar = false
+    } = options
+
     const { token, cleanupStream } = get()
     // Stop any active stream first
     cleanupStream(false, true)
@@ -135,14 +142,17 @@ export const useChatStore = create((set, get) => ({
     const controller = new AbortController()
     loadMessagesAbort = controller
 
-    set({ 
+    const needsSidebarScroll = shouldScrollSidebar || Boolean(targetMessageId)
+
+    set(state => ({ 
       cid: id, 
       targetMessageId, // Save target message ID for Virtuoso scrolling
       searchQuery: query,
       isBranched: false, // Reset branching flag when loading another chat
       branchedOriginalTitle: '', // 🔥 ADDED: Reset when switching chats
-      err: '' 
-    })
+      err: '',
+      sidebarScrollTrigger: needsSidebarScroll ? state.sidebarScrollTrigger + 1 : state.sidebarScrollTrigger 
+    }))
 
     try {
       const r = await axios.get(

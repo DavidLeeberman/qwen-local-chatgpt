@@ -27,6 +27,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* overflow-anchor: none; Disabled to prevent browser from following output and locking onto bottom */
   overflow-anchor: auto; /* Re-enabled to prevent jumping when lazy-loading older messages */
   position: relative; /* Ensures lastEl.offsetTop evaluates against this container */
 }
