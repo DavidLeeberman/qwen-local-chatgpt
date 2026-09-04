@@ -69,6 +69,9 @@ export default function ConversationItem({
         onClick={(e) => {
           e.stopPropagation()
           if (!isEditingChatId && loadMessages) {
+            // 🔥 BUG #2a FIX: Ignore redundant clicks on the active conversation
+            if (c.id === cid) return
+            
             loadMessages(c.id)
             // CRITICAL: Strip browser focus to prevent CSS stickiness on click
             if (e.currentTarget) e.currentTarget.blur();
