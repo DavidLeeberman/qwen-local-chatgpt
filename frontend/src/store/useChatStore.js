@@ -130,10 +130,18 @@ export const useChatStore = create((set, get) => ({
     const {
       targetMessageId = null,
       query = '',
-      shouldScrollSidebar = false
+      shouldScrollSidebar = false,
+      skipScrollTrigger = false, // 👈 ADDED: Prevent scroll snaps during silent syncs
+      forceReload = false // 👈 ADDED: Flag to override redundancy check if required
     } = options
 
-    const { token, cleanupStream } = get()
+    const { cid: currentCid, token, cleanupStream } = get()
+
+    // 🔥 BUG #2a FIX: Prevent reloading active conversation unless navigating to a search target or forcing a reload
+    if (id === currentCid && !targetMessageId && !forceReload) {
+      return
+    }
+
     // Stop any active stream first
     cleanupStream(false, true)
 
@@ -202,10 +210,10 @@ export const useChatStore = create((set, get) => ({
       })
       if (current) formatted.push(current)
 
-      // Update the chat AND increment listScrollTrigger
+      // Update the chat AND increment listScrollTrigger only if skipScrollTrigger is false
       set(state => ({ 
         chat: formatted,
-        listScrollTrigger: state.listScrollTrigger + 1 
+        listScrollTrigger: skipScrollTrigger ? state.listScrollTrigger : state.listScrollTrigger + 1 
       }))
     } catch (err) {
       if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
@@ -300,7 +308,7 @@ export const useChatStore = create((set, get) => ({
       }));
 
       // 3. Fetches messages from server and updates state.chat correctly[cite: 3]
-      loadMessages(id)
+      loadMessages(id, { forceReload: true })
     } catch (error) {
       console.error("Failed to unarchive:", error);
       fetchConversations() // Revert on failure
@@ -755,6 +763,16 @@ export const useChatStore = create((set, get) => ({
             flushPendingText()
             set(state => ({ chat: state.chat.map(m => m.id === tempId ? { ...m, done: true } : m) }))
             cleanupStream() // reset stream state
+
+            // 🔥 FIX: Silently reload DB messages to replace legacy history IDs with real DB IDs
+            // without triggering an auto-scroll jump
+            if (wasBranched) {
+              const currentCid = get().cid
+              if (currentCid) {
+                get().loadMessages(currentCid, { skipScrollTrigger: true })
+              }
+            }
+            
             return
           }
 
