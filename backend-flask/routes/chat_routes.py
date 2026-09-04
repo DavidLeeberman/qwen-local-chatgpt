@@ -77,7 +77,7 @@ def chat():
                 new_id = False
 
             # 🔥 THE FIX: Aggressive Regeneration Fallbacks
-            if is_regenerate:
+            if is_regenerate and not new_id:
                 if req_user_msg_id:
                     user_message_id = req_user_msg_id
                 else:
