@@ -45,10 +45,16 @@ export default function ChatArea() {
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [visibleCount, setVisibleCount] = useState(30) // NEW: Chunk size for lazy loading
   
+  const [hasStreamedInSession, setHasStreamedInSession] = useState(false)
+  const [spacerHeight, setSpacerHeight] = useState(0)
+
   const nativeScrollerRef = useRef(null)
   const lastMessageRef = useRef(null)
+  const lastSpacerRef = useRef(null) 
   const topSentinelRef = useRef(null) // NEW: Observer target to load older messages
   const prevStreamingRef = useRef(isStreaming)
+  
+  const activeCidRef = useRef(cid)
 
   /* ===============================================================================================
      Callback Reference Stability: Wrapped handlers like handleRegenerate in useCallback within 
@@ -67,10 +73,33 @@ export default function ChatArea() {
      Included automatic window expansion when jumping to deep search targets via targetMessageId. 
   =============================================================================================== */
 
-  // NEW: Reset visible messages to just the latest 30 whenever you switch to a new chat
+  // NEW: Reset visible messages to just the latest 30 and layout spacer whenever you switch to a new chat
   useEffect(() => {
-    setVisibleCount(30);
-  }, [cid]);
+    const prevCid = activeCidRef.current;
+    const nextCid = cid;
+
+    if (prevCid !== nextCid) {
+      setVisibleCount(30);
+
+      const isGenuineSwitch = 
+        nextCid === null || 
+        (prevCid !== null && !String(prevCid).startsWith('temp_') && nextCid !== null);
+
+      if (!isStreaming && isGenuineSwitch) {
+        setHasStreamedInSession(false);
+        setSpacerHeight(0);
+      }
+
+      activeCidRef.current = nextCid;
+    }
+  }, [cid, isStreaming]);
+
+  // Track session streaming activation
+  useEffect(() => {
+    if (isStreaming) {
+      setHasStreamedInSession(true);
+    }
+  }, [isStreaming]);
 
   // NEW: Ensure the search target message is always rendered, even if it's 200 messages deep
   useEffect(() => {
@@ -94,7 +123,7 @@ export default function ChatArea() {
   const displayedChat = chat.slice(startIndex);
   const hasMore = startIndex > 0;
 
-  // NEW: Background Observer to seamlessly load older messages when you scroll near the top
+  // NEW: Background Pagination Observer to seamlessly load older messages when you scroll near the top
   useEffect(() => {
     const sentinel = topSentinelRef.current;
     if (!sentinel || !hasMore) return;
@@ -113,38 +142,17 @@ export default function ChatArea() {
     return () => observer.disconnect();
   }, [hasMore, chat.length]);
 
-  // 🌟 FIX 2: Smart scrolling that respects the artificial spacer
-  const scrollToBottom = () => {
-    const scroller = nativeScrollerRef.current
-    if (!scroller) return
-
-    // If streaming, scroll to the bottom of the actual generating text 
-    // rather than the absolute bottom (which contains the empty spacer)
-    if (isStreaming && lastMessageRef.current) {
-      const textBottom = lastMessageRef.current.offsetTop + lastMessageRef.current.offsetHeight
-      scroller.scrollTo({
-        top: Math.max(0, textBottom - scroller.clientHeight + 40), // 40px padding beneath text
-        behavior: 'smooth'
-      })
-    } else {
-      scroller.scrollTo({
-        top: scroller.scrollHeight,
-        behavior: 'smooth'
-      })
-    }
-  }
-
-  // 🌟 FIX 2: Check distance against the true text node boundaries
+  // Evaluates viewport distance against physical scroll bottom and active text bounds
   const checkIsAtBottom = useCallback(() => {
     const scroller = nativeScrollerRef.current
     if (!scroller) return
 
     const distanceFromBottom = scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop
-    const epsilon = 8
+    const epsilon = 15
     let atBottom = distanceFromBottom <= epsilon
 
-    // If we aren't at the physical bottom, check if the real text is still fully visible
-    if (!atBottom && lastMessageRef.current) {
+    // Active streaming: verify if generated text hasn't overflowed viewport bottom
+    if (!atBottom && isStreaming && lastMessageRef.current) {
       const textBottom = lastMessageRef.current.offsetTop + lastMessageRef.current.offsetHeight
       const viewportBottom = scroller.scrollTop + scroller.clientHeight
       
@@ -155,12 +163,67 @@ export default function ChatArea() {
       }
     }
 
+    // Static post-stream state (C1D): check text visibility or clear spacer if manually at bottom
+    if (!atBottom && !isStreaming && hasStreamedInSession && lastMessageRef.current) {
+      const textBottom = lastMessageRef.current.offsetTop + lastMessageRef.current.offsetHeight
+      const viewportBottom = scroller.scrollTop + scroller.clientHeight
+      
+      if (textBottom <= viewportBottom + epsilon) {
+        atBottom = true
+      } else if (distanceFromBottom <= epsilon) {
+        atBottom = true
+        setHasStreamedInSession(false)
+        setSpacerHeight(0)
+      }
+    }
+
     setIsAtBottom(atBottom)
-  }, [])
+  }, [isStreaming, hasStreamedInSession])
+
+  // Handles scroll positioning on DownArrow click
+  const scrollToBottom = () => {
+    const scroller = nativeScrollerRef.current
+    if (!scroller) return
+
+    if (isStreaming) {
+      // Active streaming: target current text node bottom
+      if (lastMessageRef.current) {
+        const textBottom = lastMessageRef.current.offsetTop + lastMessageRef.current.offsetHeight
+        scroller.scrollTo({
+          top: Math.max(0, textBottom - scroller.clientHeight + 40),
+          behavior: 'smooth'
+        })
+      } else {
+        scroller.scrollTo({
+          top: scroller.scrollHeight,
+          behavior: 'smooth'
+        })
+      }
+    } else {
+      // Static state (C1E & C2C): collapse spacer synchronously and scroll to true physical bottom
+      if (lastSpacerRef.current) {
+        lastSpacerRef.current.style.minHeight = 'auto'
+      }
+      setHasStreamedInSession(false)
+      setSpacerHeight(0)
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (nativeScrollerRef.current) {
+            nativeScrollerRef.current.scrollTo({
+              top: nativeScrollerRef.current.scrollHeight,
+              behavior: 'smooth'
+            })
+          }
+        })
+      })
+    }
+  }
 
   // Auto-Scroll Logic handles initial positioning on chat load, switch, or branch (snaps to bottom)
   // 🌟 LIGHTWEIGHT NON-BLOCKING SCROLL ENGINE
   // Uses staggered timeouts instead of heavy continuous observers to keep the main thread 100% free
+  // Initial load or search target jump
   useEffect(() => {
     const scroller = nativeScrollerRef.current;
     if (!scroller) return;
@@ -228,7 +291,7 @@ export default function ChatArea() {
       clearTimeout(timer1);
       clearTimeout(timer2);
     };
-  }, [listScrollTrigger, targetMessageId, checkIsAtBottom]);
+  }, [listScrollTrigger, targetMessageId]);
 
   // 🌟 FIX 1: One-time scroll positioning to 1/5th of the viewport height when Send / Regenerate starts
   useEffect(() => {
@@ -239,8 +302,16 @@ export default function ChatArea() {
         requestAnimationFrame(() => {
           const container = nativeScrollerRef.current
           const lastEl = lastMessageRef.current
+          const spacerEl = lastSpacerRef.current
 
-          if (container && lastEl) {
+          if (container && lastEl && spacerEl) {
+            const footerHeight = isArchived ? 130 : 90;
+            const exactHeightRequired = (container.clientHeight * 0.8) - footerHeight;
+            const calculatedHeight = Math.max(0, exactHeightRequired);
+            
+            spacerEl.style.minHeight = `${calculatedHeight}px`;
+            setSpacerHeight(calculatedHeight);
+
             const oneFifthOffset = container.clientHeight / 5;
             const targetTop = Math.max(0, lastEl.offsetTop - oneFifthOffset)
             
@@ -253,7 +324,7 @@ export default function ChatArea() {
       })
     }
     prevStreamingRef.current = isStreaming
-  }, [isStreaming])
+  }, [isStreaming, isArchived])
 
   // Track scroll state on manual scroll
   useEffect(() => {
@@ -292,9 +363,10 @@ export default function ChatArea() {
           return (
             <div 
               key={item.id}
+              ref={isLastMessage ? lastSpacerRef : null}
               // The outer ID wrapper was removed here so the browser stops centering the entire combined text block[cite: 17]
               // Applies the layout spacer so scrolling 1/5th up is mechanically possible
-              style={{ minHeight: isLastMessage && isStreaming ? 'calc(100vh - 40px)' : 'auto' }}
+              style={{ minHeight: isLastMessage && (isStreaming || hasStreamedInSession) ? (spacerHeight ? `${spacerHeight}px` : 'calc(100vh - 40px)') : 'auto' }}
             >
               {/* Inner wrapper allows us to measure actual text height independent of spacer */}
               <div ref={isLastMessage ? lastMessageRef : null}>
