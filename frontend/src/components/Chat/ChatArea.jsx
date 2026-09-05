@@ -214,6 +214,14 @@ export default function ChatArea() {
               top: nativeScrollerRef.current.scrollHeight,
               behavior: 'smooth'
             })
+
+            // Convergence check: guarantees 1-click landing after layout reflows settle
+            setTimeout(() => {
+              if (nativeScrollerRef.current) {
+                nativeScrollerRef.current.scrollTop = nativeScrollerRef.current.scrollHeight;
+                checkIsAtBottom();
+              }
+            }, 350);
           }
         })
       })
