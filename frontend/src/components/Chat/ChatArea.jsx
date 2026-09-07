@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, forwardRef } from 'react'
 
 import { useChatStore } from '../../store/useChatStore'
 import ChatMessage from './ChatMessage'
@@ -11,9 +11,10 @@ import { DownArrowIcon } from '../UI/Icons'
 import styles from './ChatArea.module.css'
 
 // --- Scrollable Footer ---
-const ChatFooter = ({ isArchived }) => {
+const ChatFooter = forwardRef(({ isArchived }, ref) => {
   return (
     <div 
+      ref={ref}
       className={styles['chat-list-footer-container']}
       style={{ paddingBottom: isArchived ? '130px' : '90px' }}
     >      
@@ -23,7 +24,8 @@ const ChatFooter = ({ isArchived }) => {
       </div>
     </div>
   );
-};
+});
+ChatFooter.displayName = 'ChatFooter';
 
 // --- Main Component ---
 export default function ChatArea() {
@@ -43,7 +45,7 @@ export default function ChatArea() {
   const isArchived = activeChat?.is_archived && !isBranched
 
   const [isAtBottom, setIsAtBottom] = useState(true)
-  const [visibleCount, setVisibleCount] = useState(30) // NEW: Chunk size for lazy loading
+  const [visibleCount, setVisibleCount] = useState(30) // Chunk size for lazy loading
   
   const [hasStreamedInSession, setHasStreamedInSession] = useState(false)
   const [spacerHeight, setSpacerHeight] = useState(0)
@@ -51,7 +53,8 @@ export default function ChatArea() {
   const nativeScrollerRef = useRef(null)
   const lastMessageRef = useRef(null)
   const lastSpacerRef = useRef(null) 
-  const topSentinelRef = useRef(null) // NEW: Observer target to load older messages
+  const footerRef = useRef(null) // Added ref to measure exact footer DOM height
+  const topSentinelRef = useRef(null) // Observer target to load older messages
   const prevStreamingRef = useRef(isStreaming)
   
   const activeCidRef = useRef(cid)
@@ -73,7 +76,7 @@ export default function ChatArea() {
      Included automatic window expansion when jumping to deep search targets via targetMessageId. 
   =============================================================================================== */
 
-  // NEW: Reset visible messages to just the latest 30 and layout spacer whenever you switch to a new chat
+  // Reset visible messages to just the latest 30 and layout spacer whenever you switch to a new chat
   useEffect(() => {
     const prevCid = activeCidRef.current;
     const nextCid = cid;
@@ -101,7 +104,7 @@ export default function ChatArea() {
     }
   }, [isStreaming]);
 
-  // NEW: Ensure the search target message is always rendered, even if it's 200 messages deep
+  // Ensure the search target message is always rendered, even if it's 200 messages deep
   useEffect(() => {
     if (targetMessageId && chat.length > 0) {
       const targetIdx = chat.findIndex(m => 
@@ -123,7 +126,7 @@ export default function ChatArea() {
   const displayedChat = chat.slice(startIndex);
   const hasMore = startIndex > 0;
 
-  // NEW: Background Pagination Observer to seamlessly load older messages when you scroll near the top
+  // Background Pagination Observer to seamlessly load older messages when you scroll near the top
   useEffect(() => {
     const sentinel = topSentinelRef.current;
     if (!sentinel || !hasMore) return;
@@ -163,7 +166,7 @@ export default function ChatArea() {
       }
     }
 
-    // Static post-stream state (C1D): check text visibility or clear spacer if manually at bottom
+    // Static post-stream state: check text visibility or clear spacer if manually at bottom
     if (!atBottom && !isStreaming && hasStreamedInSession && lastMessageRef.current) {
       const textBottom = lastMessageRef.current.offsetTop + lastMessageRef.current.offsetHeight
       const viewportBottom = scroller.scrollTop + scroller.clientHeight
@@ -200,7 +203,7 @@ export default function ChatArea() {
         })
       }
     } else {
-      // Static state (C1E & C2C): collapse spacer synchronously and scroll to true physical bottom
+      // Static state: collapse spacer synchronously and scroll to true physical bottom
       if (lastSpacerRef.current) {
         lastSpacerRef.current.style.minHeight = 'auto'
       }
@@ -232,6 +235,7 @@ export default function ChatArea() {
   // 🌟 LIGHTWEIGHT NON-BLOCKING SCROLL ENGINE
   // Uses staggered timeouts instead of heavy continuous observers to keep the main thread 100% free
   // Initial load or search target jump
+  // FIXED (Bug #5): Removed checkIsAtBottom from dependency array to prevent streaming state flips from re-snapping scrollTop
   useEffect(() => {
     const scroller = nativeScrollerRef.current;
     if (!scroller) return;
@@ -299,9 +303,9 @@ export default function ChatArea() {
       clearTimeout(timer1);
       clearTimeout(timer2);
     };
-  }, [listScrollTrigger, targetMessageId]);
+  }, [listScrollTrigger, targetMessageId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 🌟 FIX 1: One-time scroll positioning to 1/5th of the viewport height when Send / Regenerate starts
+  // One-time scroll positioning to 1/5th of the viewport height when Send / Regenerate starts
   useEffect(() => {
     // When stream transitions from false -> true
     if (isStreaming && !prevStreamingRef.current) {
@@ -313,7 +317,8 @@ export default function ChatArea() {
           const spacerEl = lastSpacerRef.current
 
           if (container && lastEl && spacerEl) {
-            const footerHeight = isArchived ? 130 : 90;
+            // FIX #4: Measure actual DOM height of footer element instead of using hardcoded assumptions
+            const footerHeight = footerRef.current ? footerRef.current.offsetHeight : (isArchived ? 130 : 90);
             const exactHeightRequired = (container.clientHeight * 0.8) - footerHeight;
             const calculatedHeight = Math.max(0, exactHeightRequired);
             
@@ -357,6 +362,7 @@ export default function ChatArea() {
       <div 
         ref={nativeScrollerRef} 
         className={styles['native-chat-scroller']} 
+        style={{ overflowAnchor: isStreaming ? 'none' : 'auto' }}
       >
         {/* Invisible Sentinel to trigger older message loading */}
         {hasMore && <div ref={topSentinelRef} style={{ height: '1px' }} />}
@@ -376,7 +382,7 @@ export default function ChatArea() {
               // Applies the layout spacer so scrolling 1/5th up is mechanically possible
               style={{ minHeight: isLastMessage && (isStreaming || hasStreamedInSession) ? (spacerHeight ? `${spacerHeight}px` : 'calc(100vh - 40px)') : 'auto' }}
             >
-              {/* Inner wrapper allows us to measure actual text height independent of spacer */}
+              {/* Inner wrapper allows measuring actual text height independent of spacer */}
               <div ref={isLastMessage ? lastMessageRef : null}>
                 {showTimestamp && (
                   <div className={styles['time-break']}>
@@ -394,7 +400,7 @@ export default function ChatArea() {
           )
         })}
 
-        <ChatFooter isArchived={isArchived} />
+        <ChatFooter ref={footerRef} isArchived={isArchived} />
       </div>
 
       {/* Floating Scroll to Bottom Button */}
