@@ -1,4 +1,4 @@
-import { useState, useMemo, memo, useEffect, useRef } from 'react'
+import { useState, useMemo, memo } from 'react'
 import { createPortal } from 'react-dom'
 
 import ReactMarkdown from 'react-markdown'
@@ -21,62 +21,21 @@ import { highlightMarkdownKeywords } from '../../utils/searchUtils'
 
 import styles from './ChatMessage.module.css'
 
-/* ===============================================================================================
-   Off-Screen Lazy Hydration for Heavy Nodes
-   Implementation: Wrap heavy syntax blocks in a lightweight IntersectionObserver trigger that 
-   swaps <SyntaxHighlighter> for a plain <pre> code block when a message scrolls out of the 
-   viewport, re-hydrating the highlighter only when it returns.
-=============================================================================================== */
-
-// NEW: Intercepts code blocks and only mounts Prism when on-screen
-const LazyCodeBlock = ({ language, children }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        // Toggles between heavy Prism nodes and raw text
-        setIsVisible(entry.isIntersecting);
-      },
-      { rootMargin: '400px 0px' } // Pre-hydrates 400px before scrolling into the viewport
-    );
-
-    if (containerRef.current) observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div ref={containerRef}>
-      {isVisible ? (
-        <SyntaxHighlighter
-          style={oneDark}
-          language={language}
-          PreTag="div"
-        >
-          {String(children).replace(/\n$/, '')}
-        </SyntaxHighlighter>
-      ) : (
-        // Lightweight placeholder mimicking the dark theme wrapper to prevent scrollbar jumping
-        <pre style={{ margin: '1em 0', padding: '1em', backgroundColor: '#282c34', borderRadius: '0.3em', overflow: 'hidden' }}>
-          <code style={{ color: '#abb2bf', whiteSpace: 'pre-wrap' }}>
-            {String(children).replace(/\n$/, '')}
-          </code>
-        </pre>
-      )}
-    </div>
-  );
-};
-
-// UPDATED: Replace your current markdownComponents with this
+// Direct, immutable code rendering to prevent post-scroll layout shifts
 const markdownComponents = {
   code({ className, children }) {
     const match = /language-(\w+)/.exec(className || '')
 
     return match ? (
-      <LazyCodeBlock language={match[1]}>
-        {children}
-      </LazyCodeBlock>
+      <div className={styles['code-block-wrapper']}>
+        <SyntaxHighlighter
+          style={oneDark}
+          language={match[1]}
+          PreTag="div"
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      </div>
     ) : (
       <code className={className}>
         {children}
@@ -101,6 +60,7 @@ const PureMarkdown = memo(({ content }) => (
     {content}
   </ReactMarkdown>
 ));
+PureMarkdown.displayName = 'PureMarkdown';
 
 function ChatMessage({ 
   message, 

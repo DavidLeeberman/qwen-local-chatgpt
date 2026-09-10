@@ -88,6 +88,17 @@
   position: relative; /* Allows absolute positioning for the toolbar */
 }
 
+.code-block-wrapper {
+  /* Prevents internal layout recalculations from escaping into the parent scroller */
+  /* Keeps internal syntax highlighting layouts isolated */
+  contain: layout style;
+  
+  width: 100%;
+  margin: 0.8em 0;
+  border-radius: 0.4em;
+  overflow: hidden; /* Ensures SyntaxHighlighter's inner background clips to the rounded corners */
+}
+
 /* ========================================================
    NEW: Assistant Message Action Toolbar & Menu
 ======================================================== */

@@ -5,12 +5,15 @@ Model      : Qwen3.5-9B + vLLM + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
 ```
 Updates:
-- Implemented Dynamic CSS Overflow Anchoring and accurate measuring of actual DOM height of footer element to pin viewport at initial positioning of new message pair
+- Implemented Non-Blocking Stream Throttling & UI Mechanics for Streaming & Execution Control
+- Implemented Isolated Render Memoization, Callback Reference Stability for Render Performance & Component Optimization
+- Implemented Frame-Zero Height Determinism & Static DOM Immutability, Message-Level CSS Layout Containment, and Deterministic Layout Snapshots for Layout & Sizing Stability
+- Implemented Tail-First Progressive Pagination & DOM Slicing for DOM & Pagination Architecture
+- Disabled Native Overflow Anchoring and removed Off-Screen Lazy Hydration to pin viewport at initial positioning of new message pair steadily and to prevent jitters when scrolling up viewport
 - Fixed some scroll-while-streaming and scroll-to-bottom inconsistencies
-- Implemented CSS Containment, Off-Screen Lazy Hydration
 - Improved UI fluency on switching and opening chats by Reverse Windowing (Lazy Loading), Isolating Markdown compilations, and executing highlightMatch Regex logic and DOM rendering in the background to unblock main UI thread
 - Improved Search result and keyword snippet positioning with browser's scrollIntoView() and pure developer's math
-- Implemented initial one-time positioning with "Sticky Bottom" Scroll Intent Hook and CSS Scroll Anchoring for instant and steady new-message-pair reading experience
+- Implemented initial one-time positioning with "Sticky Bottom" Scroll Intent Hook for instant and steady new-message-pair reading experience
 - Migrated from Virtuoso to native DOM for better UI control and performance
 - Fixed trivial chat area positioning bugs
 ```
@@ -989,11 +992,9 @@ Estimated Cost
 - [x] Tail-First Progressive Pagination
 - [x] Isolated Markdown Rendering
 - [x] Callback Reference Stability
-- [x] Native Scroll Anchoring
 - [x] Non-Blocking UI Mechanics
 - [x] Stream Update Throttling
 - [x] CSS Containment
-- [x] Off-Screen Lazy Hydration
 - [ ] Bidirectional Sliding Window
 
 ---

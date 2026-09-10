@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, useCallback, forwardRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, forwardRef } from 'react'
 
 import { useChatStore } from '../../store/useChatStore'
 import ChatMessage from './ChatMessage'
 import ChatInput from './ChatInput'
 import ArchivedFooter from './ArchivedFooter'
-import { ErrMessage } from '../UI/FormattedText'
-import { formatTimestamp } from '../UI/FormattedText'
+import { ErrMessage, formatTimestamp } from '../UI/FormattedText'
 import { DownArrowIcon } from '../UI/Icons'
 
 import styles from './ChatArea.module.css'
@@ -59,6 +58,9 @@ export default function ChatArea() {
   
   const activeCidRef = useRef(cid)
 
+  // Anchor Element Tracking using offsetTop
+  const scrollAnchorRef = useRef({ id: null, initialOffsetTop: 0 })
+
   /* ===============================================================================================
      Callback Reference Stability: Wrapped handlers like handleRegenerate in useCallback within 
      ChatArea.jsx to prevent parent state updates from invalidating child memoization.
@@ -82,6 +84,7 @@ export default function ChatArea() {
     const nextCid = cid;
 
     if (prevCid !== nextCid) {
+      scrollAnchorRef.current = { id: null, initialOffsetTop: 0 };
       setVisibleCount(30);
 
       const isGenuineSwitch = 
@@ -126,24 +129,61 @@ export default function ChatArea() {
   const displayedChat = chat.slice(startIndex);
   const hasMore = startIndex > 0;
 
+  // SYNCHRONOUS ANCHOR PINNING via offsetTop
+  useLayoutEffect(() => {
+    const { id, initialOffsetTop } = scrollAnchorRef.current;
+    if (!id || !nativeScrollerRef.current) return;
+
+    const anchorEl = document.getElementById(`msg-${id}`);
+    if (anchorEl) {
+      const delta = anchorEl.offsetTop - initialOffsetTop;
+
+      if (delta > 0) {
+        nativeScrollerRef.current.scrollTop += delta;
+      }
+    }
+
+    scrollAnchorRef.current = { id: null, initialOffsetTop: 0 };
+  }, [visibleCount]);
+
   // Background Pagination Observer to seamlessly load older messages when you scroll near the top
+  // IntersectionObserver with offsetTop Snapshot
   useEffect(() => {
     const sentinel = topSentinelRef.current;
     if (!sentinel || !hasMore) return;
 
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        // Load the next 30 older messages
-        setVisibleCount(prev => Math.min(prev + 30, chat.length));
+      if (entries[0].isIntersecting && nativeScrollerRef.current) {
+        const scroller = nativeScrollerRef.current;
+        const currentScrollTop = scroller.scrollTop;
+
+        let topMsgId = null;
+        let topMsgOffsetTop = 0;
+
+        for (let i = 0; i < displayedChat.length; i++) {
+          const msgEl = document.getElementById(`msg-${displayedChat[i].id}`);
+          if (msgEl) {
+            if (msgEl.offsetTop + msgEl.offsetHeight > currentScrollTop) {
+              topMsgId = displayedChat[i].id;
+              topMsgOffsetTop = msgEl.offsetTop;
+              break;
+            }
+          }
+        }
+
+        if (topMsgId) {
+          scrollAnchorRef.current = { id: topMsgId, initialOffsetTop: topMsgOffsetTop };
+          setVisibleCount(prev => Math.min(prev + 30, chat.length));
+        }
       }
     }, {
       root: nativeScrollerRef.current,
-      rootMargin: '600px 0px 0px 0px' // Pre-load 600px before the user actually hits the top
+      rootMargin: '250px 0px 0px 0px' // Pre-load 250px before the user actually hits the top
     });
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, chat.length]);
+  }, [hasMore, chat.length, displayedChat]);
 
   // Evaluates viewport distance against physical scroll bottom and active text bounds
   const checkIsAtBottom = useCallback(() => {
@@ -362,7 +402,6 @@ export default function ChatArea() {
       <div 
         ref={nativeScrollerRef} 
         className={styles['native-chat-scroller']} 
-        style={{ overflowAnchor: isStreaming ? 'none' : 'auto' }}
       >
         {/* Invisible Sentinel to trigger older message loading */}
         {hasMore && <div ref={topSentinelRef} style={{ height: '1px' }} />}
@@ -377,6 +416,7 @@ export default function ChatArea() {
           return (
             <div 
               key={item.id}
+              id={`msg-${item.id}`}
               ref={isLastMessage ? lastSpacerRef : null}
               // The outer ID wrapper was removed here so the browser stops centering the entire combined text block[cite: 17]
               // Applies the layout spacer so scrolling 1/5th up is mechanically possible
