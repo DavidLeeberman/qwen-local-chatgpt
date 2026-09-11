@@ -9,6 +9,12 @@ import { DownArrowIcon } from '../UI/Icons'
 
 import styles from './ChatArea.module.css'
 
+// Configuration Constants
+const INITIAL_BATCH = 30;
+const CHUNK_SIZE = 20;
+const MAX_VISIBLE = 50;
+const DEFAULT_MSG_HEIGHT = 120;
+
 // --- Scrollable Footer ---
 const ChatFooter = forwardRef(({ isArchived }, ref) => {
   return (
@@ -44,22 +50,27 @@ export default function ChatArea() {
   const isArchived = activeChat?.is_archived && !isBranched
 
   const [isAtBottom, setIsAtBottom] = useState(true)
-  const [visibleCount, setVisibleCount] = useState(30) // Chunk size for lazy loading
-  
   const [hasStreamedInSession, setHasStreamedInSession] = useState(false)
   const [spacerHeight, setSpacerHeight] = useState(0)
+
+  // Relative Sliding Window State
+  const [visibleCount, setVisibleCount] = useState(INITIAL_BATCH) // Chunk size for lazy loading
+  const [bottomOffset, setBottomOffset] = useState(0)
 
   const nativeScrollerRef = useRef(null)
   const lastMessageRef = useRef(null)
   const lastSpacerRef = useRef(null) 
   const footerRef = useRef(null) // Added ref to measure exact footer DOM height
   const topSentinelRef = useRef(null) // Observer target to load older messages
+  const bottomSentinelRef = useRef(null)
+  
   const prevStreamingRef = useRef(isStreaming)
   
   const activeCidRef = useRef(cid)
 
-  // Anchor Element Tracking using offsetTop
+  // Physical Anchor & Height Measurement Tracking using offsetTop
   const scrollAnchorRef = useRef({ id: null, initialOffsetTop: 0 })
+  const messageHeightsRef = useRef(new Map())
 
   /* ===============================================================================================
      Callback Reference Stability: Wrapped handlers like handleRegenerate in useCallback within 
@@ -71,6 +82,20 @@ export default function ChatArea() {
     regenerate();
   }, [regenerate]);
 
+  // FRAME 0 CHAT SWITCH GUARD: Prevents stale renders & blank screens
+  const isChatSwitch = activeCidRef.current !== cid;
+  const currentVisible = isChatSwitch ? INITIAL_BATCH : visibleCount;
+  const currentBottomOffset = isChatSwitch ? 0 : bottomOffset;
+
+  // DYNAMIC BOUND COMPUTATION (Guaranteed valid array slicing)
+  const clampedBottomOffset = Math.min(Math.max(0, currentBottomOffset), Math.max(0, chat.length - 1));
+  const effectiveEnd = Math.max(0, chat.length - clampedBottomOffset);
+  const effectiveStart = Math.max(0, effectiveEnd - currentVisible);
+
+  const displayedChat = chat.slice(effectiveStart, effectiveEnd);
+  const hasMoreAbove = effectiveStart > 0;
+  const hasMoreBelow = effectiveEnd < chat.length;
+
   /* ===============================================================================================
      Tail-First Progressive Pagination: 
      Implemented visibleCount chunking (rendering only the last 30 messages on mount) 
@@ -80,34 +105,34 @@ export default function ChatArea() {
 
   // Reset visible messages to just the latest 30 and layout spacer whenever you switch to a new chat
   useEffect(() => {
-    const prevCid = activeCidRef.current;
-    const nextCid = cid;
-
-    if (prevCid !== nextCid) {
+    if (activeCidRef.current !== cid) {
+      setVisibleCount(INITIAL_BATCH);
+      setBottomOffset(0);
       scrollAnchorRef.current = { id: null, initialOffsetTop: 0 };
-      setVisibleCount(30);
 
+      const prevCid = activeCidRef.current;
       const isGenuineSwitch = 
-        nextCid === null || 
-        (prevCid !== null && !String(prevCid).startsWith('temp_') && nextCid !== null);
+        cid === null || 
+        (prevCid !== null && !String(prevCid).startsWith('temp_') && cid !== null);
 
       if (!isStreaming && isGenuineSwitch) {
         setHasStreamedInSession(false);
         setSpacerHeight(0);
       }
 
-      activeCidRef.current = nextCid;
+      activeCidRef.current = cid;
     }
   }, [cid, isStreaming]);
 
-  // Track session streaming activation
+  // PIN TO LIVE TAIL DURING ACTIVE STREAMING
   useEffect(() => {
     if (isStreaming) {
       setHasStreamedInSession(true);
+      setBottomOffset(0);
     }
   }, [isStreaming]);
 
-  // Ensure the search target message is always rendered, even if it's 200 messages deep
+  // ENSURE SEARCH TARGET IS WITHIN RENDER WINDOW
   useEffect(() => {
     if (targetMessageId && chat.length > 0) {
       const targetIdx = chat.findIndex(m => 
@@ -116,20 +141,45 @@ export default function ChatArea() {
         String(m.userMessageId) === String(targetMessageId)
       );
       if (targetIdx !== -1) {
-        const needed = chat.length - targetIdx;
-        if (needed > visibleCount) {
-          setVisibleCount(needed + 20); // Expand render window with a 20-message buffer
+        const distanceCount = chat.length - 1 - targetIdx;
+        if (distanceCount >= 0) {
+          setBottomOffset(Math.max(0, distanceCount - 15));
+          setVisibleCount(MAX_VISIBLE);
         }
       }
     }
-  }, [targetMessageId, chat, visibleCount]);
+  }, [targetMessageId, chat]);
 
-  // CALCULATE DISPLAYED SLICE
-  const startIndex = Math.max(0, chat.length - visibleCount);
-  const displayedChat = chat.slice(startIndex);
-  const hasMore = startIndex > 0;
+  // Cache rendered message heights for spacer accuracy
+  useLayoutEffect(() => {
+    displayedChat.forEach(msg => {
+      const el = document.getElementById(`msg-${msg.id}`);
+      if (el && el.offsetHeight > 0) {
+        messageHeightsRef.current.set(msg.id, el.offsetHeight);
+      }
+    });
+  }, [displayedChat]);
 
-  // SYNCHRONOUS ANCHOR PINNING via offsetTop
+  // Calculate dynamic average message height
+  const measuredHeights = Array.from(messageHeightsRef.current.values());
+  const avgHeight = measuredHeights.length > 0 
+    ? measuredHeights.reduce((a, b) => a + b, 0) / measuredHeights.length 
+    : DEFAULT_MSG_HEIGHT;
+
+  // Calculate top and bottom spacer dimensions
+  let topSpacerHeight = 0;
+  for (let i = 0; i < effectiveStart; i++) {
+    const msg = chat[i];
+    topSpacerHeight += (msg && messageHeightsRef.current.get(msg.id)) || avgHeight;
+  }
+
+  let bottomSpacerHeight = 0;
+  for (let i = effectiveEnd; i < chat.length; i++) {
+    const msg = chat[i];
+    bottomSpacerHeight += (msg && messageHeightsRef.current.get(msg.id)) || avgHeight;
+  }
+
+  // PHYSICAL ANCHOR PINNING (Isolates scroll position from spacer fluctuations)
   useLayoutEffect(() => {
     const { id, initialOffsetTop } = scrollAnchorRef.current;
     if (!id || !nativeScrollerRef.current) return;
@@ -137,53 +187,81 @@ export default function ChatArea() {
     const anchorEl = document.getElementById(`msg-${id}`);
     if (anchorEl) {
       const delta = anchorEl.offsetTop - initialOffsetTop;
-
-      if (delta > 0) {
+      if (delta !== 0) {
         nativeScrollerRef.current.scrollTop += delta;
       }
     }
 
     scrollAnchorRef.current = { id: null, initialOffsetTop: 0 };
-  }, [visibleCount]);
+  }, [effectiveStart, effectiveEnd]);
+
+  // Snapshot visible top anchor node before range mutations
+  const captureScrollAnchor = useCallback(() => {
+    const scroller = nativeScrollerRef.current;
+    if (!scroller) return;
+
+    let anchorId = null;
+    let anchorOffsetTop = 0;
+
+    for (let i = 0; i < displayedChat.length; i++) {
+      const msgEl = document.getElementById(`msg-${displayedChat[i].id}`);
+      if (msgEl && (msgEl.offsetTop + msgEl.offsetHeight > scroller.scrollTop)) {
+        anchorId = displayedChat[i].id;
+        anchorOffsetTop = msgEl.offsetTop;
+        break;
+      }
+    }
+
+    if (anchorId) {
+      scrollAnchorRef.current = { id: anchorId, initialOffsetTop: anchorOffsetTop };
+    }
+  }, [displayedChat]);
 
   // Background Pagination Observer to seamlessly load older messages when you scroll near the top
   // IntersectionObserver with offsetTop Snapshot
   useEffect(() => {
     const sentinel = topSentinelRef.current;
-    if (!sentinel || !hasMore) return;
+    if (!sentinel || !hasMoreAbove) return;
 
     const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && nativeScrollerRef.current) {
-        const scroller = nativeScrollerRef.current;
-        const currentScrollTop = scroller.scrollTop;
-
-        let topMsgId = null;
-        let topMsgOffsetTop = 0;
-
-        for (let i = 0; i < displayedChat.length; i++) {
-          const msgEl = document.getElementById(`msg-${displayedChat[i].id}`);
-          if (msgEl) {
-            if (msgEl.offsetTop + msgEl.offsetHeight > currentScrollTop) {
-              topMsgId = displayedChat[i].id;
-              topMsgOffsetTop = msgEl.offsetTop;
-              break;
-            }
+      if (entries[0].isIntersecting) {
+        captureScrollAnchor();
+        setVisibleCount(prevVis => {
+          if (prevVis < MAX_VISIBLE) {
+            return Math.min(MAX_VISIBLE, prevVis + CHUNK_SIZE);
+          } else {
+            setBottomOffset(prevBottom => prevBottom + CHUNK_SIZE);
+            return MAX_VISIBLE;
           }
-        }
-
-        if (topMsgId) {
-          scrollAnchorRef.current = { id: topMsgId, initialOffsetTop: topMsgOffsetTop };
-          setVisibleCount(prev => Math.min(prev + 30, chat.length));
-        }
+        });
       }
     }, {
       root: nativeScrollerRef.current,
-      rootMargin: '250px 0px 0px 0px' // Pre-load 250px before the user actually hits the top
+      rootMargin: '300px 0px 0px 0px'
     });
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, chat.length, displayedChat]);
+  }, [hasMoreAbove, captureScrollAnchor]);
+
+  // OBSERVER FOR BOTTOM EXPANSION & TOP PRUNING
+  useEffect(() => {
+    const sentinel = bottomSentinelRef.current;
+    if (!sentinel || !hasMoreBelow || isStreaming) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        captureScrollAnchor();
+        setBottomOffset(prevBottom => Math.max(0, prevBottom - CHUNK_SIZE));
+      }
+    }, {
+      root: nativeScrollerRef.current,
+      rootMargin: '0px 0px 300px 0px'
+    });
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMoreBelow, isStreaming, captureScrollAnchor]);
 
   // Evaluates viewport distance against physical scroll bottom and active text bounds
   const checkIsAtBottom = useCallback(() => {
@@ -227,6 +305,9 @@ export default function ChatArea() {
   const scrollToBottom = () => {
     const scroller = nativeScrollerRef.current
     if (!scroller) return
+
+    setBottomOffset(0);
+    setVisibleCount(INITIAL_BATCH);
 
     if (isStreaming) {
       // Active streaming: target current text node bottom
@@ -403,11 +484,14 @@ export default function ChatArea() {
         ref={nativeScrollerRef} 
         className={styles['native-chat-scroller']} 
       >
-        {/* Invisible Sentinel to trigger older message loading */}
-        {hasMore && <div ref={topSentinelRef} style={{ height: '1px' }} />}
+        {/* Top Spacer for Unrendered Messages */}
+        {topSpacerHeight > 0 && <div style={{ height: `${topSpacerHeight}px` }} />}
+
+        {/* Top Sentinel to expand range upward & prune bottom */}
+        {hasMoreAbove && <div ref={topSentinelRef} style={{ height: '1px' }} />}
 
         {displayedChat.map((item, localIndex) => {
-          const absoluteIndex = startIndex + localIndex;
+          const absoluteIndex = effectiveStart + localIndex;
           const previousMsg = chat[absoluteIndex - 1]
           const timeDiff = previousMsg ? new Date(item.createdAt) - new Date(previousMsg.createdAt) : 0
           const showTimestamp = absoluteIndex === 0 || timeDiff > 3600000
@@ -439,6 +523,12 @@ export default function ChatArea() {
             </div>
           )
         })}
+
+        {/* Bottom Sentinel to expand range downward & prune top */}
+        {hasMoreBelow && <div ref={bottomSentinelRef} style={{ height: '1px' }} />}
+
+        {/* Bottom Spacer for Unrendered Messages */}
+        {bottomSpacerHeight > 0 && <div style={{ height: `${bottomSpacerHeight}px` }} />}
 
         <ChatFooter ref={footerRef} isArchived={isArchived} />
       </div>

@@ -8,7 +8,7 @@ Updates:
 - Implemented Non-Blocking Stream Throttling & UI Mechanics for Streaming & Execution Control
 - Implemented Isolated Render Memoization, Callback Reference Stability for Render Performance & Component Optimization
 - Implemented Frame-Zero Height Determinism & Static DOM Immutability, Message-Level CSS Layout Containment, and Deterministic Layout Snapshots for Layout & Sizing Stability
-- Implemented Tail-First Progressive Pagination & DOM Slicing for DOM & Pagination Architecture
+- Implemented Tail-First Progressive Pagination & DOM Slicing, and Bidirectional Sliding Window for DOM & Pagination Architecture
 - Disabled Native Overflow Anchoring and removed Off-Screen Lazy Hydration to pin viewport at initial positioning of new message pair steadily and to prevent jitters when scrolling up viewport
 - Fixed some scroll-while-streaming and scroll-to-bottom inconsistencies
 - Improved UI fluency on switching and opening chats by Reverse Windowing (Lazy Loading), Isolating Markdown compilations, and executing highlightMatch Regex logic and DOM rendering in the background to unblock main UI thread
@@ -306,9 +306,7 @@ qwen-local-chatgpt/
 
 - ✅ vLLM backend
 - ✅ Stop generation
-- ✅ Virtualized chat list (react-virtuoso)
 - ✅ Streaming chunk batching
-- ✅ Auto-scroll during streaming
 - ✅ Scroll preservation while reading history
 - ✅ Streaming cancellation
 
@@ -989,13 +987,14 @@ Estimated Cost
 
 ## Native DOM Architecture
 
-- [x] Tail-First Progressive Pagination
-- [x] Isolated Markdown Rendering
+- [x] Tail-First Progressive Pagination & DOM Slicing
+- [x] Frame-Zero Height Determinism & Static DOM Immutability
+- [x] Message-Level CSS Layout Containment
+- [x] Deterministic Layout Snapshots
+- [x] Isolated Render Memoization
 - [x] Callback Reference Stability
-- [x] Non-Blocking UI Mechanics
-- [x] Stream Update Throttling
-- [x] CSS Containment
-- [ ] Bidirectional Sliding Window
+- [x] Non-Blocking Stream Throttling & UI Mechanics
+- [x] Bidirectional Sliding Window
 
 ---
 
