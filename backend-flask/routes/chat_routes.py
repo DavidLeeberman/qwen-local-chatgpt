@@ -28,12 +28,20 @@ def chat():
     
     # ✅ Extract regeneration flags from frontend
     is_regenerate = data.get('is_regenerate', False)
+    is_edit = data.get('is_edit', False) # NEW: Extract edit flag
     req_user_msg_id = data.get('user_message_id')
+    
+    # 🔥 FIX: Safely parse user_message_id to an integer to prevent PostgreSQL syntax errors
+    user_msg_db_id = None
+    if req_user_msg_id is not None:
+        try:
+            user_msg_db_id = int(req_user_msg_id)
+        except (ValueError, TypeError):
+            user_msg_db_id = None
     
     # Extract original_title from the frontend payload (Option 1)
     original_title = data.get('original_title', None)
     new_title = f"[Branched]: {original_title} -> {msg}" if original_title else msg
-
 
     with get_db() as conn:
         with conn.cursor() as cur:
@@ -76,10 +84,30 @@ def chat():
                 
                 new_id = False
 
+            if is_edit and not new_id:
+                # Reject edit requests if DB ID is missing or invalid (no fallback guessing)
+                if not user_msg_db_id:
+                    return jsonify({"error": "Cannot edit message before database sync finishes"}), 400
+
+                user_message_id = user_msg_db_id
+
+                # 1. Update the content of the edited prompt
+                cur.execute(
+                    "UPDATE messages SET content=%s WHERE id=%s AND conversation_id=%s",
+                    (msg, user_message_id, cid)
+                )
+                
+                # 2. Delete ALL existing messages that came AFTER this prompt
+                cur.execute(
+                    "DELETE FROM messages WHERE conversation_id=%s AND id > %s",
+                    (cid, user_message_id)
+                )
+                conn.commit()
+
             # 🔥 THE FIX: Aggressive Regeneration Fallbacks
-            if is_regenerate and not new_id:
-                if req_user_msg_id:
-                    user_message_id = req_user_msg_id
+            elif is_regenerate and not new_id:
+                if user_msg_db_id:
+                    user_message_id = user_msg_db_id
                 else:
                     # Fallback: Frontend lost the ID (likely due to a stopped stream). 
                     # Grab the LAST user message in this specific conversation.
@@ -105,7 +133,7 @@ def chat():
                 )
                 conn.commit()
             else:
-                # Standard flow: Store the NEW user message securely
+                # Standard flow: Store new user message
                 cur.execute(
                     """
                     INSERT INTO messages

@@ -1,5 +1,13 @@
 # Local ChatGPT-class System
 ```
+Version    : 0.593
+Model      : Qwen3.5-9B + vLLM + Ollama
+Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
+```
+Updates:
+- Copy and Edit Message works
+- Collapse/Expand Message works
+```
 Version    : 0.592
 Model      : Qwen3.5-9B + vLLM + Ollama
 Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5 6400MHz + 2TB SSD
@@ -980,8 +988,8 @@ Estimated Cost
 - [x] Conversation Branch
 - [x] Conversation Search
 - [x] Regenerate Response
-- [x] Copy Response
-- [ ] Edit Message
+- [x] Copy Message
+- [x] Edit Message
 
 ---
 

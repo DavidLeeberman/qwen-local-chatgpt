@@ -59,7 +59,16 @@
   font-family: inherit;
 }
 
-/* User Bubbles: Pill bounding-box wrapping style */
+/* Wrap user message column to align right edge toolbar */
+.user-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  max-width: 70%;
+  width: 100%;
+}
+
+/* User Bubbles style */
 .user-row .message-bubble {
   background-color: #1a4276;
   color: #ececf1;
@@ -67,6 +76,132 @@
   border-radius: 24px;
   max-width: 70%;
   word-break: break-word;
+  position: relative;
+  transition: max-height 0.2s ease;
+}
+
+/* Collapsed prompt status */
+.user-row .message-bubble.collapsed {
+  max-height: 140px;
+  overflow: hidden;
+  padding-bottom: 36px;
+}
+
+.prompt-text {
+  white-space: pre-wrap;
+}
+
+.prompt-text.collapsed {
+  max-height: 120px; /* or your line-clamp limit */
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
+/* Show More / Show Less Toggle Button */
+.expand-toggle-btn {
+  background: transparent;
+  border: none;
+  color: #b4b4b4;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease;
+}
+
+.expand-toggle-btn:hover {
+  color: #ffffff;
+}
+
+/* Right-aligned prompt action toolbar */
+.user-action-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.user-action-toolbar.visible {
+  opacity: 1;
+}
+
+/* OPENAI EDIT PROMPT CARD */
+.prompt-edit-container {
+  width: 100%;
+  background-color: #212121;
+  border-radius: 18px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.prompt-edit-textarea {
+  width: 100%;
+  min-height: 90px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ececf1;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.prompt-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.prompt-btn-cancel {
+  background-color: #2f2f2f;
+  color: #ececf1;
+  border: none;
+  border-radius: 18px;
+  padding: 6px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.prompt-btn-cancel:hover {
+  background-color: #3e3e3e;
+}
+
+.prompt-btn-send {
+  background-color: #ffffff;
+  color: #000000;
+  border: none;
+  border-radius: 18px;
+  padding: 6px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.prompt-btn-send.disabled {
+  background-color: #424242;
+  color: #757575;
+  cursor: not-allowed;
+}
+
+.prompt-btn-send:not(.disabled):hover {
+  opacity: 0.9;
 }
 
 /* Assistant responses layout flow */

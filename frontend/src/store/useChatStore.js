@@ -32,6 +32,8 @@ export const useChatStore = create((set, get) => ({
   openDropdownCid: null,
   chatToDelete: null,
   openArchivedChatId: null,
+  
+  editingMessageId: null, // Track currently edited message ID
 
   // Search states
   isSearching: false,
@@ -76,6 +78,7 @@ export const useChatStore = create((set, get) => ({
   setChatToDelete: (chat) => set({ chatToDelete: chat }),
   setOpenArchivedChatId: (id) => set({ openArchivedChatId: id }),
 
+  setEditingMessageId: (id) => set({ editingMessageId: id }),
   
   // Modal Setters
   setSettingsOpen: (isOpen) => set({ isSettingsOpen: isOpen }),
@@ -132,7 +135,8 @@ export const useChatStore = create((set, get) => ({
       query = '',
       shouldScrollSidebar = false,
       skipScrollTrigger = false, // 👈 ADDED: Prevent scroll snaps during silent syncs
-      forceReload = false // 👈 ADDED: Flag to override redundancy check if required
+      forceReload = false, // 👈 ADDED: Flag to override redundancy check if required
+      preserveLocalStream = false // 👈 ADDED: Preserve local stream content during abort syncs
     } = options
 
     const { cid: currentCid, token, cleanupStream } = get()
@@ -142,8 +146,10 @@ export const useChatStore = create((set, get) => ({
       return
     }
 
-    // Stop any active stream first
-    cleanupStream(false, true)
+    // Stop any active stream first (unless preserving local stream during an abort sync)
+    if (!preserveLocalStream) {
+      cleanupStream(false, true)
+    }
 
     // Cancel previous loadMessages request
     if (loadMessagesAbort) loadMessagesAbort.abort()
@@ -159,7 +165,8 @@ export const useChatStore = create((set, get) => ({
       isBranched: false, // Reset branching flag when loading another chat
       branchedOriginalTitle: '', // 🔥 ADDED: Reset when switching chats
       err: '',
-      sidebarScrollTrigger: needsSidebarScroll ? state.sidebarScrollTrigger + 1 : state.sidebarScrollTrigger 
+      sidebarScrollTrigger: needsSidebarScroll ? state.sidebarScrollTrigger + 1 : state.sidebarScrollTrigger, 
+      editingMessageId: null // Cancel active prompt edit when switching chats
     }))
 
     try {
@@ -211,10 +218,56 @@ export const useChatStore = create((set, get) => ({
       if (current) formatted.push(current)
 
       // Update the chat AND increment listScrollTrigger only if skipScrollTrigger is false
-      set(state => ({ 
-        chat: formatted,
-        listScrollTrigger: skipScrollTrigger ? state.listScrollTrigger : state.listScrollTrigger + 1 
-      }))
+      set(state => {
+        let finalChat = formatted
+
+        if (preserveLocalStream && state.chat.length > 0) {
+          const localChatMap = new Map()
+          state.chat.forEach(msg => {
+            if (msg.userMessageId) localChatMap.set(String(msg.userMessageId), msg)
+            if (msg.id) localChatMap.set(String(msg.id), msg)
+            if (msg.u) localChatMap.set(`u:${msg.u}`, msg)
+          })
+
+          const merged = formatted.map(dbMsg => {
+            const localMsg = (dbMsg.userMessageId && localChatMap.get(String(dbMsg.userMessageId))) ||
+                             (dbMsg.id && localChatMap.get(String(dbMsg.id))) ||
+                             (dbMsg.u && localChatMap.get(`u:${dbMsg.u}`))
+
+            if (!localMsg) return dbMsg
+
+            const localText = localMsg.a || ''
+            const dbText = dbMsg.a || ''
+            const useLocalText = localText.length > dbText.length
+
+            return {
+              ...dbMsg,
+              userMessageId: dbMsg.userMessageId || localMsg.userMessageId,
+              assistantMessageId: dbMsg.assistantMessageId || localMsg.assistantMessageId,
+              a: useLocalText ? localText : dbText,
+              done: true
+            }
+          })
+
+          state.chat.forEach(localMsg => {
+            const existsInMerged = merged.some(m => 
+              (m.userMessageId && localMsg.userMessageId && String(m.userMessageId) === String(localMsg.userMessageId)) ||
+              (m.id && localMsg.id && String(m.id) === String(localMsg.id)) ||
+              (m.u && localMsg.u && m.u === localMsg.u)
+            )
+            if (!existsInMerged) {
+              merged.push({ ...localMsg, done: true })
+            }
+          })
+
+          finalChat = merged
+        }
+
+        return {
+          chat: finalChat,
+          listScrollTrigger: skipScrollTrigger ? state.listScrollTrigger : state.listScrollTrigger + 1
+        }
+      })
     } catch (err) {
       if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
         console.error(err)
@@ -304,10 +357,10 @@ export const useChatStore = create((set, get) => ({
       set((state) => ({
         conversations: state.conversations.map(c => c.id === id ? { ...c, is_archived: false } : c),
         cid: id // 👈 Sets active conversation ID
-        // 'chat' is left untouched here, loadMessages(id) below populates it[cite: 3]
+        // 'chat' is left untouched here, loadMessages(id) below populates it
       }));
 
-      // 3. Fetches messages from server and updates state.chat correctly[cite: 3]
+      // 3. Fetches messages from server and updates state.chat correctly
       loadMessages(id, { forceReload: true })
     } catch (error) {
       console.error("Failed to unarchive:", error);
@@ -433,15 +486,15 @@ export const useChatStore = create((set, get) => ({
     streamSessionId++
   },
 
-  finishCurrentStreamingMessage: () => {
-    const targetId = activeStreamMessageId
+  finishCurrentStreamingMessage: (msgId = null) => {
+    const targetId = msgId || activeStreamMessageId
     if (!targetId) return
     set(state => ({
       chat: state.chat.map(m => m.id === targetId ? { ...m, done: true } : m)
     }))
   },
 
-  // ✅ logout (restored)
+  // ✅ logout
   logout: () => {
     get().cleanupStream(false, true)
     if (loadMessagesAbort) loadMessagesAbort.abort()
@@ -458,7 +511,8 @@ export const useChatStore = create((set, get) => ({
       conversations: [], 
       err: '',
       branchedOriginalTitle: '', // 🔥 ADDED: Reset on logout
-      targetMessageId: null
+      targetMessageId: null,
+      editingMessageId: null
     })
   },
 
@@ -469,8 +523,52 @@ export const useChatStore = create((set, get) => ({
     setBranched(false)
     set(state => ({ 
       targetMessageId: null,
+      editingMessageId: null,
       listScrollTrigger: state.listScrollTrigger + 1 // 🌟 FIX: Reset scroll tracking for clean slates
     }))
+  },
+
+  // NEW: Prompt Edit & Resend Action
+  editAndSend: async (messageId, newPromptText) => {
+    const { chat, send, isStreaming, cleanupStream } = get();
+    
+    // Strict guard check: Require idle streaming state and valid DB integer ID
+    const numId = Number(messageId);
+    if (isStreaming || !Number.isInteger(numId)) return;
+
+    const trimmedPrompt = newPromptText.trim();
+    if (!trimmedPrompt) return;
+
+    // 1. Locate the index of the prompt being edited
+    const msgIndex = chat.findIndex(
+      m => m.id === messageId || m.userMessageId === messageId
+    );
+    if (msgIndex === -1) return;
+
+    const targetMsg = chat[msgIndex];
+    const targetUserMsgId = targetMsg.userMessageId || targetMsg.id;
+
+    if (!Number.isInteger(Number(targetUserMsgId))) return;
+
+    // 🔥 FIX: Pass isInterrupt = false to prevent sending an un-awaited background POST /chat/stop
+    // which causes a race condition that kills the new fetch stream instantly.
+    cleanupStream(false, false);
+
+    // 2. Truncate all frontend messages AFTER this prompt
+    const truncatedHistory = chat.slice(0, msgIndex);
+
+    set({ 
+      chat: truncatedHistory, 
+      editingMessageId: null, 
+      err: '', 
+      targetMessageId: null 
+    });
+
+    // 3. Trigger stream with edit flag
+    await send(trimmedPrompt, () => {}, {
+      isEdit: true,
+      userMessageId: targetUserMsgId
+    });
   },
 
   // 🔥 UPDATED: Now accepts originalTitle and the specific messageId to branch from
@@ -498,15 +596,17 @@ export const useChatStore = create((set, get) => ({
     });
   },
 
-  // Add this alongside your other Actions (like send, branchChat, etc.)
+  // Regenerate action
   regenerate: async () => {
-    const { chat, send, isStreaming } = get()
+    const { chat, send, isStreaming, cleanupStream } = get()
     
     if (isStreaming || chat.length === 0) return;
 
     // 1. Get the last message pair
     const lastMessage = chat[chat.length - 1];
     if (!lastMessage || !lastMessage.u) return;
+
+    cleanupStream(false, false);
 
     // 2. Remove the last message from the UI to prepare for the "redo"
     set(state => ({ 
@@ -531,7 +631,6 @@ export const useChatStore = create((set, get) => ({
 
     set({ isSearching: true })
     try {
-      // NOTE: You need to implement this endpoint on your backend
       const r = await axios.get(
         `${API_URL}/api/conversations/search?q=${encodeURIComponent(query)}`, 
         {
@@ -554,7 +653,7 @@ export const useChatStore = create((set, get) => ({
   // ✅ send message
   send: async (msg, setMsg, options = {}) => {
     // Extract the new regeneration options
-    const { isRegenerate = false, userMessageId = null } = options;
+    const { isRegenerate = false, isEdit = false, userMessageId = null } = options;
 
     const { 
       token, 
@@ -660,6 +759,7 @@ export const useChatStore = create((set, get) => ({
             
             // NEW: Pass regeneration flags to the backend
             is_regenerate: isRegenerate,
+            is_edit: isEdit,
             user_message_id: userMessageId,
             // 🔥 UPDATED: Pass the original_title to the backend along with the history
             ...(wasBranched ? { history: formattedHistory, original_title: branchedOriginalTitle } : {})
@@ -764,13 +864,11 @@ export const useChatStore = create((set, get) => ({
             set(state => ({ chat: state.chat.map(m => m.id === tempId ? { ...m, done: true } : m) }))
             cleanupStream() // reset stream state
 
-            // 🔥 FIX: Silently reload DB messages to replace legacy history IDs with real DB IDs
+            // 🔥 FIX: Silently reload DB messages to replace temporary client IDs with real DB IDs
             // without triggering an auto-scroll jump
-            if (wasBranched) {
-              const currentCid = get().cid
-              if (currentCid) {
-                get().loadMessages(currentCid, { skipScrollTrigger: true })
-              }
+            const currentCid = get().cid
+            if (currentCid) {
+              get().loadMessages(currentCid, { skipScrollTrigger: true, forceReload: true })
             }
             
             return
@@ -794,10 +892,34 @@ export const useChatStore = create((set, get) => ({
         }
       }
       if (pendingText) flushPendingText()
+      if (flushTimer) {
+        clearTimeout(flushTimer)
+        flushTimer = null
+      }
+      finishCurrentStreamingMessage(tempId)
+      cleanupStream()
+      const currentCid = get().cid
+      if (currentCid) {
+        get().loadMessages(currentCid, { skipScrollTrigger: true, forceReload: true })
+      }
     } catch (e) {
       if (e.name === 'AbortError') {
         console.log('Stream cancelled by user')
-        finishCurrentStreamingMessage()
+        if (flushTimer) {
+          clearTimeout(flushTimer)
+          flushTimer = null
+        }
+        flushPendingText()
+        finishCurrentStreamingMessage(tempId)
+        
+        const currentCid = get().cid
+        if (currentCid) {
+          get().loadMessages(currentCid, { 
+            skipScrollTrigger: true, 
+            forceReload: true, 
+            preserveLocalStream: true 
+          })
+        }
       } else {
         console.error(e)
         set({ err: 'Streaming failed: ' + e.message })

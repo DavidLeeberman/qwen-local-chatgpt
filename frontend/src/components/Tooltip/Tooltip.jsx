@@ -37,12 +37,12 @@ export function ActionTooltip({ visible, x, y, text }) {
   if (!visible) return null;
 
   return createPortal(
-        <div 
+    <div 
       className={styles['cursor-tooltip-box']}
       style={{ left: x, top: y, transform: 'translate(-50%, -100%)' }}
-        >
-          {text}
-        </div>,
-        document.body
+    >
+      {text}
+    </div>,
+    document.body
   );
 }

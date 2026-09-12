@@ -1,5 +1,3 @@
-import React from 'react';
-
 import styles from './Icons.module.css';
 
 export const ChatBubbleIcon = ({ className = '', style = {} }) => (
@@ -261,5 +259,12 @@ export const RedoIcon = (props) => (
 export const DoneIcon = (props) => (
   <MatchParentTextIcon {...lineIconProps} {...props}>
     <polyline points="20 6 9 17 4 12" />
+  </MatchParentTextIcon>
+);
+
+export const EditIcon = (props) => (
+  <MatchParentTextIcon {...lineIconProps} {...props}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
   </MatchParentTextIcon>
 );
