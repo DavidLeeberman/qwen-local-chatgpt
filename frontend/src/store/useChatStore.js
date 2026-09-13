@@ -650,6 +650,48 @@ export const useChatStore = create((set, get) => ({
   // Clear search target when switching chats or resetting
   clearTargetMessage: () => set({ targetMessageId: null, searchQuery: '' }),
 
+  finalizeAndSyncStream: (tempId, options = {}) => {
+    const { 
+      forceFlushPendingText = false, 
+      forceCleanupStream = false, 
+      preserveLocalStream = false 
+    } = options
+    
+    const {
+      flushPendingText,
+      finishCurrentStreamingMessage,
+      cleanupStream,
+      loadMessages
+    } = get()
+
+    // 1. Clear active stream timers and flush remaining buffer text
+    if (flushTimer) {
+      clearTimeout(flushTimer)
+      flushTimer = null
+    }
+    if (pendingText || forceFlushPendingText) {
+      flushPendingText()
+    }
+
+    // 2. Mark the target streaming message as complete
+    finishCurrentStreamingMessage(tempId)
+
+    // 3. Reset internal streaming state variables
+    if (forceCleanupStream) {
+      cleanupStream()
+    }
+
+    // 4. Silently reload DB messages to sync database IDs
+    const currentCid = get().cid
+    if (currentCid) {
+      loadMessages(currentCid, {
+        skipScrollTrigger: true,
+        forceReload: true,
+        preserveLocalStream
+      })
+    }
+  },
+
   // ✅ send message
   send: async (msg, setMsg, options = {}) => {
     // Extract the new regeneration options
@@ -657,11 +699,12 @@ export const useChatStore = create((set, get) => ({
 
     const { 
       token, 
-      cid, 
+      cid, // Snapshot used for initial pre-stream checks
       isStreaming, 
+      loadMessages, // Stable function reference
       flushPendingText, 
       cleanupStream, 
-      finishCurrentStreamingMessage,
+      finalizeAndSyncStream,
       isBranched,
       branchedOriginalTitle, // 🔥 EXTACTED: Pull the title from state
       chat 
@@ -868,7 +911,7 @@ export const useChatStore = create((set, get) => ({
             // without triggering an auto-scroll jump
             const currentCid = get().cid
             if (currentCid) {
-              get().loadMessages(currentCid, { skipScrollTrigger: true, forceReload: true })
+              loadMessages(currentCid, { skipScrollTrigger: true, forceReload: true })
             }
             
             return
@@ -891,35 +934,11 @@ export const useChatStore = create((set, get) => ({
           }
         }
       }
-      if (pendingText) flushPendingText()
-      if (flushTimer) {
-        clearTimeout(flushTimer)
-        flushTimer = null
-      }
-      finishCurrentStreamingMessage(tempId)
-      cleanupStream()
-      const currentCid = get().cid
-      if (currentCid) {
-        get().loadMessages(currentCid, { skipScrollTrigger: true, forceReload: true })
-      }
+      finalizeAndSyncStream(tempId, { forceCleanupStream: true })
     } catch (e) {
       if (e.name === 'AbortError') {
         console.log('Stream cancelled by user')
-        if (flushTimer) {
-          clearTimeout(flushTimer)
-          flushTimer = null
-        }
-        flushPendingText()
-        finishCurrentStreamingMessage(tempId)
-        
-        const currentCid = get().cid
-        if (currentCid) {
-          get().loadMessages(currentCid, { 
-            skipScrollTrigger: true, 
-            forceReload: true, 
-            preserveLocalStream: true 
-          })
-        }
+        finalizeAndSyncStream(tempId, { forceFlushPendingText: true, preserveLocalStream: true })
       } else {
         console.error(e)
         set({ err: 'Streaming failed: ' + e.message })
