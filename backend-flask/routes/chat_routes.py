@@ -59,15 +59,26 @@ def chat():
                     for h_msg in history:
                         h_role = h_msg.get('role')
                         h_content = h_msg.get('content')
+                        h_created_at = h_msg.get('created_at') # Extract timestamp if available
                         if h_role and h_content:
-                            cur.execute(
-                                """
-                                INSERT INTO messages
-                                (conversation_id, role, content)
-                                VALUES (%s,%s,%s)
-                                """,
-                                (cid, h_role, h_content)
-                            )
+                            if h_created_at:
+                                cur.execute(
+                                    """
+                                    INSERT INTO messages
+                                    (conversation_id, role, content, created_at)
+                                    VALUES (%s,%s,%s,%s)
+                                    """,
+                                    (cid, h_role, h_content, h_created_at)
+                                )
+                            else:
+                                cur.execute(
+                                    """
+                                    INSERT INTO messages
+                                    (conversation_id, role, content)
+                                    VALUES (%s,%s,%s)
+                                    """,
+                                    (cid, h_role, h_content)
+                                )
                 
                 conn.commit()
 
@@ -91,9 +102,9 @@ def chat():
 
                 user_message_id = user_msg_db_id
 
-                # 1. Update the content of the edited prompt
+                # 1. Update content AND update created_at timestamp to NOW()
                 cur.execute(
-                    "UPDATE messages SET content=%s WHERE id=%s AND conversation_id=%s",
+                    "UPDATE messages SET content=%s, created_at=NOW() WHERE id=%s AND conversation_id=%s",
                     (msg, user_message_id, cid)
                 )
                 
@@ -124,6 +135,12 @@ def chat():
                             (cid, "user", msg)
                         )
                         user_message_id = cur.fetchone()[0]
+
+                # Update prompt created_at timestamp to NOW() when regenerating
+                cur.execute(
+                    "UPDATE messages SET created_at=NOW() WHERE id=%s AND conversation_id=%s",
+                    (user_message_id, cid)
+                )
 
                 # Aggressively delete ALL assistant messages that came AFTER this user prompt.
                 # This ensures partial/stopped responses are completely wiped from the DB and context window.
@@ -182,6 +199,15 @@ def chat():
                         }
                     })
                     yield f"{SSE_PREFIX}{meta_data}{SSE_DELIMITER}"
+
+                # Early-emission of user_message_id before streaming LLM response chunks
+                if user_message_id:
+                    early_ids_data = json.dumps({
+                        SSE_IDS: {
+                            "user_message_id": user_message_id
+                        }
+                    })
+                    yield f"{SSE_PREFIX}{early_ids_data}{SSE_DELIMITER}"
 
                 llm_response = None
                 cancelled = False

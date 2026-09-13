@@ -478,6 +478,15 @@ export default function ChatArea() {
     checkIsAtBottom()
   }, [chat, checkIsAtBottom])
 
+  // Helper to parse naive DB dates and UTC ISO strings on the exact same baseline
+  const parseTimestamp = (dateStr) => {
+    if (!dateStr) return null;
+    if (typeof dateStr === 'string' && !dateStr.endsWith('Z') && !dateStr.includes('+')) {
+      return new Date(dateStr.replace(' ', 'T') + 'Z');
+    }
+    return new Date(dateStr);
+  };
+
   return (
     <div className={styles['main-chat-area']}>
       <div 
@@ -493,13 +502,17 @@ export default function ChatArea() {
         {displayedChat.map((item, localIndex) => {
           const absoluteIndex = effectiveStart + localIndex;
           const previousMsg = chat[absoluteIndex - 1]
-          const timeDiff = previousMsg ? new Date(item.createdAt) - new Date(previousMsg.createdAt) : 0
+
+          const currentMs = parseTimestamp(item.createdAt)?.getTime() || 0;
+          const prevMs = previousMsg ? (parseTimestamp(previousMsg.createdAt)?.getTime() || 0) : 0;
+          const timeDiff = (currentMs && prevMs) ? currentMs - prevMs : 0;
+
           const showTimestamp = absoluteIndex === 0 || timeDiff > 3600000
           const isLastMessage = absoluteIndex === chat.length - 1
 
           return (
             <div 
-              key={item.id}
+              key={item.userMessageId || item.id}
               id={`msg-${item.id}`}
               ref={isLastMessage ? lastSpacerRef : null}
               // The outer ID wrapper was removed here so the browser stops centering the entire combined text block[cite: 17]
@@ -510,7 +523,7 @@ export default function ChatArea() {
               <div ref={isLastMessage ? lastMessageRef : null}>
                 {showTimestamp && (
                   <div className={styles['time-break']}>
-                    {formatTimestamp(item.createdAt)}
+                    {formatTimestamp(parseTimestamp(item.createdAt))}
                   </div>
                 )}
 

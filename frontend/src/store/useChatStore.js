@@ -654,7 +654,8 @@ export const useChatStore = create((set, get) => ({
     const { 
       forceFlushPendingText = false, 
       forceCleanupStream = false, 
-      preserveLocalStream = false 
+      preserveLocalStream = false,
+      shouldSyncDb = false // 👈 Default to false for standard streams
     } = options
     
     const {
@@ -683,7 +684,7 @@ export const useChatStore = create((set, get) => ({
 
     // 4. Silently reload DB messages to sync database IDs
     const currentCid = get().cid
-    if (currentCid) {
+    if (currentCid && shouldSyncDb) {
       loadMessages(currentCid, {
         skipScrollTrigger: true,
         forceReload: true,
@@ -732,12 +733,14 @@ export const useChatStore = create((set, get) => ({
       set({ isBranched: false })
     }
 
+    const shouldSyncDb = isEdit || isRegenerate || wasBranched // 👈 Only sync DB on prompt mutations
+
     // 🌟 FIX 1: Map the frontend '{u, a}' state back to the standard '{role, content}' 
     // format so the backend can actually read and save the archived history.
     const formattedHistory = wasBranched ? chat.flatMap(m => {
       const msgs = []
-      if (m.u) msgs.push({ role: 'user', content: m.u })
-      if (m.a) msgs.push({ role: 'assistant', content: m.a })
+      if (m.u) msgs.push({ role: 'user', content: m.u, created_at: m.createdAt })
+      if (m.a) msgs.push({ role: 'assistant', content: m.a, created_at: m.createdAt })
       return msgs
     }) : undefined
 
@@ -781,7 +784,8 @@ export const useChatStore = create((set, get) => ({
           u: userMsg, 
           a: '', 
           done: false,
-          createdAt: new Date().toISOString() 
+          // Always generates fresh timestamp on send/edit/regenerate
+          createdAt: new Date().toISOString()
         }],
         autoScroll: false,
         isStreaming: true,
@@ -891,7 +895,11 @@ export const useChatStore = create((set, get) => ({
           if (data[SSE_IDS]) {
             const { user_message_id, assistant_message_id } = data[SSE_IDS]
             set(state => ({
-              chat: state.chat.map(m => m.id === tempId ? { ...m, userMessageId: user_message_id, assistantMessageId: assistant_message_id } : m)
+              chat: state.chat.map(m => m.id === tempId ? { 
+                ...m, 
+                ...(user_message_id !== undefined && { userMessageId: user_message_id }),
+                ...(assistant_message_id !== undefined && { assistantMessageId: assistant_message_id })
+              } : m)
             }))
             continue
           }
@@ -910,7 +918,7 @@ export const useChatStore = create((set, get) => ({
             // 🔥 FIX: Silently reload DB messages to replace temporary client IDs with real DB IDs
             // without triggering an auto-scroll jump
             const currentCid = get().cid
-            if (currentCid) {
+            if (currentCid && shouldSyncDb) {
               loadMessages(currentCid, { skipScrollTrigger: true, forceReload: true })
             }
             
@@ -934,11 +942,18 @@ export const useChatStore = create((set, get) => ({
           }
         }
       }
-      finalizeAndSyncStream(tempId, { forceCleanupStream: true })
+      finalizeAndSyncStream(tempId, { 
+        forceCleanupStream: true, 
+        shouldSyncDb: shouldSyncDb
+      })
     } catch (e) {
       if (e.name === 'AbortError') {
         console.log('Stream cancelled by user')
-        finalizeAndSyncStream(tempId, { forceFlushPendingText: true, preserveLocalStream: true })
+        finalizeAndSyncStream(tempId, { 
+          forceFlushPendingText: true, 
+          preserveLocalStream: true, 
+          shouldSyncDb: shouldSyncDb
+        })
       } else {
         console.error(e)
         set({ err: 'Streaming failed: ' + e.message })
