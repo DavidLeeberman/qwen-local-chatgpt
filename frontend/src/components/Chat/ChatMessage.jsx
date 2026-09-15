@@ -22,34 +22,164 @@ import {
   CopyIcon, 
   RedoIcon, 
   DoneIcon, 
-  EditIcon 
+  EditIcon,
+  ShowMoreIcon,
+  ShowLessIcon 
 } from '../UI/Icons' 
 import { highlightMarkdownKeywords } from '../../utils/searchUtils'
 
 import styles from './ChatMessage.module.css'
 
-// Direct, immutable code rendering to prevent post-scroll layout shifts
-const markdownComponents = {
-  code({ className, children }) {
-    const match = /language-(\w+)/.exec(className || '')
+// Code block component with header, copy action, and seamless syntax highlighting
+const CodeBlock = ({ language, value, onActionMouseEnter, onActionMouseLeave }) => {
+  const [copied, setCopied] = useState(false);
 
-    return match ? (
-      <div className={styles['code-block-wrapper']}>
-        <SyntaxHighlighter
-          style={oneDark}
-          language={match[1]}
-          PreTag="div"
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    const textToCopy = String(value).replace(/\n$/, '');
+
+    const triggerSuccess = () => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(textToCopy)
+        .then(triggerSuccess)
+        .catch(err => console.error("Failed to copy code: ", err));
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = textToCopy;
+      textArea.style.position = "absolute";
+      textArea.style.left = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        triggerSuccess();
+      } catch (err) {
+        console.error("Fallback copy failed: ", err);
+      } finally {
+        textArea.remove();
+      }
+    }
+  };
+
+  return (
+    <div className={styles['code-block-wrapper']}>
+      <div className={styles['code-block-header']}>
+        <span className={styles['code-block-lang']}>
+          <span className={styles['code-icon']}>&lt;/&gt;</span>
+          <span>{language || 'code'}</span>
+        </span>
+        <button
+          type="button"
+          className={styles['code-copy-btn']}
+          onClick={handleCopy}
+          onMouseEnter={(e) => onActionMouseEnter(e, copied ? 'Copied!' : 'Copy code', { offsetY: 60 })}
+          onMouseLeave={onActionMouseLeave}
+          aria-label="Copy code"
         >
-          {String(children).replace(/\n$/, '')}
-        </SyntaxHighlighter>
+          {copied ? <DoneIcon /> : <CopyIcon />}
+        </button>
       </div>
-    ) : (
-      <code className={className}>
-        {children}
-      </code>
-    )
-  }
-}
+      <SyntaxHighlighter
+        style={oneDark}
+        language={language || 'text'}
+        PreTag="div"
+        customStyle={{
+          margin: 0,
+          borderRadius: '0 0 12px 12px',
+          padding: '12px 16px',
+          fontSize: '14px',
+          lineHeight: '1.5',
+          backgroundColor: '#1e1e1e'
+        }}
+      >
+        {String(value).replace(/\n$/, '')}
+      </SyntaxHighlighter>
+    </div>
+  );
+};
+
+// Table wrapper component with top-right copy button (preserving full markdown syntax)
+const TableWrapper = ({ children, rawMarkdown, onActionMouseEnter, onActionMouseLeave }) => {
+  const [copied, setCopied] = useState(false);
+  const containerRef = useRef(null);
+
+  const handleCopyTable = (e) => {
+    e.stopPropagation();
+    
+    let textToCopy = rawMarkdown;
+
+    // Fallback if AST node position is unavailable: reconstruct full GFM Markdown table structure
+    if (!textToCopy && containerRef.current) {
+      const tableEl = containerRef.current.querySelector('table');
+      if (tableEl) {
+        const rows = Array.from(tableEl.querySelectorAll('tr'));
+        const tableData = rows.map(row => {
+          const cells = Array.from(row.querySelectorAll('th, td'));
+          return cells.map(cell => cell.innerText.trim());
+        });
+
+        if (tableData.length > 0) {
+          const headerRow = `| ${tableData[0].join(' | ')} |`;
+          const dividerRow = `| ${tableData[0].map(() => '---').join(' | ')} |`;
+          const bodyRows = tableData.slice(1).map(row => `| ${row.join(' | ')} |`).join('\n');
+          textToCopy = [headerRow, dividerRow, bodyRows].filter(Boolean).join('\n');
+        }
+      }
+    }
+
+    if (!textToCopy) return;
+
+    const triggerSuccess = () => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(textToCopy)
+        .then(triggerSuccess)
+        .catch(err => console.error("Failed to copy table: ", err));
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = textToCopy;
+      textArea.style.position = "absolute";
+      textArea.style.left = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        triggerSuccess();
+      } catch (err) {
+        console.error("Fallback copy failed: ", err);
+      } finally {
+        textArea.remove();
+      }
+    }
+  };
+
+  return (
+    <div className={styles['table-wrapper']} ref={containerRef}>
+      <button
+        type="button"
+        className={styles['table-copy-btn']}
+        onClick={handleCopyTable}
+        onMouseEnter={(e) => onActionMouseEnter(e, copied ? 'Copied table' : 'Copy table', { offsetY: 60 })}
+        onMouseLeave={onActionMouseLeave}
+        aria-label="Copy table"
+      >
+        {copied ? <DoneIcon /> : <CopyIcon />}
+      </button>
+      <div className={styles['table-container']}>
+        <table>{children}</table>
+      </div>
+    </div>
+  );
+};
 
 /* ===============================================================================================
    Isolated Markdown Rendering: Extracted <PureMarkdown> into its own React.memo instance and 
@@ -58,15 +188,55 @@ const markdownComponents = {
 =============================================================================================== */
 
 // ISOLATED MARKDOWN COMPONENT: Prevents re-parsing on parent hover state changes
-const PureMarkdown = memo(({ content }) => (
-  <ReactMarkdown
-    remarkPlugins={[remarkGfm, remarkMath]}
-    rehypePlugins={[rehypeRaw, rehypeKatex]}
-    components={markdownComponents}
-  >
-    {content}
-  </ReactMarkdown>
-));
+const PureMarkdown = memo(({ content, onActionMouseEnter, onActionMouseLeave }) => {
+  const components = useMemo(() => ({
+    // Prevent react-markdown from wrapping CodeBlock in an extra outer <pre> wrapper
+    pre({ children }) {
+      return <>{children}</>;
+    },
+    code({ className, children }) {
+      const match = /language-(\w+)/.exec(className || '');
+      return match ? (
+        <CodeBlock
+          language={match[1]}
+          value={children}
+          onActionMouseEnter={onActionMouseEnter}
+          onActionMouseLeave={onActionMouseLeave}
+        />
+      ) : (
+        <code className={className}>
+          {children}
+        </code>
+      );
+    },
+    table({ node, children }) {
+      // Extract exact raw markdown source text for table if AST position is present
+      const rawMarkdown = (node?.position && content)
+        ? content.slice(node.position.start.offset, node.position.end.offset)
+        : null;
+
+      return (
+        <TableWrapper
+          rawMarkdown={rawMarkdown}
+          onActionMouseEnter={onActionMouseEnter}
+          onActionMouseLeave={onActionMouseLeave}
+        >
+          {children}
+        </TableWrapper>
+      );
+    }
+  }), [content, onActionMouseEnter, onActionMouseLeave]);
+
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeRaw, rehypeKatex]}
+      components={components}
+    >
+      {content}
+    </ReactMarkdown>
+  );
+});
 PureMarkdown.displayName = 'PureMarkdown';
 
 function ChatMessage({ 
@@ -301,7 +471,7 @@ function ChatMessage({
               ) : (
                 /* NORMAL DISPLAY STATE */
                 <div 
-                  id={`msg-${message.userMessageId}`} 
+                  id={`user-msg-${message.userMessageId}`} 
                   className={styles['message-bubble']}
                 >
                   <div className={`${styles['prompt-text']} ${isLongPrompt && !isExpanded ? styles['collapsed'] : ''}`}>
@@ -315,7 +485,17 @@ function ChatMessage({
                       className={styles['expand-toggle-btn']}
                       onClick={handleToggleExpand}
                     >
-                      {isExpanded ? 'Show less ︿' : 'Show more ﹀'}
+                      {isExpanded ? (
+                        <>
+                          <span>Show less</span>
+                          <ShowLessIcon />
+                        </>
+                      ) : (
+                        <>
+                          <span>Show more</span>
+                          <ShowMoreIcon />
+                        </>
+                      )}
                     </button>
                   )}
                 </div>
@@ -365,9 +545,13 @@ function ChatMessage({
           onMouseLeave={() => setIsAssistantHovered(false)}
         >
           <div className={styles['message-row-inner']}>
-            <div id={`msg-${message.assistantMessageId}`} className={styles['message-bubble']}>
+            <div id={`asst-msg-${message.assistantMessageId}`} className={styles['message-bubble']}>
               
-              <PureMarkdown content={processedAssistantContent} />
+              <PureMarkdown
+                content={processedAssistantContent}
+                onActionMouseEnter={handleActionMouseEnter}
+                onActionMouseLeave={handleActionMouseLeave}
+              />
 
               {isLastMessage && <span className={styles['streaming-cursor']}>▋</span>}
 

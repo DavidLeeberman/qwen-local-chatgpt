@@ -208,21 +208,13 @@
 .assistant-row .message-bubble {
   background-color: transparent;
   color: #ececf1;
-  padding: 0;
-  width: 100%;
-  max-width: 100%;
-}
-
-/* Update this existing rule to reserve space at the bottom */
-.assistant-row .message-bubble {
-  background-color: transparent;
-  color: #ececf1;
   padding: 0 0 32px 0; /* Creates 32px of extra room at the bottom during loading and completion */
   width: 100%;
   max-width: 100%;
   position: relative; /* Allows absolute positioning for the toolbar */
 }
 
+/* Code Block Outer Card Container */
 .code-block-wrapper {
   /* Prevents internal layout recalculations from escaping into the parent scroller */
   /* Keeps internal syntax highlighting layouts isolated */
@@ -230,8 +222,159 @@
   
   width: 100%;
   margin: 0.8em 0;
-  border-radius: 0.4em;
+  border-radius: 12px;
   overflow: hidden; /* Ensures SyntaxHighlighter's inner background clips to the rounded corners */
+  background-color: #1e1e1e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #2f2f2f;
+  padding: 6px 8px 6px 14px; /* Tight right padding places CopyIcon as far top-right as possible */
+  user-select: none;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  margin: 0;
+}
+
+.code-block-lang {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #b4b4b4;
+  font-family: inherit;
+}
+
+.code-icon {
+  font-size: 12px;
+  color: #8e8ea0;
+  font-weight: bold;
+}
+
+.code-copy-btn {
+  background: transparent;
+  border: none;
+  color: #b4b4b4;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.code-copy-btn:hover {
+  color: #ececf1;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Eliminates vertical gaps and gray slots below code block */
+.code-block-wrapper pre,
+.code-block-wrapper div,
+.code-block-wrapper code {
+  margin: 0 !important;
+  background: transparent !important;
+}
+
+.code-block-wrapper div {
+  overflow-x: auto;
+}
+
+/* Sleek Scrollbar Styling (Removes Browser Default Gray Track Slots) */
+.code-block-wrapper div::-webkit-scrollbar,
+.code-block-wrapper pre::-webkit-scrollbar,
+.table-container::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.code-block-wrapper div::-webkit-scrollbar-track,
+.code-block-wrapper pre::-webkit-scrollbar-track,
+.table-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.code-block-wrapper div::-webkit-scrollbar-thumb,
+.code-block-wrapper pre::-webkit-scrollbar-thumb,
+.table-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.code-block-wrapper div::-webkit-scrollbar-thumb:hover,
+.code-block-wrapper pre::-webkit-scrollbar-thumb:hover,
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.code-block-wrapper pre,
+.code-block-wrapper div,
+.table-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* Table Wrapper & Vertically Centered Top-Right Copy Button */
+.table-wrapper {
+  position: relative;
+  margin: 1em 0;
+  width: 100%;
+}
+
+.table-copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 10;
+  background: transparent;
+  border: none;
+  color: #8e8ea0;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.table-copy-btn:hover {
+  color: #ececf1;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.table-container {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.table-container table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  color: #ececf1;
+  font-size: 14px;
+}
+
+.table-container th,
+.table-container td {
+  border: 1px solid #424242;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.table-container th {
+  background-color: #2f2f2f;
+  font-weight: 600;
 }
 
 /* ========================================================
