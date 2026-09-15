@@ -56,6 +56,7 @@ export default function ChatArea() {
   // Relative Sliding Window State
   const [visibleCount, setVisibleCount] = useState(INITIAL_BATCH) // Chunk size for lazy loading
   const [bottomOffset, setBottomOffset] = useState(0)
+  const [heightsVersion, setHeightsVersion] = useState(0)
 
   const nativeScrollerRef = useRef(null)
   const lastMessageRef = useRef(null)
@@ -70,6 +71,7 @@ export default function ChatArea() {
 
   // Physical Anchor & Height Measurement Tracking using offsetTop
   const scrollAnchorRef = useRef({ id: null, initialOffsetTop: 0 })
+  const prevFirstMsgOffsetRef = useRef(null)
   const messageHeightsRef = useRef(new Map())
 
   /* ===============================================================================================
@@ -109,6 +111,8 @@ export default function ChatArea() {
       setVisibleCount(INITIAL_BATCH);
       setBottomOffset(0);
       scrollAnchorRef.current = { id: null, initialOffsetTop: 0 };
+      prevFirstMsgOffsetRef.current = null;
+      messageHeightsRef.current.clear();
 
       const prevCid = activeCidRef.current;
       const isGenuineSwitch = 
@@ -150,14 +154,23 @@ export default function ChatArea() {
     }
   }, [targetMessageId, chat]);
 
-  // Cache rendered message heights for spacer accuracy
+  // Cache rendered message heights for spacer accuracy & trigger immediate pass if new heights are recorded
   useLayoutEffect(() => {
+    let hasNewMeasurements = false;
     displayedChat.forEach(msg => {
       const el = document.getElementById(`msg-${msg.id}`);
       if (el && el.offsetHeight > 0) {
-        messageHeightsRef.current.set(msg.id, el.offsetHeight);
+        const prevHeight = messageHeightsRef.current.get(msg.id);
+        if (prevHeight !== el.offsetHeight) {
+          messageHeightsRef.current.set(msg.id, el.offsetHeight);
+          hasNewMeasurements = true;
+        }
       }
     });
+
+    if (hasNewMeasurements) {
+      setHeightsVersion(v => v + 1);
+    }
   }, [displayedChat]);
 
   // Calculate dynamic average message height
@@ -179,21 +192,46 @@ export default function ChatArea() {
     bottomSpacerHeight += (msg && messageHeightsRef.current.get(msg.id)) || avgHeight;
   }
 
-  // PHYSICAL ANCHOR PINNING (Isolates scroll position from spacer fluctuations)
+  // PHYSICAL ANCHOR PINNING & SPACER DRIFT COMPENSATION
   useLayoutEffect(() => {
-    const { id, initialOffsetTop } = scrollAnchorRef.current;
-    if (!id || !nativeScrollerRef.current) return;
+    const scroller = nativeScrollerRef.current;
+    if (!scroller) return;
 
-    const anchorEl = document.getElementById(`msg-${id}`);
-    if (anchorEl) {
-      const delta = anchorEl.offsetTop - initialOffsetTop;
-      if (delta !== 0) {
-        nativeScrollerRef.current.scrollTop += delta;
+    // 1. Explicit Anchor Pinning (e.g. from top/bottom pagination sentinels)
+    const { id, initialOffsetTop } = scrollAnchorRef.current;
+    if (id) {
+      const anchorEl = document.getElementById(`msg-${id}`);
+      if (anchorEl) {
+        const delta = anchorEl.offsetTop - initialOffsetTop;
+        if (delta !== 0) {
+          scroller.scrollTop += delta;
+        }
+      }
+      scrollAnchorRef.current = { id: null, initialOffsetTop: 0 };
+    } 
+    // 2. Implicit Anchor Pinning (compensates for top spacer expansion during initial measurements / re-renders)
+    else if (displayedChat.length > 0) {
+      const firstMsgEl = document.getElementById(`msg-${displayedChat[0].id}`);
+      if (firstMsgEl && prevFirstMsgOffsetRef.current !== null) {
+        const delta = firstMsgEl.offsetTop - prevFirstMsgOffsetRef.current;
+        if (delta !== 0) {
+          scroller.scrollTop += delta;
+        }
       }
     }
 
-    scrollAnchorRef.current = { id: null, initialOffsetTop: 0 };
-  }, [effectiveStart, effectiveEnd]);
+    // Save current offsetTop of the first rendered message for the next pass
+    if (displayedChat.length > 0) {
+      const firstMsgEl = document.getElementById(`msg-${displayedChat[0].id}`);
+      if (firstMsgEl) {
+        prevFirstMsgOffsetRef.current = firstMsgEl.offsetTop;
+      } else {
+        prevFirstMsgOffsetRef.current = null;
+      }
+    } else {
+      prevFirstMsgOffsetRef.current = null;
+    }
+  }, [effectiveStart, effectiveEnd, topSpacerHeight, bottomSpacerHeight, heightsVersion, displayedChat]);
 
   // Snapshot visible top anchor node before range mutations
   const captureScrollAnchor = useCallback(() => {

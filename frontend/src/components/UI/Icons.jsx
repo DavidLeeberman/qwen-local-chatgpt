@@ -244,8 +244,8 @@ export const MoreActionsIcon = (props) => (
 
 export const CopyIcon = (props) => (
   <MatchParentTextIcon {...lineIconProps} {...props}>
-    <rect x="2" y="9" width="13" height="13" rx="2" ry="2" />
-    <path d="M9 5V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-1" />
+    <rect x="2" y="8" width="14" height="14" rx="3" ry="3" />
+    <path d="M8 5a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-2" />
   </MatchParentTextIcon>
 );
 
