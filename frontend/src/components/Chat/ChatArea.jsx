@@ -80,8 +80,8 @@ export default function ChatArea() {
   =============================================================================================== */
 
   // STABILIZED CALLBACK: Prevents breaking React.memo on ChatMessage
-  const handleRegenerate = useCallback(() => {
-    regenerate();
+  const handleRegenerate = useCallback((messageId) => {
+    regenerate(messageId);
   }, [regenerate]);
 
   // FRAME 0 CHAT SWITCH GUARD: Prevents stale renders & blank screens

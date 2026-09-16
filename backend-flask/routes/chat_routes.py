@@ -142,10 +142,10 @@ def chat():
                     (user_message_id, cid)
                 )
 
-                # Aggressively delete ALL assistant messages that came AFTER this user prompt.
-                # This ensures partial/stopped responses are completely wiped from the DB and context window.
+                # Aggressively delete ALL messages that came AFTER this user prompt.
+                # This ensures partial/stopped responses and subsequent messages are completely wiped from the DB and context window.
                 cur.execute(
-                    "DELETE FROM messages WHERE conversation_id=%s AND role='assistant' AND id > %s",
+                    "DELETE FROM messages WHERE conversation_id=%s AND id > %s",
                     (cid, user_message_id)
                 )
                 conn.commit()

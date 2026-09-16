@@ -597,27 +597,35 @@ export const useChatStore = create((set, get) => ({
   },
 
   // Regenerate action
-  regenerate: async () => {
+  regenerate: async (targetMessageId = null) => {
     const { chat, send, isStreaming, cleanupStream } = get()
     
     if (isStreaming || chat.length === 0) return;
 
-    // 1. Get the last message pair
-    const lastMessage = chat[chat.length - 1];
-    if (!lastMessage || !lastMessage.u) return;
+    // 1. Locate the index of the message to regenerate (defaults to last message if targetMessageId not specified or found)
+    let targetIndex = chat.length - 1;
+    if (targetMessageId) {
+      const idx = chat.findIndex(
+        m => m.id === targetMessageId || m.userMessageId === targetMessageId || m.assistantMessageId === targetMessageId
+      );
+      if (idx !== -1) targetIndex = idx;
+    }
+
+    const targetMessage = chat[targetIndex];
+    if (!targetMessage || !targetMessage.u) return;
 
     cleanupStream(false, false);
 
-    // 2. Remove the last message from the UI to prepare for the "redo"
+    // 2. Remove the target message and all subsequent messages from the UI to prepare for the "redo"
     set(state => ({ 
-      chat: state.chat.slice(0, -1),
+      chat: state.chat.slice(0, targetIndex),
       err: ''
     }));
 
     // 3. Re-feed the prompt with explicitly attached regeneration options
-    await send(lastMessage.u, () => {}, {
+    await send(targetMessage.u, () => {}, {
       isRegenerate: true,
-      userMessageId: lastMessage.userMessageId
+      userMessageId: targetMessage.userMessageId || targetMessage.id
     });
   },
 

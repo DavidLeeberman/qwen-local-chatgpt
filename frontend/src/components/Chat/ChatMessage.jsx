@@ -408,6 +408,7 @@ function ChatMessage({
   const handleRegenerate = (e) => {
     e.stopPropagation();
     hideActionTooltip();
+    if (isStreaming) return;
     if (onRegenerate) onRegenerate(message.id);
   };
 
@@ -572,17 +573,15 @@ function ChatMessage({
                       {hasCopiedAssistant ? <DoneIcon /> : <CopyIcon />}
                     </button>
 
-                    {/* NEW: Regenerate Button (Only shown if isLastMessage is true) */}
-                    {isLastMessage && (
-                      <button 
-                        className={styles['action-menu-btn']}
-                        onClick={handleRegenerate}
-                        onMouseEnter={(e) => handleActionMouseEnter(e, 'Regenerate response', { offsetY: 60 })} 
-                        onMouseLeave={handleActionMouseLeave}
-                      >
-                        <RedoIcon />
-                      </button>
-                    )}
+                    {/* NEW: Regenerate Button (Available for any response when hovered) */}
+                    <button 
+                      className={styles['action-menu-btn']}
+                      onClick={handleRegenerate}
+                      onMouseEnter={(e) => handleActionMouseEnter(e, 'Regenerate response', { offsetY: 60 })} 
+                      onMouseLeave={handleActionMouseLeave}
+                    >
+                      <RedoIcon />
+                    </button>
 
                     {/* EXISTING: More Actions Button */}
                     <button 
