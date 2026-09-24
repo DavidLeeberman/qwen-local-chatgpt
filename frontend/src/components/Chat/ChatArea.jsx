@@ -64,6 +64,9 @@ export default function ChatArea() {
   const footerRef = useRef(null) // Added ref to measure exact footer DOM height
   const topSentinelRef = useRef(null) // Observer target to load older messages
   const bottomSentinelRef = useRef(null)
+
+  // Add ref to flag manual programmatic scroll
+  const isProgrammaticScrollRef = useRef(false);
   
   const prevStreamingRef = useRef(isStreaming)
   
@@ -73,6 +76,12 @@ export default function ChatArea() {
   const scrollAnchorRef = useRef({ id: null, initialOffsetTop: 0 })
   const prevFirstMsgOffsetRef = useRef(null)
   const messageHeightsRef = useRef(new Map())
+  const resizeObserverRef = useRef(null)
+  const pendingScrollAdjustmentRef = useRef(null)
+
+  // Stage 2: Height Map Accumulation (pageToOffsetMap)
+  const pageToOffsetMapRef = useRef([])
+  const maxPageReachedRef = useRef(0)
 
   /* ===============================================================================================
      Callback Reference Stability: Wrapped handlers like handleRegenerate in useCallback within 
@@ -98,6 +107,120 @@ export default function ChatArea() {
   const hasMoreAbove = effectiveStart > 0;
   const hasMoreBelow = effectiveEnd < chat.length;
 
+  // Track the highest page reached so far on the way up
+  const currentHighestPage = chat.length > 0 
+    ? Math.floor((chat.length - 1 - effectiveStart) / CHUNK_SIZE)
+    : 0;
+
+  useEffect(() => {
+    if (chat.length > 0) {
+      maxPageReachedRef.current = Math.max(maxPageReachedRef.current, currentHighestPage);
+    }
+  }, [currentHighestPage, chat.length]);
+
+  // Stage 2 Requirement 6: Height Map Accumulation (pageToOffsetMap)
+  // Accumulates pages ordered bottom-up on the fly: Page 0 = Page N (bottom), Page 1 = Page N-1, etc.
+  // Offset(N) = 0; Offset(N-1) = H(N); Offset(N-2) = H(N) + H(N-1)...
+  const updatePageToOffsetMap = useCallback(() => {
+    if (chat.length === 0) {
+      pageToOffsetMapRef.current = [];
+      return;
+    }
+
+    const map = [];
+    let currentOffset = 0;
+    const maxPage = maxPageReachedRef.current;
+
+    for (let pageIndex = 0; pageIndex <= maxPage; pageIndex++) {
+      const endIdx = chat.length - pageIndex * CHUNK_SIZE;
+      if (endIdx <= 0) break;
+      const startIdx = Math.max(0, endIdx - CHUNK_SIZE);
+
+      let pageHeight = 0;
+      let hasMeasuredAll = true;
+
+      for (let i = startIdx; i < endIdx; i++) {
+        const msg = chat[i];
+        const h = msg ? messageHeightsRef.current.get(msg.id) : null;
+        if (h) {
+          pageHeight += h;
+        } else {
+          hasMeasuredAll = false;
+          pageHeight += DEFAULT_MSG_HEIGHT;
+        }
+      }
+
+      map.push({
+        pageIndex,
+        startIdx,
+        endIdx,
+        height: pageHeight,
+        offset: currentOffset,
+        isExact: hasMeasuredAll
+      });
+
+      currentOffset += pageHeight;
+    }
+
+    pageToOffsetMapRef.current = map;
+  }, [chat]);
+
+  // Stage 2 Binary Search on pageToOffsetMap to pick exact pages to load anywhere scrollbar is positioned
+  const findPagesForScrollTop = useCallback((scrollTop, clientHeight) => {
+    const map = pageToOffsetMapRef.current;
+    if (!map || map.length === 0) return null;
+
+    let totalHeight = 0;
+    for (const p of map) {
+      totalHeight += p.height;
+    }
+
+    const buffer = 300;
+    const viewportTopFromBottom = totalHeight - scrollTop + buffer;
+    const viewportBottomFromBottom = totalHeight - (scrollTop + clientHeight) - buffer;
+
+    let low = 0;
+    let high = map.length - 1;
+    let minK = map.length - 1;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const pageTop = map[mid].offset + map[mid].height;
+      if (pageTop >= viewportBottomFromBottom) {
+        minK = mid;
+        high = mid - 1;
+      } else {
+        low = mid + 1;
+      }
+    }
+
+    low = 0;
+    high = map.length - 1;
+    let maxK = 0;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const pageBottom = map[mid].offset;
+      if (pageBottom <= viewportTopFromBottom) {
+        maxK = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    if (minK > maxK) {
+      const temp = minK;
+      minK = maxK;
+      maxK = temp;
+    }
+
+    const targetStart = map[maxK].startIdx;
+    const targetEnd = map[minK].endIdx;
+
+    return { targetStart, targetEnd };
+  }, []);
+
   /* ===============================================================================================
      Tail-First Progressive Pagination: 
      Implemented visibleCount chunking (rendering only the last 30 messages on mount) 
@@ -113,6 +236,8 @@ export default function ChatArea() {
       scrollAnchorRef.current = { id: null, initialOffsetTop: 0 };
       prevFirstMsgOffsetRef.current = null;
       messageHeightsRef.current.clear();
+      maxPageReachedRef.current = 0;
+      pageToOffsetMapRef.current = [];
 
       const prevCid = activeCidRef.current;
       const isGenuineSwitch = 
@@ -154,16 +279,46 @@ export default function ChatArea() {
     }
   }, [targetMessageId, chat]);
 
-  // Cache rendered message heights for spacer accuracy & trigger immediate pass if new heights are recorded
+  // Stage 1: Asynchronous Content Heights (Images & Code Blocks) Observer
+  // Cache rendered message heights & observe structural dynamic resizes
   useLayoutEffect(() => {
+    if (!resizeObserverRef.current) {
+      resizeObserverRef.current = new ResizeObserver((entries) => {
+        let updated = false;
+        for (const entry of entries) {
+          const msgId = entry.target.getAttribute('data-msg-id');
+          if (msgId) {
+            const newH = entry.target.offsetHeight;
+            if (newH > 0) {
+              const oldH = messageHeightsRef.current.get(msgId);
+              if (oldH !== newH) {
+                messageHeightsRef.current.set(msgId, newH);
+                updated = true;
+              }
+            }
+          }
+        }
+        if (updated) {
+          setHeightsVersion(v => v + 1);
+        }
+      });
+    }
+
+    const observer = resizeObserverRef.current;
+    observer.disconnect();
+
     let hasNewMeasurements = false;
     displayedChat.forEach(msg => {
       const el = document.getElementById(`msg-${msg.id}`);
-      if (el && el.offsetHeight > 0) {
-        const prevHeight = messageHeightsRef.current.get(msg.id);
-        if (prevHeight !== el.offsetHeight) {
-          messageHeightsRef.current.set(msg.id, el.offsetHeight);
-          hasNewMeasurements = true;
+      if (el) {
+        el.setAttribute('data-msg-id', String(msg.id));
+        observer.observe(el);
+        if (el.offsetHeight > 0) {
+          const prevHeight = messageHeightsRef.current.get(msg.id);
+          if (prevHeight !== el.offsetHeight) {
+            messageHeightsRef.current.set(msg.id, el.offsetHeight);
+            hasNewMeasurements = true;
+          }
         }
       }
     });
@@ -171,31 +326,55 @@ export default function ChatArea() {
     if (hasNewMeasurements) {
       setHeightsVersion(v => v + 1);
     }
-  }, [displayedChat]);
 
-  // Calculate dynamic average message height
-  const measuredHeights = Array.from(messageHeightsRef.current.values());
-  const avgHeight = measuredHeights.length > 0 
-    ? measuredHeights.reduce((a, b) => a + b, 0) / measuredHeights.length 
-    : DEFAULT_MSG_HEIGHT;
+    updatePageToOffsetMap();
 
-  // Calculate top and bottom spacer dimensions
+    return () => {
+      observer.disconnect();
+    };
+  }, [displayedChat, updatePageToOffsetMap]);
+
+  // Stage 1 Requirements 1 & 3: Zero Unloaded Spacers & Exact Measured Spacers
+  // Unloaded/never-loaded pages receive NO artificial height (0px).
+  // Spacers represent ONLY messages that were previously rendered into the DOM and pruned.
   let topSpacerHeight = 0;
-  for (let i = 0; i < effectiveStart; i++) {
+  const maxLoadedStartIdx = chat.length > 0 
+    ? Math.max(0, chat.length - (maxPageReachedRef.current + 1) * CHUNK_SIZE) 
+    : 0;
+
+  for (let i = maxLoadedStartIdx; i < effectiveStart; i++) {
     const msg = chat[i];
-    topSpacerHeight += (msg && messageHeightsRef.current.get(msg.id)) || avgHeight;
+    const measuredH = msg && messageHeightsRef.current.get(msg.id);
+    if (measuredH) {
+      topSpacerHeight += measuredH;
+    }
   }
 
   let bottomSpacerHeight = 0;
   for (let i = effectiveEnd; i < chat.length; i++) {
     const msg = chat[i];
-    bottomSpacerHeight += (msg && messageHeightsRef.current.get(msg.id)) || avgHeight;
+    const measuredH = msg && messageHeightsRef.current.get(msg.id);
+    if (measuredH) {
+      bottomSpacerHeight += measuredH;
+    }
   }
 
   // PHYSICAL ANCHOR PINNING & SPACER DRIFT COMPENSATION
+  // Stage 1 Requirement 2: Explicit Scroll Compensation during prepends
   useLayoutEffect(() => {
     const scroller = nativeScrollerRef.current;
     if (!scroller) return;
+
+    // Direct Prepend Scroll Compensation
+    if (pendingScrollAdjustmentRef.current !== null) {
+      const { oldScrollTop, oldScrollHeight } = pendingScrollAdjustmentRef.current;
+      const newScrollHeight = scroller.scrollHeight;
+      const heightDelta = newScrollHeight - oldScrollHeight;
+      scroller.scrollTop = oldScrollTop + heightDelta;
+      pendingScrollAdjustmentRef.current = null;
+      scrollAnchorRef.current = { id: null, initialOffsetTop: 0 };
+      return;
+    }
 
     // 1. Explicit Anchor Pinning (e.g. from top/bottom pagination sentinels)
     const { id, initialOffsetTop } = scrollAnchorRef.current;
@@ -212,8 +391,12 @@ export default function ChatArea() {
     // 2. Implicit Anchor Pinning (compensates for top spacer expansion during initial measurements / re-renders)
     else if (displayedChat.length > 0) {
       const firstMsgEl = document.getElementById(`msg-${displayedChat[0].id}`);
-      if (firstMsgEl && prevFirstMsgOffsetRef.current !== null) {
-        const delta = firstMsgEl.offsetTop - prevFirstMsgOffsetRef.current;
+      if (
+        firstMsgEl && 
+        prevFirstMsgOffsetRef.current !== null && 
+        prevFirstMsgOffsetRef.current.id === displayedChat[0].id
+      ) {
+        const delta = firstMsgEl.offsetTop - prevFirstMsgOffsetRef.current.offsetTop;
         if (delta !== 0) {
           scroller.scrollTop += delta;
         }
@@ -224,7 +407,7 @@ export default function ChatArea() {
     if (displayedChat.length > 0) {
       const firstMsgEl = document.getElementById(`msg-${displayedChat[0].id}`);
       if (firstMsgEl) {
-        prevFirstMsgOffsetRef.current = firstMsgEl.offsetTop;
+        prevFirstMsgOffsetRef.current = { id: displayedChat[0].id, offsetTop: firstMsgEl.offsetTop };
       } else {
         prevFirstMsgOffsetRef.current = null;
       }
@@ -256,14 +439,20 @@ export default function ChatArea() {
   }, [displayedChat]);
 
   // Background Pagination Observer to seamlessly load older messages when you scroll near the top
-  // IntersectionObserver with offsetTop Snapshot
+  // IntersectionObserver with offsetTop Snapshot & Prepend Height Math
   useEffect(() => {
     const sentinel = topSentinelRef.current;
     if (!sentinel || !hasMoreAbove) return;
 
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) {
-        captureScrollAnchor();
+        const scroller = nativeScrollerRef.current;
+        if (scroller) {
+          pendingScrollAdjustmentRef.current = {
+            oldScrollTop: scroller.scrollTop,
+            oldScrollHeight: scroller.scrollHeight
+          };
+        }
         setVisibleCount(prevVis => {
           if (prevVis < MAX_VISIBLE) {
             return Math.min(MAX_VISIBLE, prevVis + CHUNK_SIZE);
@@ -280,7 +469,7 @@ export default function ChatArea() {
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMoreAbove, captureScrollAnchor]);
+  }, [hasMoreAbove]);
 
   // OBSERVER FOR BOTTOM EXPANSION & TOP PRUNING
   useEffect(() => {
@@ -344,6 +533,9 @@ export default function ChatArea() {
     const scroller = nativeScrollerRef.current
     if (!scroller) return
 
+    // Lock scroll listener to prevent mid-flight window calculation overrides
+    isProgrammaticScrollRef.current = true;
+
     setBottomOffset(0);
     setVisibleCount(INITIAL_BATCH);
 
@@ -361,6 +553,12 @@ export default function ChatArea() {
           behavior: 'smooth'
         })
       }
+
+      // Release lock after streaming smooth scroll finishes
+      setTimeout(() => {
+        isProgrammaticScrollRef.current = false;
+        checkIsAtBottom();
+      }, 350);
     } else {
       // Static state: collapse spacer synchronously and scroll to true physical bottom
       if (lastSpacerRef.current) {
@@ -383,7 +581,11 @@ export default function ChatArea() {
                 nativeScrollerRef.current.scrollTop = nativeScrollerRef.current.scrollHeight;
                 checkIsAtBottom();
               }
+              // Release lock once layout settles and smooth scroll completes
+              isProgrammaticScrollRef.current = false;
             }, 350);
+          } else {
+            isProgrammaticScrollRef.current = false;
           }
         })
       })
@@ -498,18 +700,41 @@ export default function ChatArea() {
     prevStreamingRef.current = isStreaming
   }, [isStreaming, isArchived])
 
-  // Track scroll state on manual scroll
+  // Track scroll state on manual scroll & resolve target visible pages via pageToOffsetMap
+  // Suppress handleScroll while programmatic smooth scrolling is active
   useEffect(() => {
     const scroller = nativeScrollerRef.current
     if (!scroller) return
 
-    checkIsAtBottom()
-    scroller.addEventListener('scroll', checkIsAtBottom, { passive: true })
+    const handleScroll = () => {
+      checkIsAtBottom();
 
-    return () => {
-      scroller.removeEventListener('scroll', checkIsAtBottom)
-    }
-  }, [checkIsAtBottom])
+      // The ref guard prevents programmatic smooth scrolls from firing page range updates
+      // Ignore scroll calculations caused by scrollToBottom()
+      if (isStreaming || chat.length === 0|| isProgrammaticScrollRef.current) return;
+
+      const pageRange = findPagesForScrollTop(scroller.scrollTop, scroller.clientHeight);
+      if (!pageRange) return;
+
+      const { targetStart, targetEnd } = pageRange;
+
+      // If scroll position lands on pages outside the current DOM range, sync visible window immediately
+      if (targetStart < effectiveStart || targetEnd > effectiveEnd) {
+        captureScrollAnchor();
+        const newBottomOffset = chat.length - targetEnd;
+        const newVisibleCount = Math.max(INITIAL_BATCH, targetEnd - targetStart);
+
+        setBottomOffset(Math.max(0, newBottomOffset));
+        setVisibleCount(Math.min(chat.length, newVisibleCount));
+      }
+    };
+
+    // Immediate sync on mount / dependency change
+    handleScroll();
+
+    scroller.addEventListener('scroll', handleScroll, { passive: true })
+    return () => scroller.removeEventListener('scroll', handleScroll)
+  }, [checkIsAtBottom, chat.length, effectiveStart, effectiveEnd, isStreaming, findPagesForScrollTop, captureScrollAnchor])
 
   // Track scroll state as response streams and expands the DOM height
   useEffect(() => {
@@ -553,7 +778,7 @@ export default function ChatArea() {
               key={item.userMessageId || item.id}
               id={`msg-${item.id}`}
               ref={isLastMessage ? lastSpacerRef : null}
-              // The outer ID wrapper was removed here so the browser stops centering the entire combined text block[cite: 17]
+              // The outer ID wrapper was removed here so the browser stops centering the entire combined text block
               // Applies the layout spacer so scrolling 1/5th up is mechanically possible
               style={{ minHeight: isLastMessage && (isStreaming || hasStreamedInSession) ? (spacerHeight ? `${spacerHeight}px` : 'calc(100vh - 40px)') : 'auto' }}
             >
