@@ -612,6 +612,7 @@ export default function ChatArea() {
         const lastEl = lastMessageRef.current;
         const spacerEl = lastSpacerRef.current;
 
+        // Apply 1/5th spacer ONLY during active streaming or post-stream in active session
         if (container && lastEl) {
           const footerHeight = footerRef.current ? footerRef.current.offsetHeight : (isArchived ? 130 : 90);
           const exactHeightRequired = (container.clientHeight * 0.8) - footerHeight;
@@ -635,6 +636,7 @@ export default function ChatArea() {
             return;
           }
         } else if (container) {
+          // Static chat load or 0 messages: clear spacer and snap to bottom
           if (spacerEl) {
             spacerEl.style.minHeight = 'auto';
           }
