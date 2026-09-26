@@ -389,7 +389,7 @@ export default function ChatArea() {
       scrollAnchorRef.current = { id: null, initialOffsetTop: 0 };
     } 
     // 2. Implicit Anchor Pinning (compensates for top spacer expansion during initial measurements / re-renders)
-    else if (displayedChat.length > 0) {
+    else if (displayedChat.length > 0 && !isProgrammaticScrollRef.current && !isStreaming) {
       const firstMsgEl = document.getElementById(`msg-${displayedChat[0].id}`);
       if (
         firstMsgEl && 
@@ -414,7 +414,7 @@ export default function ChatArea() {
     } else {
       prevFirstMsgOffsetRef.current = null;
     }
-  }, [effectiveStart, effectiveEnd, topSpacerHeight, bottomSpacerHeight, heightsVersion, displayedChat]);
+  }, [effectiveStart, effectiveEnd, topSpacerHeight, bottomSpacerHeight, heightsVersion, displayedChat, isStreaming]);
 
   // Snapshot visible top anchor node before range mutations
   const captureScrollAnchor = useCallback(() => {
@@ -603,9 +603,53 @@ export default function ChatArea() {
 
     // Helper to snap to bottom if there's no specific target
     if (!targetMessageId) {
+      isProgrammaticScrollRef.current = true;
+      let frames = 0;
+      let lastMeasuredOffsetTop = -1;
+
+      const positionLastPair = () => {
+        const container = nativeScrollerRef.current;
+        const lastEl = lastMessageRef.current;
+        const spacerEl = lastSpacerRef.current;
+
+        if (container && lastEl) {
+          const footerHeight = footerRef.current ? footerRef.current.offsetHeight : (isArchived ? 130 : 90);
+          const exactHeightRequired = (container.clientHeight * 0.8) - footerHeight;
+          const calculatedHeight = Math.max(0, exactHeightRequired);
+
+          if (spacerEl) {
+            spacerEl.style.minHeight = `${calculatedHeight}px`;
+          }
+          setSpacerHeight(calculatedHeight);
+
+          const currentOffsetTop = lastEl.offsetTop;
+          const oneFifthOffset = container.clientHeight / 5;
+          const targetTop = Math.max(0, currentOffsetTop - oneFifthOffset);
+
+          container.scrollTop = targetTop;
+
+          if (frames < 5 && currentOffsetTop !== lastMeasuredOffsetTop) {
+            lastMeasuredOffsetTop = currentOffsetTop;
+            frames++;
+            requestAnimationFrame(positionLastPair);
+            return;
+          }
+        } else if (container) {
+          if (spacerEl) {
+            spacerEl.style.minHeight = 'auto';
+          }
+          setSpacerHeight(0);
+          container.scrollTop = container.scrollHeight;
+        }
+
+        setTimeout(() => {
+          isProgrammaticScrollRef.current = false;
+          checkIsAtBottom();
+        }, 100);
+      };
+
       requestAnimationFrame(() => {
-        scroller.scrollTop = scroller.scrollHeight;
-        checkIsAtBottom();
+        requestAnimationFrame(positionLastPair);
       });
       return;
     }
@@ -664,38 +708,56 @@ export default function ChatArea() {
       clearTimeout(timer1);
       clearTimeout(timer2);
     };
-  }, [listScrollTrigger, targetMessageId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [listScrollTrigger, targetMessageId, cid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // One-time scroll positioning to 1/5th of the viewport height when Send / Regenerate starts
   useEffect(() => {
     // When stream transitions from false -> true
     if (isStreaming && !prevStreamingRef.current) {
+      isProgrammaticScrollRef.current = true;
+      let frames = 0;
+      let lastMeasuredOffsetTop = -1;
+
+      const performPositioning = () => {
+        const container = nativeScrollerRef.current;
+        const lastEl = lastMessageRef.current;
+        const spacerEl = lastSpacerRef.current;
+
+        if (container && lastEl && spacerEl) {
+          // FIX #4: Measure actual DOM height of footer element instead of using hardcoded assumptions
+          const footerHeight = footerRef.current ? footerRef.current.offsetHeight : (isArchived ? 130 : 90);
+          const exactHeightRequired = (container.clientHeight * 0.8) - footerHeight;
+          const calculatedHeight = Math.max(0, exactHeightRequired);
+          
+          spacerEl.style.minHeight = `${calculatedHeight}px`;
+          setSpacerHeight(calculatedHeight);
+
+          const currentOffsetTop = lastEl.offsetTop;
+          const oneFifthOffset = container.clientHeight / 5;
+          const targetTop = Math.max(0, currentOffsetTop - oneFifthOffset);
+
+          container.scrollTo({
+            top: targetTop,
+            behavior: 'smooth'
+          });
+
+          if (frames < 5 && currentOffsetTop !== lastMeasuredOffsetTop) {
+            lastMeasuredOffsetTop = currentOffsetTop;
+            frames++;
+            requestAnimationFrame(performPositioning);
+            return;
+          }
+        }
+
+        setTimeout(() => {
+          isProgrammaticScrollRef.current = false;
+        }, 350);
+      };
+
       // Double RAF ensures React DOM commit and browser layout passes have completed
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const container = nativeScrollerRef.current
-          const lastEl = lastMessageRef.current
-          const spacerEl = lastSpacerRef.current
-
-          if (container && lastEl && spacerEl) {
-            // FIX #4: Measure actual DOM height of footer element instead of using hardcoded assumptions
-            const footerHeight = footerRef.current ? footerRef.current.offsetHeight : (isArchived ? 130 : 90);
-            const exactHeightRequired = (container.clientHeight * 0.8) - footerHeight;
-            const calculatedHeight = Math.max(0, exactHeightRequired);
-            
-            spacerEl.style.minHeight = `${calculatedHeight}px`;
-            setSpacerHeight(calculatedHeight);
-
-            const oneFifthOffset = container.clientHeight / 5;
-            const targetTop = Math.max(0, lastEl.offsetTop - oneFifthOffset)
-            
-            container.scrollTo({
-              top: targetTop,
-              behavior: 'smooth'
-            })
-          }
-        })
-      })
+        requestAnimationFrame(performPositioning);
+      });
     }
     prevStreamingRef.current = isStreaming
   }, [isStreaming, isArchived])
@@ -780,7 +842,7 @@ export default function ChatArea() {
               ref={isLastMessage ? lastSpacerRef : null}
               // The outer ID wrapper was removed here so the browser stops centering the entire combined text block
               // Applies the layout spacer so scrolling 1/5th up is mechanically possible
-              style={{ minHeight: isLastMessage && (isStreaming || hasStreamedInSession) ? (spacerHeight ? `${spacerHeight}px` : 'calc(100vh - 40px)') : 'auto' }}
+              style={{ minHeight: isLastMessage && (spacerHeight > 0 || isStreaming || hasStreamedInSession) ? (spacerHeight ? `${spacerHeight}px` : 'calc(100vh - 40px)') : 'auto' }}
             >
               {/* Inner wrapper allows measuring actual text height independent of spacer */}
               <div ref={isLastMessage ? lastMessageRef : null}>

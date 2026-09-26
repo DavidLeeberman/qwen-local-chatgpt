@@ -25,7 +25,9 @@
 ========================================================== */
 .native-chat-scroller {
   flex: 1;
-  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
   overflow-y: auto;
   overflow-anchor: none; /* Disabled to prevent browser from following output and locking onto bottom */
   /* overflow-anchor: auto; Re-enabled to prevent jumping when lazy-loading older messages */
@@ -40,6 +42,7 @@
   flex-direction: column;
   /* FIX: Allow our internal container to stretch with Virtuoso's wrapper */
   flex-grow: 1; 
+  margin-top: auto; /* Pushes disclaimer down to bottom whenever content height < scroller height */
 }
 
 .chat-footer {
