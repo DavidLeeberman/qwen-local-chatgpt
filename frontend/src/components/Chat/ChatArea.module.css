@@ -18,20 +18,25 @@
 }
 
 /* ==========================================================
-   Native Scroll Anchoring: Shifted to overflow-anchor: auto 
-   in ChatArea.module.css to allow smooth, jump-free history 
-   prepending while keeping explicit JS RAF control over 
-   active token streaming.
+   Native Scroll Anchoring: Keep browser anchoring disabled so
+   page loading/hydration remains under explicit JS control.
 ========================================================== */
 .native-chat-scroller {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  min-height: 0;
   overflow-y: auto;
   overflow-anchor: none; /* Disabled to prevent browser from following output and locking onto bottom */
-  /* overflow-anchor: auto; Re-enabled to prevent jumping when lazy-loading older messages */
   position: relative; /* Ensures lastEl.offsetTop evaluates against this container */
+}
+
+/* ==========================================================
+   Explicit Bottom Tail Spacer
+========================================================== */
+.bottom-tail-spacer {
+  flex: 0 0 auto;
+  width: 100%;
 }
 
 /* ==========================================================
@@ -40,9 +45,8 @@
 .chat-list-footer-container {
   display: flex;
   flex-direction: column;
-  /* FIX: Allow our internal container to stretch with Virtuoso's wrapper */
-  flex-grow: 1; 
-  margin-top: auto; /* Pushes disclaimer down to bottom whenever content height < scroller height */
+  /* The explicit bottom-tail spacer owns chat reading room; the footer does not create implicit page geometry. */
+  flex: 0 0 auto;
 }
 
 .chat-footer {
@@ -54,8 +58,6 @@
 
 /* Matching the small gray center disclaimer */
 .disclaimer-text {
-  /* Pushes the disclaimer to the very bottom of the flex container */
-  margin-top: auto; 
   text-align: center;
   font-size: 12px;
   color: #b4b4b4;

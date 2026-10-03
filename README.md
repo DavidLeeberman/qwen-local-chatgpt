@@ -6,6 +6,7 @@ Environment: Intel Core Ultra 9 275HX + NVIDIA GeForce RTX 5090/24GB + 64GB DDR5
 ```
 Updates:
 - Migrated from estimated spacers for unloaded pages to determined spacers for loaded pages only
+- Initially positioned the last message pair in a chat higher for user to start reading it from begining
 - Can Regenerate any response in a chat now
 - Copy code block and table works
 - Copy and Edit Message works
