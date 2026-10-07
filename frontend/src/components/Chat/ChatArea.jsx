@@ -51,15 +51,19 @@ export default function ChatArea() {
 
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [hasStreamedInSession, setHasStreamedInSession] = useState(false)
-  const [spacerHeight, setSpacerHeight] = useState(0)
   const [pageRegistryVersion, setPageRegistryVersion] = useState(0)
   const [isPageLoading, setIsPageLoading] = useState(false)
   const [isChatDataReady, setIsChatDataReady] = useState(cid === null)
 
   const nativeScrollerRef = useRef(null)
   const lastMessageRef = useRef(null)
-  const lastSpacerRef = useRef(null) 
+  // This ref points to the outer wrapper of the active last message pair. Its min-height
+  // carries the tail reservation during initial positioning and active streaming.
+  const lastMessagePairRef = useRef(null) 
   const footerRef = useRef(null) // Added ref to measure exact footer DOM height
+
+  // Stores the baseline required pair min-height established upon initial positioning.
+  const initialPairMinHeightRef = useRef(null)
 
   // Page registry is the sole source of truth for reached-page geometry and DOM residency.
   // pageIndex 0 is the newest page; larger pageIndex values move backward in history.
@@ -80,6 +84,9 @@ export default function ChatArea() {
   const chatDataSwitchPendingRef = useRef(false)
   // Keep the existing bottom-tail height isolated from page pagination mutations.
   const tailSpacerHeightRef = useRef(0)
+  // Once streaming stops, freeze the exact remaining tail gap for this tail-message lifecycle.
+  // A new tail generation or chat/session invalidation resets this guard.
+  const tailGapSealedRef = useRef(false)
   // Arm top-edge pagination only after the viewport has first moved inside the known range.
   // This prevents initial positioning from being mistaken for a user reaching the physical top.
   const topPaginationArmedRef = useRef(false)
@@ -93,6 +100,7 @@ export default function ChatArea() {
 
   // STABILIZED CALLBACK: Prevents breaking React.memo on ChatMessage
   const handleRegenerate = useCallback((messageId) => {
+    pendingTailReplacementRef.current = true;
     regenerate(messageId);
   }, [regenerate]);
 
@@ -137,7 +145,13 @@ export default function ChatArea() {
       startIndex,
       endIndex,
       status,
-      height: null
+      height: null,
+      // Page 0 height is valid only for the canonical tail message that was present when it was measured.
+      // Older pages never use this owner marker because their cached heights are historical geometry.
+      heightOwnerId: null,
+      // Page 0's active last-message pair carries the bottom-tail reservation inside its own wrapper.
+      // Older pages keep this null because they never own the live chat tail.
+      bottomPairMinHeight: null
     };
 
     pageRegistryRef.current.set(pageIndex, page);
@@ -154,7 +168,12 @@ export default function ChatArea() {
         startIndex,
         endIndex: length,
         status: 'loaded',
-        height: null
+        height: null,
+        // Page 0 height is invalidated whenever the canonical last message changes, so it cannot become
+        // a stale floor during Send / Regenerate / Edit -> regenerate transitions.
+        heightOwnerId: null,
+        // The active bottom pair receives its exact min-height only after the DOM is measured.
+        bottomPairMinHeight: null
       });
     }
 
@@ -172,7 +191,8 @@ export default function ChatArea() {
   }, [chat.length]);
 
   // The current chat can grow while streaming. Keep page 0's tail boundary live while
-  // preserving the fixed index ranges of every older page that has already been reached.
+  // preserving the fixed index ranges of every older page that has already been reached. Page 0's
+  // measured height remains valid only for the current canonical last message.
   useEffect(() => {
     if (pageRegistryCidRef.current !== cid) return;
 
@@ -195,6 +215,9 @@ export default function ChatArea() {
     if (pageRegistryCidRef.current === cid) return;
 
     pageRegistryCidRef.current = cid;
+    tailOwnerIdRef.current = null;
+    previousTailIdentityRef.current = null;
+    initialPairMinHeightRef.current = null;
     initializedDataTriggerRef.current = null;
     pendingDataTriggerRef.current = listScrollTrigger;
     initialPositionRequestRef.current = null;
@@ -211,7 +234,6 @@ export default function ChatArea() {
 
     setHasStreamedInSession(false);
     tailSpacerHeightRef.current = 0;
-    setSpacerHeight(0);
   }, [cid, chat.length]);
 
   // A normal conversation switch increments listScrollTrigger only after the new full
@@ -234,6 +256,8 @@ export default function ChatArea() {
       setIsChatDataReady(true);
       initialPositionRequestRef.current = null;
       chatDataSwitchPendingRef.current = false;
+      tailSpacerHeightRef.current = 0;
+      initialPairMinHeightRef.current = null;
       return;
     }
 
@@ -246,7 +270,9 @@ export default function ChatArea() {
       : { cid, trigger: listScrollTrigger };
     chatDataSwitchPendingRef.current = false;
     tailSpacerHeightRef.current = 0;
-    setSpacerHeight(0);
+    initialPairMinHeightRef.current = null;
+    const freshTailPage = pageRegistryRef.current.get(0);
+    if (freshTailPage) freshTailPage.bottomPairMinHeight = null;
     setIsChatDataReady(true);
   }, [cid, listScrollTrigger, chat.length, isStreaming, resetPageRegistry, targetMessageId]);
 
@@ -325,6 +351,13 @@ export default function ChatArea() {
                 page.height = newH;
                 updated = true;
               }
+              if (pageIndex === 0) {
+                const currentTailId = tailOwnerIdRef.current;
+                if (page.heightOwnerId !== currentTailId) {
+                  page.heightOwnerId = currentTailId;
+                  updated = true;
+                }
+              }
             }
           }
         }
@@ -346,6 +379,13 @@ export default function ChatArea() {
         if (pageEl.offsetHeight > 0 && page.height !== pageEl.offsetHeight) {
           page.height = pageEl.offsetHeight;
           hasNewMeasurements = true;
+        }
+        if (page.pageIndex === 0) {
+          const currentTailId = tailOwnerIdRef.current;
+          if (page.heightOwnerId !== currentTailId) {
+            page.heightOwnerId = currentTailId;
+            hasNewMeasurements = true;
+          }
         }
         observer.observe(pageEl);
       }
@@ -431,7 +471,11 @@ export default function ChatArea() {
 
       const pageTop = el.offsetTop;
       const pageBottom = pageTop + page.height;
-      const keepLiveTailReal = page.pageIndex === 0 && (isStreaming || spacerHeight > 0 || hasStreamedInSession);
+      const keepLiveTailReal = page.pageIndex === 0 && (
+        isStreaming ||
+        tailSpacerHeightRef.current > 0 ||
+        hasStreamedInSession
+      );
       const shouldBeReal = keepLiveTailReal || (pageBottom >= viewportTop && pageTop <= viewportBottom);
 
       if (shouldBeReal && page.status === 'spacer') {
@@ -446,7 +490,7 @@ export default function ChatArea() {
     if (changed) {
       setPageRegistryVersion(v => v + 1);
     }
-  }, [getKnownPagesInOrder, getPageElement, isStreaming, spacerHeight, hasStreamedInSession, isChatDataReady]);
+  }, [getKnownPagesInOrder, getPageElement, isStreaming, hasStreamedInSession, isChatDataReady]);
 
   // Load exactly one immediately older page when the physical top of the known range is reached.
   // No IntersectionObserver root margin is used here, so merely approaching the top cannot load N-1.
@@ -481,7 +525,8 @@ export default function ChatArea() {
       startIndex,
       endIndex,
       status: 'loading',
-      height: null
+      height: null,
+      heightOwnerId: null
     });
     setPageRegistryVersion(v => v + 1);
   }, [chat.length, getKnownPagesInOrder, isChatDataReady, isStreaming]);
@@ -510,6 +555,10 @@ export default function ChatArea() {
     if (page.status !== 'loaded' || pageEl.offsetHeight <= 0) return;
 
     page.height = pageEl.offsetHeight;
+
+    if (page.pageIndex === 0) {
+      page.heightOwnerId = tailOwnerIdRef.current;
+    }
 
     // The tail spacer belongs to the chat's existing reading-position UX and is deliberately
     // independent from pagination. Loading an older page must never shrink or recalculate it.
@@ -599,6 +648,181 @@ export default function ChatArea() {
     }
   }
 
+  // Shared last/newly-sent pair positioning & tail-spacer geometry.
+  // Both initial chat entry and Send / Regenerate use the exact same calculation. The active bottom
+  // pair itself owns the reserved tail through a fixed min-height, which means streaming growth fills
+  // that reserved area without changing scrollHeight or scrollTop until the content reaches the bottom.
+  // Ordinary scrolling never recalculates or mutates this reservation.
+  const positionLastMessagePair = useCallback(({ behavior = 'auto', scroll = true, armTopPagination = false } = {}) => {
+    const container = nativeScrollerRef.current;
+    const lastEl = lastMessageRef.current;
+    const pairEl = lastMessagePairRef.current;
+    const footerEl = footerRef.current;
+    const tailPage = pageRegistryRef.current.get(0);
+
+    if (!container || !lastEl || !pairEl || !footerEl || !tailPage || lastEl.offsetHeight <= 0) return null;
+
+    const footerHeight = footerEl.offsetHeight;
+    const oneFifthOffset = container.clientHeight / 5;
+    const pairTop = pairEl.offsetTop;
+    const targetTop = Math.max(0, pairTop - oneFifthOffset);
+
+    // Baseline required height to position the pair 1/5th from top and land viewport bottom at chat bottom.
+    const baselinePairHeight = Math.max(0, targetTop + container.clientHeight - pairTop - footerHeight);
+    if (initialPairMinHeightRef.current === null) {
+      initialPairMinHeightRef.current = baselinePairHeight;
+    }
+
+    // The active pair's wrapper spans from its top to the footer. Reserve exactly enough total pair
+    // height so that, after positioning the pair 1/5 viewport-height from the top, the physical bottom
+    // of the chat lands at the viewport bottom. If the actual message is taller, the reservation becomes
+    // irrelevant and the effective tail is naturally zero.
+    const requiredPairHeight = Math.max(lastEl.offsetHeight, baselinePairHeight);
+    const calculatedHeight = Math.max(0, requiredPairHeight - lastEl.offsetHeight);
+
+    // Persist the reservation on page 0 so a REAL <-> SPACER swap cannot forget the bottom-pair geometry.
+    // The DOM wrapper also receives it immediately, avoiding a separate global tail spacer that could
+    // retain geometry from the previous last message when a new prompt is appended.
+    tailPage.bottomPairMinHeight = requiredPairHeight;
+    pairEl.style.minHeight = `${requiredPairHeight}px`;
+    tailSpacerHeightRef.current = calculatedHeight;
+
+    // The actual tail geometry is owned by pairEl's min-height. The ref records the current remaining
+    // tail for page-residency decisions; scrolling never changes this reservation.
+
+    if (scroll) {
+      if (behavior === 'auto') {
+        container.scrollTop = targetTop;
+      } else {
+        container.scrollTo({ top: targetTop, behavior });
+      }
+    }
+
+    if (armTopPagination) {
+      // Initial positioning itself must never arm top pagination. A later real scroll event that
+      // moves inside the known range will arm it, and only a subsequent exact scrollTop === 0 event
+      // will request the next older page.
+      topPaginationArmedRef.current = targetTop > TOP_TRIGGER_PX;
+    } else {
+      // Programmatic positioning for Send / Regenerate must not arm top-edge pagination.
+      topPaginationArmedRef.current = false;
+    }
+
+    return {
+      targetTop,
+      calculatedHeight,
+      messageHeight: lastEl.offsetHeight,
+      messageTop: lastEl.offsetTop,
+      pairMinHeight: requiredPairHeight
+    };
+  }, []);
+
+  // Invalidate page 0 whenever a genuinely new canonical tail message is generated. Page 0 is the
+  // live tail page, so none of its old geometry is persistent across Send, Regenerate, Edit -> regenerate,
+  // or branching. A temporary streaming message can later be replaced by its real DB-backed message
+  // object during a silent reload; that is the same logical tail generation and must keep its spacer.
+  // Historical pages (pageIndex > 0) retain their measured heights for REAL <-> SPACER residency.
+  const lastMessage = chat.length > 0 ? chat[chat.length - 1] : null;
+  const lastMessageId = lastMessage?.id != null ? String(lastMessage.id) : null;
+  const lastMessageUserId = lastMessage?.userMessageId != null ? String(lastMessage.userMessageId) : null;
+  const lastMessageAssistantId = lastMessage?.assistantMessageId != null ? String(lastMessage.assistantMessageId) : null;
+  const tailOwnerIdRef = useRef(null);
+  const previousTailIdentityRef = useRef(null);
+  // True only for explicit Regenerate/Edit replacement. A normal Send must create a fresh tail lifecycle.
+  const pendingTailReplacementRef = useRef(false);
+
+  const invalidateLiveTailGeometry = useCallback(({ isTailReplacement = false } = {}) => {
+    tailSpacerHeightRef.current = 0;
+    tailGapSealedRef.current = false;
+
+    const tailPage = pageRegistryRef.current.get(0);
+    let registryChanged = false;
+    const initialMin = initialPairMinHeightRef.current;
+
+    if (tailPage) {
+      if (tailPage.height !== null || tailPage.heightOwnerId !== null) {
+        tailPage.height = null;
+        tailPage.heightOwnerId = null;
+        registryChanged = true;
+      }
+
+      if (isTailReplacement && initialMin != null) {
+        // Clamping back to initial min-height removes inflated scrollHeight when final > initial (fixes Bug #1)
+        // while preserving the baseline wrapper height when final <= initial (fixes Bug #2).
+        if (tailPage.bottomPairMinHeight !== initialMin) {
+          tailPage.bottomPairMinHeight = initialMin;
+          registryChanged = true;
+        }
+      } else {
+        if (tailPage.bottomPairMinHeight !== null) {
+          tailPage.bottomPairMinHeight = null;
+          registryChanged = true;
+        }
+        initialPairMinHeightRef.current = null;
+      }
+
+      // A changed canonical tail must be REAL while the fresh pair is positioned. Its old spacer
+      // geometry is no longer valid and must not survive into the new generation.
+      if (tailPage.status === 'spacer') {
+        tailPage.status = 'loaded';
+        registryChanged = true;
+      }
+    }
+
+    if (lastMessagePairRef.current) {
+      if (isTailReplacement && initialMin != null) {
+        lastMessagePairRef.current.style.minHeight = `${initialMin}px`;
+      } else {
+        lastMessagePairRef.current.style.minHeight = '';
+      }
+    }
+
+    return registryChanged;
+  }, []);
+
+  useLayoutEffect(() => {
+    const currentIdentity = {
+      id: lastMessageId,
+      userMessageId: lastMessageUserId,
+      assistantMessageId: lastMessageAssistantId
+    };
+    const previousIdentity = previousTailIdentityRef.current;
+    const isTailReplacement = Boolean(previousIdentity && pendingTailReplacementRef.current);
+
+    const sameLogicalTail = Boolean(
+      !isTailReplacement &&
+      previousIdentity &&
+      (
+        (currentIdentity.id !== null && currentIdentity.id === previousIdentity.id) ||
+        (currentIdentity.userMessageId !== null && currentIdentity.userMessageId === previousIdentity.userMessageId) ||
+        (currentIdentity.assistantMessageId !== null && currentIdentity.assistantMessageId === previousIdentity.assistantMessageId)
+      )
+    );
+
+    if (sameLogicalTail) {
+      // A silent DB sync may replace a temporary stream ID with the real database ID. That is not a
+      // new tail generation, so preserve the existing bottom-tail reservation for the entire session.
+      tailOwnerIdRef.current = lastMessageId;
+      previousTailIdentityRef.current = currentIdentity;
+      return;
+    }
+
+    // Consume the replacement marker immediately. If the next generation is a normal Send,
+    // it must not inherit the previous tail reservation.
+    pendingTailReplacementRef.current = false;
+
+    tailOwnerIdRef.current = lastMessageId;
+    previousTailIdentityRef.current = currentIdentity;
+    const registryChanged = invalidateLiveTailGeometry({ isTailReplacement });
+
+    // Force one clean render when old page-0 geometry existed. This removes the stale page wrapper
+    // min-height before the fresh last pair is positioned, preventing the Regenerate / Edit path from
+    // inheriting the height of the message that was just truncated.
+    if (registryChanged) {
+      setPageRegistryVersion(v => v + 1);
+    }
+  }, [lastMessageId, lastMessageUserId, lastMessageAssistantId, cid, invalidateLiveTailGeometry]);
+
   // Auto-Scroll Logic handles initial positioning on chat load, switch, or branch
   // 🌟 LIGHTWEIGHT NON-BLOCKING SCROLL ENGINE
   // Uses layout-driven positioning so a chat switch cannot position the outgoing chat before the
@@ -611,111 +835,104 @@ export default function ChatArea() {
     if (!request || request.cid !== cid || request.trigger !== listScrollTrigger || targetMessageId || !isChatDataReady || !container) return;
     if (isStreaming || chat.length === 0) return;
 
-    const lastEl = lastMessageRef.current;
-    const spacerEl = lastSpacerRef.current;
-    if (!lastEl || !spacerEl || !footerRef.current) return;
-    if (lastEl.offsetHeight <= 0) {
+    isProgrammaticScrollRef.current = true;
+    const result = positionLastMessagePair({ behavior: 'auto', scroll: true, armTopPagination: true });
+
+    if (!result) {
       requestAnimationFrame(() => setPageRegistryVersion(v => v + 1));
       return;
     }
 
-    isProgrammaticScrollRef.current = true;
-
-    const footerHeight = footerRef.current.offsetHeight;
-    const oneFifthOffset = container.clientHeight / 5;
-    const targetTop = Math.max(0, lastEl.offsetTop - oneFifthOffset);
-    const messageBottom = lastEl.offsetTop + lastEl.offsetHeight;
-    const desiredViewportBottom = targetTop + container.clientHeight;
-
-    // The tail spacer only fills the unread portion below the last message. If the message itself
-    // already extends beyond the intended viewport bottom, no tail space is required.
-    // Footer height is subtracted because the disclaimer remains a known trailing element.
-    const calculatedHeight = Math.max(0, desiredViewportBottom - messageBottom - footerHeight);
-
-    spacerEl.style.height = `${calculatedHeight}px`;
-    setSpacerHeight(calculatedHeight);
-
-    // The initial tail is sized against the real footer so that, when the last message fits before
-    // the intended reading position, the physical scroll bottom lands exactly on that position.
-    // No separate logical scroll clamp is installed here. For a short last message the exact tail
-    // spacer makes the physical DOM bottom coincide with the intended initial reading position. For a
-    // long last message the tail is zero, so normal manual scrolling can still reach the real footer.
-
-    tailSpacerHeightRef.current = calculatedHeight;
-    container.scrollTop = targetTop;
     initialPositionRequestRef.current = null;
 
     requestAnimationFrame(() => {
       const current = nativeScrollerRef.current;
       if (current && current === container) {
-        current.scrollTop = Math.min(targetTop, Math.max(0, current.scrollHeight - current.clientHeight));
+        current.scrollTop = Math.min(result.targetTop, Math.max(0, current.scrollHeight - current.clientHeight));
       }
-      // Initial positioning itself must never arm top pagination. A later real scroll event that
-      // moves inside the known range will arm it, and only a subsequent exact scrollTop === 0 event
-      // will request the next older page.
-      // Once initial positioning has completed, an existing positive target means the user can
-      // legitimately return to the physical top and trigger one older page. When the initial target
-      // is zero, keep pagination disarmed until the user first moves inside the known range.
-      topPaginationArmedRef.current = targetTop > TOP_TRIGGER_PX;
       isProgrammaticScrollRef.current = false;
       checkIsAtBottom();
     });
-  }, [cid, listScrollTrigger, targetMessageId, isChatDataReady, isStreaming, chat.length, pageRegistryVersion, checkIsAtBottom]);
+  }, [cid, listScrollTrigger, targetMessageId, isChatDataReady, isStreaming, chat.length, pageRegistryVersion, checkIsAtBottom, positionLastMessagePair]);
 
-  // One-time scroll positioning to 1/5th of the viewport height when Send / Regenerate starts
+  // One-time scroll positioning to 1/5th of the viewport height when Send / Regenerate starts.
+  // The exact target and tail geometry are shared with initial chat positioning above. The active pair's
+  // min-height is established once after the DOM commit; streaming growth then fills that fixed reserve.
   useEffect(() => {
     // When stream transitions from false -> true
     if (isStreaming && !prevStreamingRef.current) {
       isProgrammaticScrollRef.current = true;
-      let frames = 0;
-      let lastMeasuredOffsetTop = -1;
+
+      // Tail geometry ownership is handled by the tail identity transition above. Do not clear the
+      // active reservation here: doing so creates a one-frame scrollHeight collapse during
+      // Regenerate/Edit replacement (bug #2m).
 
       const performPositioning = () => {
-        const container = nativeScrollerRef.current;
-        const lastEl = lastMessageRef.current;
-        const spacerEl = lastSpacerRef.current;
-
-        if (container && lastEl && spacerEl) {
-          // FIX #4: Measure actual DOM height of footer element instead of using hardcoded assumptions
-          const footerHeight = footerRef.current ? footerRef.current.offsetHeight : (isArchived ? 130 : 90);
-          const exactHeightRequired = (container.clientHeight * 0.8) - footerHeight;
-          const calculatedHeight = Math.max(0, exactHeightRequired);
-          
-          spacerEl.style.height = `${calculatedHeight}px`;
-          tailSpacerHeightRef.current = calculatedHeight;
-          setSpacerHeight(calculatedHeight);
-
-          const currentOffsetTop = lastEl.offsetTop;
-          const oneFifthOffset = container.clientHeight / 5;
-          const targetTop = Math.max(0, currentOffsetTop - oneFifthOffset);
-
-          container.scrollTo({
-            top: targetTop,
-            behavior: 'smooth'
-          });
-          // Programmatic positioning must not arm top-edge pagination.
-          topPaginationArmedRef.current = false;
-
-          if (frames < 5 && currentOffsetTop !== lastMeasuredOffsetTop) {
-            lastMeasuredOffsetTop = currentOffsetTop;
-            frames++;
-            requestAnimationFrame(performPositioning);
-            return;
-          }
-        }
+        positionLastMessagePair({ behavior: 'smooth', scroll: true, armTopPagination: false });
 
         setTimeout(() => {
           isProgrammaticScrollRef.current = false;
         }, 350);
       };
 
-      // Double RAF ensures React DOM commit and browser layout passes have completed
+      // Double RAF ensures React DOM commit and browser layout passes have completed before the one
+      // deliberate positioning pass. Unlike v8's repeated smooth-scroll loop, later stream growth does
+      // not reissue positioning commands that could fight manual scrolling.
       requestAnimationFrame(() => {
         requestAnimationFrame(performPositioning);
       });
     }
     prevStreamingRef.current = isStreaming
-  }, [isStreaming, isArchived])
+  }, [isStreaming, isArchived, positionLastMessagePair, invalidateLiveTailGeometry])
+
+  // Track the remaining tail reservation as the active response grows. The DOM reservation itself is
+  // the fixed min-height on the last pair, so this effect never writes spacer geometry and never moves
+  // scrollTop. As long as the response remains shorter than the reservation, the pair's total height is
+  // constant; once the response exceeds it, the effective tail naturally reaches zero and the page can
+  // grow normally below the viewport.
+  useLayoutEffect(() => {
+    if (!isStreaming && tailGapSealedRef.current) return;
+
+    const tailPage = pageRegistryRef.current.get(0);
+    const pairEl = lastMessagePairRef.current;
+    const messageEl = lastMessageRef.current;
+    if (!tailPage || !pairEl || !messageEl || tailPage.bottomPairMinHeight == null) return;
+
+    const remainingTail = Math.max(0, tailPage.bottomPairMinHeight - messageEl.offsetHeight);
+    tailSpacerHeightRef.current = remainingTail;
+
+    // Record the current remaining tail for page-residency decisions. During streaming this follows
+    // the growing response; once streaming stops, tailGapSealedRef freezes the final value permanently.
+    // The DOM reservation itself remains the fixed min-height established when this pair became the
+    // active tail owner.
+  }, [chat, isStreaming, isArchived, pageRegistryVersion])
+
+  // When streaming ends, seal the exact tail gap that remains at that moment. This converts the current
+  // reserved reading room into persistent tail geometry for the rest of this tail-message lifecycle.
+  // The reservation is cleared only when a genuinely new tail message is generated or the chat/session
+  // is invalidated; ordinary scrolling and silent temp-ID -> DB-ID synchronization leave it untouched.
+  useLayoutEffect(() => {
+    // prevStreamingRef is updated by the streaming transition effect below, which runs after layout
+    // effects. Therefore a true -> false transition reaches this block while the previous state is
+    // still available here, allowing us to capture the final gap exactly once.
+    if (isStreaming || !prevStreamingRef.current || tailGapSealedRef.current || !lastMessageRef.current) return;
+
+    const tailPage = pageRegistryRef.current.get(0);
+    const pairEl = lastMessagePairRef.current;
+    const messageEl = lastMessageRef.current;
+    if (!tailPage || !pairEl || !messageEl || tailPage.bottomPairMinHeight == null) return;
+
+    const retainedGap = Math.max(0, tailPage.bottomPairMinHeight - messageEl.offsetHeight);
+    const persistentPairMinHeight = messageEl.offsetHeight + retainedGap;
+
+    // Freeze the final remaining gap as the tail spacer for the entire current tail-message lifecycle.
+    // Later renders, manual scrolling, and silent temp-ID -> DB-ID synchronization must not recompute
+    // or remove this reservation. A genuinely new tail generation is the only normal way to clear it.
+    tailPage.bottomPairMinHeight = persistentPairMinHeight;
+    tailSpacerHeightRef.current = retainedGap;
+    pairEl.style.minHeight = `${persistentPairMinHeight}px`;
+    tailGapSealedRef.current = true;
+  }, [isStreaming, chat.length, lastMessageId, lastMessageUserId, lastMessageAssistantId, pageRegistryVersion])
 
   // Scrolling is locked by the native scroller's overflow state while a page is loading.
   // Page pagination itself is intentionally driven by one signal only: a scroll event that reaches
@@ -810,6 +1027,9 @@ export default function ChatArea() {
           }
 
           const pageMessages = chat.slice(page.startIndex, endIndex);
+          const pageMinHeight = page.pageIndex === 0
+            ? (page.bottomPairMinHeight != null && page.height ? `${page.height}px` : undefined)
+            : (page.height ? `${page.height}px` : undefined);
 
           return (
             <div
@@ -817,7 +1037,7 @@ export default function ChatArea() {
               data-page-index={page.pageIndex}
               style={{
                 flex: '0 0 auto',
-                minHeight: page.height ? `${page.height}px` : undefined
+                minHeight: pageMinHeight
               }}
             >
               {pageMessages.map((item, localIndex) => {
@@ -831,12 +1051,23 @@ export default function ChatArea() {
                 const showTimestamp = absoluteIndex === 0 || timeDiff > 3600000
                 const isLastMessage = absoluteIndex === chat.length - 1
 
+                const pageTailMinHeight = page.pageIndex === 0 ? page.bottomPairMinHeight : null;
+
                 return (
                   <div 
                     key={item.userMessageId || item.id}
                     id={`msg-${item.id}`}
+                    ref={isLastMessage ? lastMessagePairRef : null}
+                    // The active last-message wrapper carries the tail reservation itself. Previous
+                    // last messages lose this role automatically when isLastMessage becomes false,
+                    // preventing stale tail geometry from leaking into a newly-sent prompt.
+                    style={{
+                      minHeight: isLastMessage && pageTailMinHeight != null
+                        ? `${pageTailMinHeight}px`
+                        : undefined
+                    }}
                   >
-                    {/* Inner wrapper allows measuring actual text height independent of the bottom tail spacer */}
+                    {/* Inner wrapper allows measuring actual text height independent of the bottom tail reservation */}
                     <div ref={isLastMessage ? lastMessageRef : null}>
                       {showTimestamp && (
                         <div className={styles['time-break']}>
@@ -857,15 +1088,7 @@ export default function ChatArea() {
           );
         })}
 
-        {/* Bottom Tail Spacer for Initial Positioning / Active Streaming */}
-        <div
-          key={`tail-${String(cid)}-${listScrollTrigger}`}
-          ref={lastSpacerRef}
-          className={styles['bottom-tail-spacer']}
-          style={{ height: `${isChatDataReady ? spacerHeight : 0}px`, flex: '0 0 auto' }}
-          aria-hidden="true"
-        />
-
+        {/* The bottom-tail reservation now lives inside the active last-message wrapper above. */}
         <ChatFooter ref={footerRef} isArchived={isArchived} />
       </div>
 
