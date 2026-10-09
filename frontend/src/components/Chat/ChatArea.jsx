@@ -14,6 +14,7 @@ const CHUNK_SIZE = 20;
 const TOP_TRIGGER_PX = 2;
 const PAGE_HYDRATION_MARGIN_PX = 1;
 const SCROLL_EPSILON = 15;
+const VIEWPORT_TOP_OFFSET_DIVISOR = 5;
 
 // --- Scrollable Footer ---
 const ChatFooter = forwardRef(({ isArchived }, ref) => {
@@ -93,16 +94,96 @@ export default function ChatArea() {
   // Physical Anchor & Height Measurement Tracking using offsetTop
   const resizeObserverRef = useRef(null)
 
+  // Temporary scroll-range guard used only during Regenerate/Edit replacement. It keeps the
+  // pre-replacement scrollTop reachable while v20's clean baseline tail geometry is installed.
+  // The guard lives after the footer and is removed as soon as the current scrollTop is within
+  // the final geometry's valid range, so it never becomes persistent chat geometry.
+  const regenerateScrollGuardRef = useRef(null)
+  const regenerateScrollGuardRafRef = useRef(null)
+
+  // Directly calculates baseline pair min-height based on current scroller and footer geometry
+  const getBaselinePairHeight = useCallback(() => {
+    const container = nativeScrollerRef.current;
+    const footerEl = footerRef.current;
+    if (!container || !footerEl) return 0;
+
+    const topOffset = container.clientHeight / VIEWPORT_TOP_OFFSET_DIVISOR;
+    return Math.max(0, container.clientHeight - topOffset - footerEl.offsetHeight);
+  }, []);
+
   /* ===============================================================================================
      Callback Reference Stability: Wrapped handlers like handleRegenerate in useCallback within 
      ChatArea.jsx to prevent parent state updates from invalidating child memoization.
   =============================================================================================== */
 
+  // Remove the temporary Regenerate-only scroll-range guard without touching any page or tail geometry.
+  const clearRegenerateScrollGuard = useCallback(() => {
+    if (regenerateScrollGuardRafRef.current !== null) {
+      cancelAnimationFrame(regenerateScrollGuardRafRef.current);
+      regenerateScrollGuardRafRef.current = null;
+    }
+
+    const guard = regenerateScrollGuardRef.current?.el;
+    if (guard?.parentNode) {
+      guard.parentNode.removeChild(guard);
+    }
+
+    regenerateScrollGuardRef.current = null;
+  }, []);
+
+  // Keep the pre-Regenerate scrollTop reachable while the chat is being truncated/replaced.
+  // This guard is deliberately independent from tail geometry: Regenerate may target the current
+  // tail or any older message, and an older-message replacement can remove an arbitrarily large
+  // amount of DOM height below the target. The guard therefore reserves a conservative amount based
+  // on the current scrollTop itself rather than trying to predict which pages/messages will disappear.
+  const armRegenerateScrollGuard = useCallback(() => {
+    clearRegenerateScrollGuard();
+
+    const scroller = nativeScrollerRef.current;
+    if (!scroller) return;
+
+    const currentScrollTop = Math.max(0, scroller.scrollTop);
+    if (currentScrollTop <= 0) return;
+
+    // A bottom-appended guard of currentScrollTop + 1 guarantees that the browser can still represent
+    // the exact pre-Regenerate scrollTop even if every message below the regenerated one is removed.
+    // This is temporary scroll-range protection only; it is never written into pageRegistryRef or
+    // bottomPairMinHeight and is removed as soon as the smooth scroll reaches the final valid range.
+    const requiredGuardHeight = currentScrollTop + 1;
+
+    const guard = document.createElement('div');
+    guard.setAttribute('aria-hidden', 'true');
+    guard.dataset.chatRegenerateScrollGuard = 'true';
+    guard.style.height = `${requiredGuardHeight}px`;
+    guard.style.minHeight = `${requiredGuardHeight}px`;
+    guard.style.flex = '0 0 auto';
+    guard.style.pointerEvents = 'none';
+
+    const footerEl = footerRef.current;
+    if (footerEl && footerEl.parentNode === scroller) {
+      scroller.insertBefore(guard, footerEl);
+    } else {
+      scroller.appendChild(guard);
+    }
+    regenerateScrollGuardRef.current = { el: guard };
+  }, [clearRegenerateScrollGuard]);
+
   // STABILIZED CALLBACK: Prevents breaking React.memo on ChatMessage
   const handleRegenerate = useCallback((messageId) => {
+    // Keep the pre-replacement scroll range intact while the replacement DOM/layout is being installed.
+    // The guard is message-position agnostic, so Regenerate works the same way for the current tail
+    // and for an older message whose following history is truncated away.
+    armRegenerateScrollGuard();
     pendingTailReplacementRef.current = true;
     regenerate(messageId);
-  }, [regenerate]);
+  }, [armRegenerateScrollGuard, regenerate]);
+
+  // Always clean up the transient guard when this component unmounts.
+  useEffect(() => {
+    return () => {
+      clearRegenerateScrollGuard();
+    };
+  }, [clearRegenerateScrollGuard]);
 
   const getPageBounds = useCallback((pageIndex, length = chat.length) => {
     const registryPage = pageRegistryRef.current.get(pageIndex);
@@ -234,7 +315,7 @@ export default function ChatArea() {
 
     setHasStreamedInSession(false);
     tailSpacerHeightRef.current = 0;
-  }, [cid, chat.length]);
+  }, [cid, chat.length, listScrollTrigger]);
 
   // A normal conversation switch increments listScrollTrigger only after the new full
   // message payload has been committed. Reset to exactly one newest page at that point.
@@ -657,21 +738,17 @@ export default function ChatArea() {
     const container = nativeScrollerRef.current;
     const lastEl = lastMessageRef.current;
     const pairEl = lastMessagePairRef.current;
-    const footerEl = footerRef.current;
     const tailPage = pageRegistryRef.current.get(0);
 
-    if (!container || !lastEl || !pairEl || !footerEl || !tailPage || lastEl.offsetHeight <= 0) return null;
+    if (!container || !lastEl || !pairEl || !tailPage || lastEl.offsetHeight <= 0) return null;
 
-    const footerHeight = footerEl.offsetHeight;
-    const oneFifthOffset = container.clientHeight / 5;
+    const topOffset = container.clientHeight / VIEWPORT_TOP_OFFSET_DIVISOR;
     const pairTop = pairEl.offsetTop;
-    const targetTop = Math.max(0, pairTop - oneFifthOffset);
+    const targetTop = Math.max(0, pairTop - topOffset);
 
     // Baseline required height to position the pair 1/5th from top and land viewport bottom at chat bottom.
-    const baselinePairHeight = Math.max(0, targetTop + container.clientHeight - pairTop - footerHeight);
-    if (initialPairMinHeightRef.current === null) {
-      initialPairMinHeightRef.current = baselinePairHeight;
-    }
+    const baselinePairHeight = getBaselinePairHeight();
+    initialPairMinHeightRef.current = baselinePairHeight;
 
     // The active pair's wrapper spans from its top to the footer. Reserve exactly enough total pair
     // height so that, after positioning the pair 1/5 viewport-height from the top, the physical bottom
@@ -695,6 +772,46 @@ export default function ChatArea() {
         container.scrollTop = targetTop;
       } else {
         container.scrollTo({ top: targetTop, behavior });
+
+        // If Regenerate started from a scrollTop that v20's new baseline could not initially
+        // contain, the temporary guard keeps that old position reachable. As soon as the smooth
+        // scroll enters the final geometry's valid range, remove the guard. This gives v17's
+        // smooth motion in both directions without retaining any extra scrollHeight afterward.
+        if (regenerateScrollGuardRef.current?.el) {
+          const startedAt = performance.now();
+
+          const releaseGuardWhenSafe = () => {
+            const current = nativeScrollerRef.current;
+            const guard = regenerateScrollGuardRef.current?.el;
+
+            if (!current || !guard || !guard.parentNode) {
+              regenerateScrollGuardRafRef.current = null;
+              return;
+            }
+
+            const guardHeight = guard.offsetHeight;
+            const maxWithoutGuard = Math.max(
+              0,
+              current.scrollHeight - guardHeight - current.clientHeight
+            );
+
+            if (
+              current.scrollTop <= maxWithoutGuard + SCROLL_EPSILON ||
+              Math.abs(current.scrollTop - targetTop) <= SCROLL_EPSILON ||
+              performance.now() - startedAt > 1200
+            ) {
+              clearRegenerateScrollGuard();
+              return;
+            }
+
+            regenerateScrollGuardRafRef.current = requestAnimationFrame(releaseGuardWhenSafe);
+          };
+
+          if (regenerateScrollGuardRafRef.current !== null) {
+            cancelAnimationFrame(regenerateScrollGuardRafRef.current);
+          }
+          regenerateScrollGuardRafRef.current = requestAnimationFrame(releaseGuardWhenSafe);
+        }
       }
     }
 
@@ -715,7 +832,7 @@ export default function ChatArea() {
       messageTop: lastEl.offsetTop,
       pairMinHeight: requiredPairHeight
     };
-  }, []);
+  }, [clearRegenerateScrollGuard, getBaselinePairHeight]);
 
   // Invalidate page 0 whenever a genuinely new canonical tail message is generated. Page 0 is the
   // live tail page, so none of its old geometry is persistent across Send, Regenerate, Edit -> regenerate,
@@ -737,7 +854,9 @@ export default function ChatArea() {
 
     const tailPage = pageRegistryRef.current.get(0);
     let registryChanged = false;
-    const initialMin = initialPairMinHeightRef.current;
+    
+    // Restores to baseline pair min-height directly on Regenerate/Edit replacement, otherwise clears for new prompt
+    const targetMin = isTailReplacement ? getBaselinePairHeight() : null;
 
     if (tailPage) {
       if (tailPage.height !== null || tailPage.heightOwnerId !== null) {
@@ -746,19 +865,9 @@ export default function ChatArea() {
         registryChanged = true;
       }
 
-      if (isTailReplacement && initialMin != null) {
-        // Clamping back to initial min-height removes inflated scrollHeight when final > initial (fixes Bug #1)
-        // while preserving the baseline wrapper height when final <= initial (fixes Bug #2).
-        if (tailPage.bottomPairMinHeight !== initialMin) {
-          tailPage.bottomPairMinHeight = initialMin;
-          registryChanged = true;
-        }
-      } else {
-        if (tailPage.bottomPairMinHeight !== null) {
-          tailPage.bottomPairMinHeight = null;
-          registryChanged = true;
-        }
-        initialPairMinHeightRef.current = null;
+      if (tailPage.bottomPairMinHeight !== targetMin) {
+        tailPage.bottomPairMinHeight = targetMin;
+        registryChanged = true;
       }
 
       // A changed canonical tail must be REAL while the fresh pair is positioned. Its old spacer
@@ -770,15 +879,11 @@ export default function ChatArea() {
     }
 
     if (lastMessagePairRef.current) {
-      if (isTailReplacement && initialMin != null) {
-        lastMessagePairRef.current.style.minHeight = `${initialMin}px`;
-      } else {
-        lastMessagePairRef.current.style.minHeight = '';
-      }
+      lastMessagePairRef.current.style.minHeight = targetMin != null ? `${targetMin}px` : '';
     }
 
     return registryChanged;
-  }, []);
+  }, [getBaselinePairHeight]);
 
   useLayoutEffect(() => {
     const currentIdentity = {
